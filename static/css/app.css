@@ -428,3 +428,9 @@ th small{display:block;text-transform:none;letter-spacing:0;font-weight:400;colo
 .rl-ver .lb{font-size:13px;font-weight:600;color:var(--mut)}
 .rl-ver label{display:inline-flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:500;color:var(--ink);cursor:pointer;min-height:32px}
 .rl-ver input[type=checkbox]{width:18px;height:18px;min-height:0;padding:0;margin:0;accent-color:var(--blue);cursor:pointer}
+
+/* usuários: seleção de congregações */
+.cgsel{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 16px;margin-top:var(--s3)}
+.cgsel label{display:flex;flex-direction:row;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:500;color:var(--ink);cursor:pointer;min-height:32px}
+.cgsel input[type=checkbox]{width:18px;height:18px;min-height:0;padding:0;margin:0;accent-color:var(--blue);cursor:pointer;flex:none}
+.cgall{margin-top:var(--s3)}

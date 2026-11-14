@@ -92,3 +92,18 @@ Toda ocorrência registrada já vale; não existe mais "aguardando conferência"
 - **Limites conhecidos** (avisados na própria tela): sem data = considerado presente em todos os períodos; Desligado/Faleceu sem data de saída não entram; congregação e cargo são os **atuais** do cadastro (não há histórico de mudanças).
 - Cadastros antigos continuam válidos: as novas datas são opcionais. API: `GET /api/relatorios/comparativo` e página de impressão `/relatorios/comparativo/imprimir`.
 
+## 16. Usuários e permissões
+
+Dois perfis de acesso:
+
+- **Administrador:** acesso total a todas as funções e congregações. É o único que cadastra usuários (comuns ou administradores), define o perfil, escolhe as congregações de cada um, ativa/desativa contas, redefine senhas e gerencia congregações e a configuração de faixa etária. Menu **Usuários**.
+- **Usuário comum:** só enxerga e lança dados nas congregações liberadas pelo administrador. Ocorrências, membros, aniversariantes, resumo do Início, relatórios e impressões mostram somente essas congregações. Não vê (e o servidor bloqueia) Usuários, Congregações e Configuração.
+
+Como funciona a segurança:
+
+- Tudo é verificado **no servidor**, a cada requisição, direto no banco. Acessar uma rota ou API administrativa na mão, sem passar pela tela, retorna **403**. Registro de congregação não liberada retorna **404** (como se não existisse) e tentar gravar nela retorna erro de acesso.
+- Desativar o usuário, trocar o perfil, as congregações ou a senha vale **imediatamente**, mesmo com a pessoa logada.
+- O administrador não consegue rebaixar nem desativar a si mesmo, então o sistema nunca fica sem administrador. O login não pode ser alterado depois de criado. Usuários não são apagados, só desativados (o histórico dos lançamentos é preservado).
+- Usuário comum precisa ter ao menos uma congregação. Membros sem congregação só aparecem para administradores.
+- A migration `006_usuarios_permissoes.sql` converte perfis antigos (ex.: `secretario`) em usuário comum **sem congregação liberada**: depois de atualizar, entre como administrador e libere as congregações de cada um.
+- Teste automático: `python test_usuarios.py` (usa o banco `_test`).

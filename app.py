@@ -1,9 +1,10 @@
-import os, re, glob, json, sys, secrets
+import os, re, glob, json, sys, secrets, hashlib
+from functools import wraps
 import psycopg
 from dotenv import load_dotenv
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
-from flask import Flask, request, jsonify, session, redirect, render_template
+from flask import Flask, request, jsonify, session, redirect, render_template, g
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from flask.json.provider import DefaultJSONProvider
@@ -67,6 +68,13 @@ def csrf():
     if "csrf" not in session: session["csrf"] = secrets.token_hex(16)
     return session["csrf"]
 
+def _sv(senha_hash):
+    """Marca da senha atual: trocar a senha invalida as sessões abertas daquele usuário."""
+    return hashlib.sha256(senha_hash.encode()).hexdigest()[:16]
+
+def _nao_autenticado():
+    return (jsonify(erro="Sessão expirada"), 401) if request.path.startswith("/api") else redirect("/login")
+
 @app.before_request
 def auth():
     if request.endpoint in ("health", "static"): return
@@ -75,11 +83,37 @@ def auth():
         if not tk or not secrets.compare_digest(tk, session.get("csrf", "")):
             return jsonify(erro="Token de segurança inválido. Recarregue a página."), 400
     if DEV and "uid" not in session:
-        with conn() as c: u = c.execute("SELECT id,nome,perfil FROM usuarios WHERE perfil='admin' ORDER BY id LIMIT 1").fetchone()
-        if u: session.update(uid=u["id"], nome=u["nome"], perfil=u["perfil"])
+        with conn() as c: u = c.execute("SELECT id,nome,senha_hash FROM usuarios WHERE perfil='admin' AND ativo ORDER BY id LIMIT 1").fetchone()
+        if u: session.update(uid=u["id"], nome=u["nome"], sv=_sv(u["senha_hash"]))
     if request.endpoint == "login": return
-    if "uid" not in session:
-        return (jsonify(erro="Sessão expirada"), 401) if request.path.startswith("/api") else redirect("/login")
+    if "uid" not in session: return _nao_autenticado()
+    # Permissões vêm SEMPRE do banco (nunca do cookie): desativar, trocar o perfil ou as congregações
+    # de alguém vale já na próxima requisição dele.
+    with conn() as c:
+        u = c.execute("SELECT id,nome,perfil,ativo,senha_hash FROM usuarios WHERE id=%s", (session["uid"],)).fetchone()
+        if u and u["ativo"] and u["perfil"] != "admin":
+            congs = [r["congregacao_id"] for r in c.execute("SELECT congregacao_id FROM usuario_congregacoes WHERE usuario_id=%s", (u["id"],))]
+    if not u or not u["ativo"] or session.get("sv") != _sv(u["senha_hash"]):
+        session.clear(); return _nao_autenticado()
+    g.admin = u["perfil"] == "admin"
+    g.congs = None if g.admin else congs   # None = todas; lista = somente essas congregações
+    session["nome"] = u["nome"]
+
+def so_admin(f):
+    """Bloqueia a rota para quem não é administrador (a checagem é feita aqui, no servidor)."""
+    @wraps(f)
+    def w(*a, **k):
+        if not g.admin: return jsonify(erro="Acesso restrito ao administrador."), 403
+        return f(*a, **k)
+    return w
+
+def cong_ok(cid):
+    """True se o usuário logado pode acessar essa congregação."""
+    return g.admin or (cid is not None and cid in g.congs)
+
+def filtro_cong(coluna, w, p):
+    """Para usuário comum, acrescenta à consulta a restrição às congregações liberadas."""
+    if not g.admin: w.append(f"{coluna} = ANY(%s::int[])"); p.append(list(g.congs))
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -88,13 +122,13 @@ def login():
         with conn() as c:
             u = c.execute("SELECT * FROM usuarios WHERE login=%s AND ativo", (request.form["login"],)).fetchone()
         if u and check_password_hash(u["senha_hash"], request.form["senha"]):
-            session.clear(); session.permanent = True; session.update(uid=u["id"], nome=u["nome"], perfil=u["perfil"]); return redirect("/")
+            session.clear(); session.permanent = True; session.update(uid=u["id"], nome=u["nome"], sv=_sv(u["senha_hash"])); return redirect("/")
         msg = "Login ou senha inválidos."
     return render_template("login.html", csrf=csrf(), msg=msg)
 
 @app.route("/")
 def index():
-    return render_template("index.html", usuario=session["nome"], csrf=csrf())
+    return render_template("index.html", usuario=session["nome"], csrf=csrf(), admin=g.admin)
 
 @app.get("/logout")
 def logout():
@@ -119,18 +153,20 @@ def _err(e):
 
 @app.get("/api/meta")
 def meta():
+    w, p = [], []; filtro_cong("id", w, p); ex = (" AND " + w[0]) if w else ""; wt = (" WHERE " + w[0]) if w else ""
     with conn() as c:
-        cg = c.execute("SELECT id,nome FROM congregacoes WHERE ativo ORDER BY nome").fetchall()
-        todas = c.execute("SELECT id,nome,ativo FROM congregacoes ORDER BY nome").fetchall()
+        cg = c.execute("SELECT id,nome FROM congregacoes WHERE ativo" + ex + " ORDER BY nome", p).fetchall()
+        todas = c.execute("SELECT id,nome,ativo FROM congregacoes" + wt + " ORDER BY nome", p).fetchall()
     tipos = [dict(slug=s, nome=t[0], data=t[1], comuns=[dict(k=k, l=l) for k, l in t[2]], campos=[dict(k=k, l=l, g=k in ENDER) for k, l in t[3]]) for s, t in TIPOS.items()]
-    return jsonify(tipos=tipos, congregacoes=cg, todas=todas, membros=MEMBROS_META)
+    return jsonify(tipos=tipos, congregacoes=cg, todas=todas, membros=MEMBROS_META, usuario=dict(id=session["uid"], nome=session["nome"], perfil="admin" if g.admin else "usuario"))
 
 @app.get("/api/painel")
 def painel():
+    w1, p1, w2, p2 = [], [], [], []; filtro_cong("l.congregacao_id", w1, p1); filtro_cong("id", w2, p2)
     with conn() as c:
         r = c.execute("""SELECT
-          (SELECT count(*) FROM ocorrencias o JOIN lotes_ocorrencias l ON l.id=o.lote_id WHERE o.cancelado_em IS NULL AND l.situacao<>'Cancelada' AND date_trunc('month',l.data_ocorrencia)=date_trunc('month',current_date)) mes,
-          (SELECT count(*) FROM congregacoes WHERE ativo) cong""").fetchone()
+          (SELECT count(*) FROM ocorrencias o JOIN lotes_ocorrencias l ON l.id=o.lote_id WHERE o.cancelado_em IS NULL AND l.situacao<>'Cancelada' AND date_trunc('month',l.data_ocorrencia)=date_trunc('month',current_date)""" + "".join(" AND " + x for x in w1) + """) mes,
+          (SELECT count(*) FROM congregacoes WHERE ativo""" + "".join(" AND " + x for x in w2) + ") cong", p1 + p2).fetchone()
     return jsonify(r)
 
 LISTA = """SELECT l.id,l.data_ocorrencia,t.nome tipo,t.slug tipo_slug,c.nome congregacao,l.situacao,u.nome responsavel,
@@ -141,6 +177,7 @@ LISTA = """SELECT l.id,l.data_ocorrencia,t.nome tipo,t.slug tipo_slug,c.nome con
 @app.get("/api/lotes")
 def lotes():
     a, w, p = request.args, [], []
+    filtro_cong("l.congregacao_id", w, p)
     if a.get("de"): w.append("l.data_ocorrencia>=%s"); p.append(a["de"])
     if a.get("ate"): w.append("l.data_ocorrencia<=%s"); p.append(a["ate"])
     if a.get("tipo"): w.append("t.slug=%s"); p.append(a["tipo"])
@@ -155,6 +192,7 @@ def lotes():
 @app.get("/api/registros")
 def registros():
     a, w, p = request.args, ["o.cancelado_em IS NULL", "l.situacao<>'Cancelada'"], []
+    filtro_cong("l.congregacao_id", w, p)
     if a.get("tipo"): w.append("t.slug=%s"); p.append(a["tipo"])
     if a.get("de"): w.append("l.data_ocorrencia>=%s"); p.append(a["de"])
     if a.get("ate"): w.append("l.data_ocorrencia<=%s"); p.append(a["ate"])
@@ -174,7 +212,7 @@ def ver_oc(id):
     with conn() as c:
         o = c.execute("""SELECT o.id,t.slug tipo,l.data_ocorrencia data,l.congregacao_id,l.dados_comuns comuns,o.dados_especificos campos FROM ocorrencias o
           JOIN lotes_ocorrencias l ON l.id=o.lote_id JOIN tipos_ocorrencia t ON t.id=l.tipo_ocorrencia_id WHERE o.id=%s AND o.cancelado_em IS NULL""", (id,)).fetchone()
-    return (jsonify(o), 200) if o else (jsonify(erro="Registro não encontrado."), 404)
+    return (jsonify(o), 200) if o and cong_ok(o["congregacao_id"]) else (jsonify(erro="Registro não encontrado."), 404)
 
 @app.post("/api/ocorrencias")
 def criar_oc():
@@ -188,7 +226,7 @@ def editar_oc(id):
     with conn() as c:
         o = c.execute("""SELECT o.id,o.lote_id,o.dados_especificos,t.slug tipo,l.congregacao_id,l.data_ocorrencia,l.dados_comuns FROM ocorrencias o
           JOIN lotes_ocorrencias l ON l.id=o.lote_id JOIN tipos_ocorrencia t ON t.id=l.tipo_ocorrencia_id WHERE o.id=%s AND o.cancelado_em IS NULL""", (id,)).fetchone()
-        if not o: return jsonify(erro="Registro não encontrado."), 404
+        if not o or not cong_ok(o["congregacao_id"]): return jsonify(erro="Registro não encontrado."), 404
         d["linhas"] = [d.pop("campos", {})]
         ok, erros = validar(o["tipo"], d, o["congregacao_id"])
         if erros: return jsonify(erros=erros), 400
@@ -209,8 +247,8 @@ def editar_oc(id):
 @app.delete("/api/ocorrencias/<int:id>")
 def excluir_oc(id):
     with conn() as c:
-        o = c.execute("SELECT lote_id,nome,dados_especificos FROM ocorrencias WHERE id=%s AND cancelado_em IS NULL", (id,)).fetchone()
-        if not o: return jsonify(erro="Registro não encontrado."), 404
+        o = c.execute("SELECT o.lote_id,o.nome,o.dados_especificos,l.congregacao_id FROM ocorrencias o JOIN lotes_ocorrencias l ON l.id=o.lote_id WHERE o.id=%s AND o.cancelado_em IS NULL", (id,)).fetchone()
+        if not o or not cong_ok(o["congregacao_id"]): return jsonify(erro="Registro não encontrado."), 404
         c.execute("UPDATE ocorrencias SET cancelado_em=now(),updated_at=now() WHERE id=%s", (id,))
         c.execute("INSERT INTO historico_ocorrencias(ocorrencia_id,lote_id,usuario_id,acao,dados_anteriores) VALUES(%s,%s,%s,'excluída',%s)", (id, o["lote_id"], session["uid"], Jsonb(o["dados_especificos"])))
         if not c.execute("SELECT 1 FROM ocorrencias WHERE lote_id=%s AND cancelado_em IS NULL", (o["lote_id"],)).fetchone():
@@ -225,6 +263,7 @@ def validar(slug, d, manter=0):
     with conn() as c:
         cg = c.execute("SELECT 1 FROM congregacoes WHERE id=%s AND (ativo OR id=%s)", (d.get("congregacao_id") or 0, manter or 0)).fetchone()
     if not cg: erros.append(dict(linha=0, msg="Selecione uma congregação ativa."))
+    elif not cong_ok(_int(d.get("congregacao_id"), None)): erros.append(dict(linha=0, msg="Você não tem acesso à congregação selecionada."))
     linhas = d.get("linhas") or []
     if not linhas: erros.append(dict(linha=0, msg="Adicione ao menos uma pessoa."))
     regs = []
@@ -233,8 +272,8 @@ def validar(slug, d, manter=0):
         falta = [lb for k, lb in t[3] if k in t[4] and not v[k]]
         if falta: erros.append(dict(linha=i, msg="Preencha: " + ", ".join(falta)))
         if v.get("cep"):
-            d = re.sub(r"\D", "", v["cep"])
-            if len(d) == 8: v["cep"] = d[:5] + "-" + d[5:]
+            dig = re.sub(r"\D", "", v["cep"])
+            if len(dig) == 8: v["cep"] = dig[:5] + "-" + dig[5:]
             else: erros.append(dict(linha=i, msg="CEP inválido (use 8 dígitos)."))
         if v.get("uf"):
             v["uf"] = v["uf"].upper()
@@ -276,14 +315,14 @@ def carregar(c, id):
 @app.get("/api/lotes/<int:id>")
 def ver(id):
     with conn() as c: l = carregar(c, id)
-    return (jsonify(l), 200) if l else (jsonify(erro="Não encontrado"), 404)
+    return (jsonify(l), 200) if l and cong_ok(l["congregacao_id"]) else (jsonify(erro="Não encontrado"), 404)
 
 @app.put("/api/lotes/<int:id>")
 def editar(id):
     d = request.get_json()
     with conn() as c:
         l = carregar(c, id)
-        if not l: return jsonify(erro="Não encontrado"), 404
+        if not l or not cong_ok(l["congregacao_id"]): return jsonify(erro="Não encontrado"), 404
         if l["situacao"] == "Cancelada": return jsonify(erros=[dict(linha=0, msg="Lotes cancelados não podem ser editados.")]), 400
         d["tipo"] = l["tipo"]
         ok, erros = validar(l["tipo"], d)
@@ -300,7 +339,8 @@ def editar(id):
 def mudar(id, acao):
     if acao != "cancelar": return jsonify(erro="Ação inválida"), 400
     with conn() as c:
-        l = c.execute("SELECT situacao FROM lotes_ocorrencias WHERE id=%s", (id,)).fetchone()
+        l = c.execute("SELECT situacao,congregacao_id FROM lotes_ocorrencias WHERE id=%s", (id,)).fetchone()
+        if l and not cong_ok(l["congregacao_id"]): return jsonify(erro="Não encontrado"), 404
         if not l or l["situacao"] == "Cancelada":
             return jsonify(erro="Ação não permitida para a situação atual."), 400
         c.execute("UPDATE lotes_ocorrencias SET situacao='Cancelada',updated_at=now(),cancelado_em=now() WHERE id=%s", (id,))
@@ -310,6 +350,7 @@ def mudar(id, acao):
 
 @app.post("/api/congregacoes")
 @app.put("/api/congregacoes/<int:id>")
+@so_admin
 def congregacao(id=None):
     d = request.get_json(); nome = (d.get("nome") or "").strip()
     if not nome: return jsonify(erro="Informe o nome da congregação."), 400
@@ -322,6 +363,7 @@ def congregacao(id=None):
     return jsonify(ok=True)
 
 @app.delete("/api/congregacoes/<int:id>")
+@so_admin
 def excluir_congregacao(id):
     with conn() as c:
         if c.execute("SELECT 1 FROM lotes_ocorrencias WHERE congregacao_id=%s LIMIT 1", (id,)).fetchone():
@@ -331,7 +373,8 @@ def excluir_congregacao(id):
 
 @app.get("/api/congregacoes")
 def congregacoes():
-    with conn() as c: return jsonify(c.execute("SELECT id,nome,codigo,ativo FROM congregacoes ORDER BY nome").fetchall())
+    w, p = [], []; filtro_cong("id", w, p)
+    with conn() as c: return jsonify(c.execute("SELECT id,nome,codigo,ativo FROM congregacoes" + (" WHERE " + w[0] if w else "") + " ORDER BY nome", p).fetchall())
 
 # ===================== MEMBROS, HISTÓRICO E ANIVERSARIANTES =====================
 from datetime import date, datetime
@@ -436,6 +479,7 @@ def validar_historico(lista):
 @app.get("/api/membros")
 def membros():
     a, w, p = request.args, ["m.excluido_em IS NULL"], []
+    filtro_cong("m.congregacao_id", w, p)
     if a.get("status"): w.append("m.status=%s"); p.append(a["status"])
     if a.get("cong"): w.append("m.congregacao_id=%s"); p.append(_int(a["cong"]))
     if a.get("membresia"): w.append("m.status_membresia=%s"); p.append(a["membresia"])
@@ -454,7 +498,7 @@ def membros():
 def ver_membro(id):
     with conn() as c:
         m = c.execute("SELECT m.*,cg.nome congregacao FROM membros m LEFT JOIN congregacoes cg ON cg.id=m.congregacao_id WHERE m.id=%s AND m.excluido_em IS NULL", (id,)).fetchone()
-        if not m: return jsonify(erro="Membro não encontrado."), 404
+        if not m or not cong_ok(m["congregacao_id"]): return jsonify(erro="Membro não encontrado."), 404
         m["historico"] = c.execute("SELECT id,data,secretario_nome secretario,descricao FROM historico_membro WHERE membro_id=%s ORDER BY data,id", (id,)).fetchall()
     m.pop("nome_busca", None)
     return jsonify(m)
@@ -472,7 +516,8 @@ def salvar_membro(id=None):
             atual = None
             if id:
                 atual = c.execute("SELECT congregacao_id FROM membros WHERE id=%s AND excluido_em IS NULL FOR UPDATE", (id,)).fetchone()
-                if not atual: return jsonify(erro="Membro não encontrado."), 404
+                if not atual or not cong_ok(atual["congregacao_id"]): return jsonify(erro="Membro não encontrado."), 404
+            if not cong_ok(v["congregacao_id"]): return jsonify(erros=[dict(msg="Você não tem acesso à congregação selecionada.")]), 403
             if v["congregacao_id"] and not c.execute("SELECT 1 FROM congregacoes WHERE id=%s AND (ativo OR id=%s)", (v["congregacao_id"], (atual or {}).get("congregacao_id") or 0)).fetchone():
                 return jsonify(erros=[dict(msg="Selecione uma congregação ativa.")]), 400
             vals = [v[k] for k in COLS_MEMBRO]
@@ -489,8 +534,9 @@ def salvar_membro(id=None):
 
 @app.delete("/api/membros/<int:id>")
 def excluir_membro(id):
+    w, p = ["id=%s", "excluido_em IS NULL"], [id]; filtro_cong("congregacao_id", w, p)
     with conn() as c:  # exclusão lógica: o cadastro sai das telas, o histórico permanece no banco
-        n = c.execute("UPDATE membros SET excluido_em=now(),updated_at=now() WHERE id=%s AND excluido_em IS NULL", (id,)).rowcount
+        n = c.execute("UPDATE membros SET excluido_em=now(),updated_at=now() WHERE " + " AND ".join(w), p).rowcount
     return (jsonify(ok=True), 200) if n else (jsonify(erro="Membro não encontrado."), 404)
 
 def consultar_aniversariantes(a):
@@ -501,6 +547,7 @@ def consultar_aniversariantes(a):
     if a.get("mes") and not 1 <= mes <= 12: return None, "Mês inválido."
     if de and ate and ate < de: return None, "O período final não pode ser anterior ao período inicial."
     w, p = ["m.excluido_em IS NULL", "m.data_nascimento IS NOT NULL", "m.status <> ALL(%s::text[])"], [list(SEM_ANIVERSARIO)]
+    filtro_cong("m.congregacao_id", w, p)
     if a.get("cong"): w.append("m.congregacao_id=%s"); p.append(_int(a["cong"]))
     if a.get("nome"): w.append("m.nome_busca LIKE '%%'||f_unaccent(%s)||'%%'"); p.append(a["nome"])
     with conn() as c:
@@ -545,10 +592,10 @@ def imprimir_aniversariantes():
     a = request.args
     rows, erro = consultar_aniversariantes(a)
     if erro: return erro, 400
-    cong = "Todas"
+    cong = "Todas" if g.admin else "Todas as suas congregações"
     if a.get("cong"):
         with conn() as c: x = c.execute("SELECT nome FROM congregacoes WHERE id=%s", (_int(a["cong"]),)).fetchone()
-        cong = x["nome"] if x else "–"
+        cong = x["nome"] if x and cong_ok(_int(a["cong"])) else "–"
     grupos = [(MESES[k - 1] if len({r["mes"] for r in rows}) > 1 else None, list(g)) for k, g in groupby(rows, key=lambda r: r["mes"])]
     return render_template("aniversariantes_imprimir.html", grupos=grupos, total=len(rows), consulta=texto_consulta(a), congregacao=cong,
                            nome=(a.get("nome") or "").strip(), emitido=datetime.now().strftime("%d/%m/%Y %H:%M"), usuario=session.get("nome", ""))
@@ -595,6 +642,7 @@ def ver_faixas():
     return jsonify(faixas=faixas_descricao(lim), padrao=FAIXAS_PADRAO)
 
 @app.put("/api/config/faixas-etarias")
+@so_admin
 def salvar_faixas():
     v, erros = validar_limites(request.get_json(silent=True))
     if erros: return jsonify(erros=erros), 400
@@ -628,7 +676,8 @@ def resumo_membros(rows, lim, hoje):
 def painel_membros():
     with conn() as c:
         lim = carregar_limites(c)
-        rows = c.execute("SELECT sexo,status_membresia,data_nascimento FROM membros WHERE excluido_em IS NULL AND status='Ativo'").fetchall()
+        w, p = ["excluido_em IS NULL", "status='Ativo'"], []; filtro_cong("congregacao_id", w, p)
+        rows = c.execute("SELECT sexo,status_membresia,data_nascimento FROM membros WHERE " + " AND ".join(w), p).fetchall()
     return jsonify(resumo_membros(rows, lim, date.today()))
 
 # ===================== RELATÓRIO COMPARATIVO (período atual x anterior) =====================
@@ -716,19 +765,22 @@ def relatorio_comparativo(a):
     ant = periodo_anterior(de, ate); atu = (de, ate)
     notas = []
     with conn() as c:
-        congs = c.execute("SELECT id,nome,ativo FROM congregacoes ORDER BY nome").fetchall()
+        wc, pc = [], []; filtro_cong("id", wc, pc)
+        congs = c.execute("SELECT id,nome,ativo FROM congregacoes" + (" WHERE " + wc[0] if wc else "") + " ORDER BY nome", pc).fetchall()
         if tipo == "ocorrencia":
             w, p = ["o.cancelado_em IS NULL", "l.situacao<>'Cancelada'", "l.data_ocorrencia BETWEEN %s AND %s"], [ant[0], ate]
             if chave: w.append("t.slug=%s"); p.append(chave)
+            filtro_cong("l.congregacao_id", w, p)
             rows = c.execute("SELECT l.congregacao_id,l.data_ocorrencia data,count(*) n FROM ocorrencias o JOIN lotes_ocorrencias l ON l.id=o.lote_id "
                              "JOIN tipos_ocorrencia t ON t.id=l.tipo_ocorrencia_id WHERE " + " AND ".join(w) + " GROUP BY l.congregacao_id,l.data_ocorrencia", p).fetchall()
             cont = contar_ocorrencias(rows, ant, atu)
             notas.append("Conta os registros (pessoas) pela data da ocorrência, dentro de cada período. Ocorrências canceladas não entram.")
         else:
+            wm, pm = ["excluido_em IS NULL"], []; filtro_cong("congregacao_id", wm, pm)
             membros = c.execute("SELECT congregacao_id,status_membresia,cargo,data_chegada,data_recebimento,data_saida FROM membros "
-                                "WHERE excluido_em IS NULL AND (status='Ativo' OR data_saida IS NOT NULL)").fetchall()
+                                "WHERE " + " AND ".join(wm) + " AND (status='Ativo' OR data_saida IS NOT NULL)", pm).fetchall()
             cont, sem_data = contar_estoque(membros, chave, ant, atu)
-            sem_saida = c.execute("SELECT count(*) n FROM membros WHERE excluido_em IS NULL AND status IN ('Desligado','Faleceu') AND data_saida IS NULL").fetchone()["n"]
+            sem_saida = c.execute("SELECT count(*) n FROM membros WHERE " + " AND ".join(wm) + " AND status IN ('Desligado','Faleceu') AND data_saida IS NULL", pm).fetchone()["n"]
             notas.append(f"Posição no fim de cada período ({ant[1]:%d/%m/%Y} e {ate:%d/%m/%Y}), calculada pelas datas da ficha: chegada à igreja, recebimento (registro como membro) e saída (carta, falecimento ou desligamento).")
             if sem_data: notas.append(f"{sem_data} cadastro(s) sem data de chegada nem de recebimento foram considerados presentes em todos os períodos.")
             if sem_saida: notas.append(f"{sem_saida} cadastro(s) Desligado/Faleceu sem data de saída não entram na contagem; informe a data na ficha para que sejam considerados.")
@@ -755,6 +807,85 @@ def imprimir_comparativo():
     r, erro = relatorio_comparativo(request.args)
     if erro: return erro, 400
     return render_template("relatorio_comparativo_imprimir.html", r=r, emitido=datetime.now().strftime("%d/%m/%Y %H:%M"), usuario=session.get("nome", ""))
+
+# ===================== USUÁRIOS E PERMISSÕES (somente administrador) =====================
+PERFIS = ("admin", "usuario")
+LOGIN_RE = re.compile(r"^[A-Za-z0-9._-]{3,40}$")
+
+class SemAdmin(Exception): pass
+
+def validar_usuario(d, c, novo):
+    """Valida os dados enviados pelo administrador. Retorna (valores, erros)."""
+    erros, v = [], {}
+    v["nome"] = (d.get("nome") or "").strip()
+    if not v["nome"]: erros.append("Informe o nome do usuário.")
+    elif len(v["nome"]) > 120: erros.append("Nome muito longo (máx. 120 caracteres).")
+    if novo:
+        v["login"] = (d.get("login") or "").strip()
+        if not LOGIN_RE.fullmatch(v["login"]): erros.append("Login inválido: use de 3 a 40 letras, números, ponto, hífen ou sublinhado.")
+    v["perfil"] = d.get("perfil")
+    if v["perfil"] not in PERFIS: erros.append("Selecione o perfil de acesso."); v["perfil"] = None
+    v["ativo"] = d.get("ativo") is not False and d.get("ativo") not in (0, "0", "false")
+    senha = d.get("senha") or ""
+    if senha or novo:
+        if not isinstance(senha, str) or not 8 <= len(senha) <= 128: erros.append("A senha deve ter entre 8 e 128 caracteres.")
+        else: v["senha"] = senha
+    ids = d.get("congregacoes") or []
+    if not isinstance(ids, list) or any(not isinstance(i, int) or isinstance(i, bool) for i in ids): erros.append("Lista de congregações inválida."); ids = []
+    ids = sorted(set(ids))
+    if ids:
+        ok = {r["id"] for r in c.execute("SELECT id FROM congregacoes WHERE id = ANY(%s::int[])", (ids,))}
+        if len(ok) != len(ids): erros.append("Há congregação inexistente na lista.")
+    if v["perfil"] == "usuario" and not ids: erros.append("Selecione ao menos uma congregação para o usuário comum.")
+    v["congregacoes"] = [] if v["perfil"] == "admin" else ids   # administrador acessa todas
+    return v, erros
+
+@app.get("/api/usuarios")
+@so_admin
+def listar_usuarios():
+    with conn() as c:
+        return jsonify(c.execute("""SELECT u.id,u.nome,u.login,u.perfil,u.ativo,
+            coalesce(array_agg(uc.congregacao_id ORDER BY uc.congregacao_id) FILTER (WHERE uc.congregacao_id IS NOT NULL),'{}') congregacoes
+            FROM usuarios u LEFT JOIN usuario_congregacoes uc ON uc.usuario_id=u.id GROUP BY u.id ORDER BY lower(u.nome),u.id""").fetchall())
+
+def gravar_congs(c, uid, ids):
+    c.execute("DELETE FROM usuario_congregacoes WHERE usuario_id=%s", (uid,))
+    for i in ids: c.execute("INSERT INTO usuario_congregacoes(usuario_id,congregacao_id) VALUES(%s,%s)", (uid, i))
+
+@app.post("/api/usuarios")
+@so_admin
+def criar_usuario():
+    d = request.get_json(silent=True) or {}
+    try:
+        with conn() as c:
+            v, erros = validar_usuario(d, c, True)
+            if erros: return jsonify(erros=[dict(msg=m) for m in erros]), 400
+            uid = c.execute("INSERT INTO usuarios(nome,login,senha_hash,perfil,ativo) VALUES(%s,%s,%s,%s,%s) RETURNING id",
+                            (v["nome"], v["login"], generate_password_hash(v["senha"]), v["perfil"], v["ativo"])).fetchone()["id"]
+            gravar_congs(c, uid, v["congregacoes"])
+    except psycopg.errors.UniqueViolation:
+        return jsonify(erros=[dict(msg="Já existe um usuário com esse login.")]), 400
+    return jsonify(id=uid), 201
+
+@app.put("/api/usuarios/<int:id>")
+@so_admin
+def editar_usuario(id):
+    d = request.get_json(silent=True) or {}
+    try:
+        with conn() as c:
+            c.execute("SELECT id FROM usuarios WHERE perfil='admin' AND ativo FOR UPDATE")  # serializa mudanças de administradores
+            if not c.execute("SELECT 1 FROM usuarios WHERE id=%s", (id,)).fetchone(): return jsonify(erro="Usuário não encontrado."), 404
+            v, erros = validar_usuario(d, c, False)
+            if id == session["uid"] and (v.get("perfil") != "admin" or not v["ativo"]):
+                erros.append("Você não pode alterar o seu próprio perfil nem desativar a sua própria conta.")
+            if erros: return jsonify(erros=[dict(msg=m) for m in erros]), 400
+            c.execute("UPDATE usuarios SET nome=%s,perfil=%s,ativo=%s,updated_at=now() WHERE id=%s", (v["nome"], v["perfil"], v["ativo"], id))
+            if "senha" in v: c.execute("UPDATE usuarios SET senha_hash=%s WHERE id=%s", (generate_password_hash(v["senha"]), id))
+            gravar_congs(c, id, v["congregacoes"])
+            if not c.execute("SELECT 1 FROM usuarios WHERE perfil='admin' AND ativo LIMIT 1").fetchone(): raise SemAdmin()
+    except SemAdmin:
+        return jsonify(erros=[dict(msg="O sistema precisa ter ao menos um administrador ativo.")]), 400
+    return jsonify(ok=True)
 
 def trocar_senha():
     from getpass import getpass

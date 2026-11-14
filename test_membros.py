@@ -78,7 +78,8 @@ h = call(f"/api/membros/{jose}")[1]["historico"]
 t("histórico em ordem cronológica (antigo → recente)", s == 200 and [x["data"] for x in h] == ["2015-01-05", "2022-03-10"])
 t("secretário = usuário logado (ignora o enviado)", all(x["secretario"] == "Administrador" for x in h))
 with psycopg.connect(url) as c:
-    c.execute("INSERT INTO usuarios(nome,login,senha_hash,perfil) VALUES('Secretária Teste','sec1',%s,'secretario')", (A.generate_password_hash("senha-sec-123"),))
+    uid_sec = c.execute("INSERT INTO usuarios(nome,login,senha_hash,perfil) VALUES('Secretária Teste','sec1',%s,'usuario') RETURNING id", (A.generate_password_hash("senha-sec-123"),)).fetchone()[0]
+    for cid in (mz, ct): c.execute("INSERT INTO usuario_congregacoes(usuario_id,congregacao_id) VALUES(%s,%s)", (uid_sec, cid))
 c3 = A.app.test_client(); entrar(c3, "sec1", "senha-sec-123")
 call(f"/api/membros/{jose}", put_jose(historico_novo=[{"data": "2024-06-01", "descricao": "Transferido de congregação"}]), "PUT", c3)
 h = call(f"/api/membros/{jose}")[1]["historico"]

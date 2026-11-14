@@ -56,10 +56,11 @@
     <a href="#" data-v="mb"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>Membros</a>
     <a href="#" data-v="an"><svg class="ic" aria-hidden="true"><use href="#i-gift"/></svg>Aniversariantes</a>
     <a href="#" data-v="rl"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>Relatórios</a>
-    <a href="#" data-v="cg"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg>Congregações</a>
-    <a href="#" data-v="cf"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Configuração</a>
+{% if admin %}    <a href="#" data-v="cg"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg>Congregações</a>
+    <a href="#" data-v="us"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>Usuários</a>
+    <a href="#" data-v="cf"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Configuração</a>{% endif %}
   </nav>
-  <div class="userbox"><span class="avatar" aria-hidden="true">{{ usuario[:1]|upper }}</span><div class="who"><b>{{usuario}}</b><span>Usuário conectado</span></div>
+  <div class="userbox"><span class="avatar" aria-hidden="true">{{ usuario[:1]|upper }}</span><div class="who"><b>{{usuario}}</b><span>{{ "Administrador" if admin else "Usuário comum" }}</span></div>
     <a class="out" href="/logout" title="Sair" aria-label="Sair"><svg class="ic" aria-hidden="true"><use href="#i-out"/></svg></a></div>
 </aside>
 
@@ -153,6 +154,13 @@
   <div class="card flush"><div class="t"><table class="rt"><thead><tr><th>Congregação</th><th>Código</th><th>Situação</th><th class="ac">Ações</th></tr></thead><tbody id="ct"></tbody></table></div></div>
 </section>
 
+{% if admin %}<section id="us" hidden aria-labelledby="h-us">
+  <div class="ph-page"><div><h1 id="h-us">Usuários</h1><p class="s">Cadastre usuários, defina o perfil de acesso e as congregações liberadas para cada um</p></div>
+    <div class="acts"><button type="button" class="p" id="usn"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Novo usuário</button></div></div>
+  <div id="uer" class="alert" role="alert"></div>
+  <div class="card flush"><div class="t"><table class="rt"><thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th>Congregações</th><th>Situação</th><th class="ac">Ações</th></tr></thead><tbody id="utb"></tbody></table></div></div>
+</section>
+{% endif %}
 <section id="cf" hidden aria-labelledby="h-cf">
   <div class="ph-page"><div><h1 id="h-cf">Configuração</h1><p class="s">Ajustes gerais do sistema</p></div></div>
   <div class="tabs" role="tablist" aria-label="Seções da configuração"><button type="button" class="tab" role="tab" id="tab-fx" aria-selected="true" aria-controls="cf-fx">Faixa etária</button></div>
@@ -177,6 +185,7 @@
 
 <script>
 const $=s=>document.querySelector(s),H=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ADMIN={{admin|tojson}};
 let M={},T={};
 const api=async(u,o)=>{const r=await fetch(u,o&&{method:o.m,headers:{'Content-Type':'application/json','X-CSRF-Token':document.querySelector('meta[name=csrf]').content},body:JSON.stringify(o.b)});if(r.status==401)location='/login';const j=await r.json();return{ok:r.ok,j}};
 const ico=n=>`<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-${n}"/></svg>`;
@@ -189,14 +198,14 @@ const lock=()=>document.body.classList.toggle('lock',side.classList.contains('on
 const menu=on=>{side.classList.toggle('on',on);scrim.classList.toggle('on',on);mbtn.setAttribute('aria-expanded',on);mbtn.setAttribute('aria-label',on?'Fechar menu':'Abrir menu');lock()};
 mbtn.onclick=()=>menu(!side.classList.contains('on'));scrim.onclick=()=>menu(false);
 window.addEventListener('resize',()=>{if(innerWidth>900&&side.classList.contains('on'))menu(false)});
-function show(v){['home','oc','mb','an','rl','cg','cf'].forEach(i=>$('#'+i).hidden=i!=v);document.querySelectorAll('nav a[data-v]').forEach(a=>{const on=a.dataset.v==v;a.classList.toggle('on',on);on?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});menu(false);window.scrollTo(0,0);if(v=='home')painel();if(v=='oc')lista();if(v=='mb')membros(1);if(v=='an'){if(!ANIV_INI){ANIV_INI=true;$('#ames').value=String(new Date().getMonth()+1)}anivers()}if(v=='rl'){if(!REL_INI){REL_INI=true;relPadrao()}relatorio()}if(v=='cg')congs();if(v=='cf')config()}
+function show(v){if(!ADMIN&&['cg','cf','us'].includes(v))v='home';['home','oc','mb','an','rl','cg','cf','us'].forEach(i=>{const e=$('#'+i);if(e)e.hidden=i!=v});document.querySelectorAll('nav a[data-v]').forEach(a=>{const on=a.dataset.v==v;a.classList.toggle('on',on);on?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});menu(false);window.scrollTo(0,0);if(v=='home')painel();if(v=='oc')lista();if(v=='mb')membros(1);if(v=='an'){if(!ANIV_INI){ANIV_INI=true;$('#ames').value=String(new Date().getMonth()+1)}anivers()}if(v=='rl'){if(!REL_INI){REL_INI=true;relPadrao()}relatorio()}if(v=='cg')congs();if(v=='cf')config();if(v=='us')usuarios()}
 document.querySelectorAll('nav a[data-v]').forEach(a=>a.onclick=e=>{e.preventDefault();show(a.dataset.v)});
 $('#qo').onclick=()=>{show('oc');form()};
 /* cartões do Início levam à lista correspondente (o filtro é aplicado antes de abrir a tela, evitando consulta dupla) */
 const isoD=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function irOc(f){['fde','fate','fcong','ftipo','fnome'].forEach(i=>$('#'+i).value='');$('#fde').value=f.de||'';$('#fate').value=f.ate||'';PG=1;show('oc')}
 $('#kp1').onclick=()=>{const n=new Date();irOc({de:isoD(new Date(n.getFullYear(),n.getMonth(),1)),ate:isoD(new Date(n.getFullYear(),n.getMonth()+1,0))})};
-$('#kp2').onclick=()=>show('cg');$('#qm').onclick=()=>{show('mb');ficha()};$('#qa').onclick=()=>show('an');
+$('#kp2').onclick=()=>{if(ADMIN)show('cg')};if(!ADMIN){$('#kp2').style.cursor='default';$('#kp2 .go').style.display='none'}$('#qm').onclick=()=>{show('mb');ficha()};$('#qa').onclick=()=>show('an');
 async function meta(){M=(await api('/api/meta')).j;M.tipos.forEach(t=>T[t.slug]=t);
  $('#ftipo').innerHTML='<option value="">Todas (11)</option>'+M.tipos.map(t=>`<option value="${t.slug}">${H(t.nome)}</option>`).join('');
  $('#fcong').innerHTML='<option value="">Todas</option>'+M.todas.map(c=>`<option value="${c.id}">${H(c.nome)}</option>`).join('');prepM()}
@@ -211,7 +220,7 @@ async function resumo(){const er=$('#rm-er');let r;try{r=await api('/api/painel/
  $('#rm-sex').innerHTML=tile('Mulheres',d.mulheres,pct(d.mulheres,comSexo)+'%',pct(d.mulheres,comSexo))+tile('Homens',d.homens,pct(d.homens,comSexo)+'%',pct(d.homens,comSexo),'t2');
  $('#rm-fx').innerHTML=d.faixas.map((f,i)=>tile(f.nome,f.total,`${f.ate==null?f.de+' anos ou mais':f.de+' a '+f.ate+' anos'} · ${pct(f.total,comNasc)}%`,pct(f.total,comNasc),['','t2','t3','',' t2'][i])).join('');
  const n=[];if(d.sem_nascimento)n.push(`${nf(d.sem_nascimento)} sem data de nascimento (fora das faixas etárias)`);if(d.sem_sexo)n.push(`${nf(d.sem_sexo)} sem sexo informado`);
- const nt=$('#rm-nota');nt.hidden=false;nt.innerHTML=(n.length?H(n.join(' · '))+' · ':'')+'<button type="button" class="many" id="rm-cfg">Configurar faixas etárias</button>';$('#rm-cfg').onclick=()=>{show('cf')}}
+ const nt=$('#rm-nota');nt.hidden=false;nt.innerHTML=(n.length?H(n.join(' · '))+' · ':'')+(ADMIN?'<button type="button" class="many" id="rm-cfg">Configurar faixas etárias</button>':'');if(ADMIN)$('#rm-cfg').onclick=()=>{show('cf')}}
 const WIDE=['nome','crianca','mae','pai','noivo','noiva','email','motivo','destino','origem','obs','descricao'];
 /* ===== modais: cabeçalho + corpo com rolagem + rodapé de ações ===== */
 let opener=null;
@@ -427,6 +436,36 @@ function relVerAplicar(){const v=relVerLer();let n=0;REL_VER.forEach(k=>{const o
 document.querySelectorAll('[data-ver]').forEach(c=>c.onchange=()=>{const v=relVerLer();v[c.dataset.ver]=c.checked;try{localStorage.setItem('relver',JSON.stringify(v))}catch(_){}relVerAplicar()});
 relVerAplicar();
 $('#rlg').onclick=relatorio;$('#rld').onchange=relatorio;$('#rll').onclick=()=>{relPadrao();relatorio()};$('#rlp').onclick=()=>window.open('/relatorios/comparativo/imprimir?'+RQ,'_blank');
+/* ===== Usuários e permissões (somente administrador; o servidor também bloqueia qualquer acesso indevido) ===== */
+let UL=[];
+async function usuarios(){const er=$('#uer');er.textContent='';const r=await api('/api/usuarios');if(!r.ok){er.textContent=r.j.erro||'Não foi possível carregar os usuários.';return}UL=r.j;
+ const nm=id=>(M.todas.find(c=>c.id==id)||{}).nome||('#'+id);
+ $('#utb').innerHTML=UL.map(u=>{const eu=u.id==M.usuario.id,adm=u.perfil=='admin';return `<tr><td class="nm" data-label="Nome">${H(u.nome)}${eu?' <span class="hint">(você)</span>':''}</td><td data-label="Login">${H(u.login)}</td><td data-label="Perfil"><span class="badge ${adm?'st-Ativo':'st-Congregado'}">${adm?'Administrador':'Usuário comum'}</span></td><td data-label="Congregações">${adm?'Todas':H(u.congregacoes.map(nm).join(', ')||'–')}</td><td data-label="Situação"><span class="badge ${u.ativo?'ok':'st-Inativo'}">${u.ativo?'Ativo':'Inativo'}</span></td><td class="ac"><div class="acoes">${ib(`data-ue="${u.id}"`,'edit','Editar')}${eu?'':ib(`data-ut="${u.id}"`,'power',u.ativo?'Desativar':'Ativar')}</div></td></tr>`}).join('')}
+function formUsuario(id){const o=id?UL.find(u=>u.id==id):null,eu=!!o&&o.id==M.usuario.id,v=o||{nome:'',login:'',perfil:'usuario',ativo:true,congregacoes:[]},rq='<span class="req" aria-hidden="true">*</span>';
+ open_(`<h2>${o?'Editar usuário':'Novo usuário'}</h2>
+ <div class="f"><label class="w2"><span>Nome${rq}</span><input data-u="nome" value="${H(v.nome)}" maxlength="120"></label>
+ <label><span>Login${rq}</span><input data-u="login" value="${H(v.login)}" maxlength="40" autocomplete="off" ${o?'disabled':''}></label>
+ <label><span>${o?'Nova senha':'Senha'}${o?'':rq}</span><input type="password" data-u="senha" autocomplete="new-password" maxlength="128" placeholder="${o?'Deixe em branco para manter':'Mínimo de 8 caracteres'}"></label>
+ <label><span>Perfil de acesso</span><select data-u="perfil" ${eu?'disabled':''}><option value="usuario" ${v.perfil=='usuario'?'selected':''}>Usuário comum</option><option value="admin" ${v.perfil=='admin'?'selected':''}>Administrador</option></select></label>
+ <label><span>Situação</span><select data-u="ativo" ${eu?'disabled':''}><option value="1" ${v.ativo?'selected':''}>Ativo</option><option value="0" ${v.ativo?'':'selected'}>Inativo</option></select></label></div>
+ <div id="ucg"><h3 class="sec">Congregações liberadas</h3><p class="hint" style="margin:0">O usuário comum só enxerga e lança dados nas congregações marcadas aqui.</p>
+ <div class="cgsel">${M.todas.map(c=>`<label><input type="checkbox" data-cg="${c.id}" ${v.congregacoes.includes(c.id)?'checked':''}>${H(c.nome)}${c.ativo?'':' (inativa)'}</label>`).join('')}</div>
+ <button type="button" class="cgall" id="ucall">Marcar todas</button></div>
+ <p class="hint" id="uadm" style="margin:12px 0 0" hidden>Administradores acessam todas as congregações e todas as funções do sistema.</p>
+ <div id="me"></div><div class="row"><button type="button" id="cn_">Cancelar</button><button type="button" class="p" id="sv">Salvar</button></div>`);
+ const q=k=>$(`#md [data-u=${k}]`),vis=()=>{const a=q('perfil').value=='admin';$('#ucg').hidden=a;$('#uadm').hidden=!a};vis();q('perfil').onchange=vis;
+ $('#ucall').onclick=()=>document.querySelectorAll('#md [data-cg]').forEach(x=>x.checked=true);$('#cn_').onclick=close;foco(q('nome'));
+ $('#sv').onclick=async()=>{const b=$('#sv');$('#me').textContent='';
+  const body={nome:q('nome').value,perfil:q('perfil').value,ativo:q('ativo').value=='1',congregacoes:[...document.querySelectorAll('#md [data-cg]:checked')].map(x=>+x.dataset.cg)};
+  if(!o)body.login=q('login').value;if(q('senha').value)body.senha=q('senha').value;
+  b.disabled=true;b.classList.add('busy');const r=await api(o?'/api/usuarios/'+id:'/api/usuarios',{m:o?'PUT':'POST',b:body});b.disabled=false;b.classList.remove('busy');
+  if(r.ok){toast(o?'Usuário atualizado':'Usuário cadastrado');close();await usuarios()}else $('#me').textContent=r.j.erros?r.j.erros.map(e=>e.msg).join(' '):(r.j.erro||'Não foi possível salvar.')}}
+if(ADMIN){$('#usn').onclick=()=>formUsuario();
+ $('#utb').onclick=e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.ue)return formUsuario(+b.dataset.ue);
+  const u=UL.find(x=>x.id==b.dataset.ut);if(!u)return;
+  const go=async()=>{const r=await api('/api/usuarios/'+u.id,{m:'PUT',b:{nome:u.nome,perfil:u.perfil,ativo:!u.ativo,congregacoes:u.congregacoes}});if(r.ok){toast(u.ativo?'Usuário desativado':'Usuário ativado');usuarios()}else toast((r.j.erros&&r.j.erros[0].msg)||r.j.erro||'Não foi possível alterar','err')};
+  if(u.ativo)ask('Desativar usuário',`Desativar <b>${H(u.nome)}</b>? Ele perde o acesso imediatamente, mas o histórico dos lançamentos é mantido.`,'Sim, desativar',go);else go()}}
 meta().then(()=>show('home'));
 </script>
 </body></html>
