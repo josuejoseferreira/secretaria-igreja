@@ -1,4 +1,4 @@
-"""Gera 1 ano de dados FICTÍCIOS para visualizar o sistema.
+"""Gera 3 anos de dados FICTÍCIOS para visualizar o sistema.
 Uso:  python gerar_base_exemplo.py            (cria)
       python gerar_base_exemplo.py --limpar   (remove só os dados de exemplo)"""
 import random, sys, unicodedata
@@ -49,7 +49,7 @@ with A.conn() as c:
     u = c.execute("SELECT id FROM usuarios WHERE perfil='admin' ORDER BY id LIMIT 1").fetchone()
     tp = {r["slug"]: r["id"] for r in c.execute("SELECT id,slug FROM tipos_ocorrencia")}
     if not u or not tp: sys.exit("Rode antes: python app.py migrate")
-    hoje = date.today(); corte = hoje - timedelta(days=240); ini = hoje - timedelta(days=365); ini -= timedelta(days=ini.weekday())
+    hoje = date.today(); corte = hoje - timedelta(days=240); ini = hoje.replace(year=hoje.year - 3); ini -= timedelta(days=ini.weekday())
     cg = {}
     for n, cod, _ in CONGS:
         c.execute("INSERT INTO congregacoes(nome,codigo,ativo) VALUES(%s,%s,%s) ON CONFLICT(nome) DO NOTHING", (n, cod, n != "Jardim"))
