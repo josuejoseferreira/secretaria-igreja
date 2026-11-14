@@ -1,0 +1,5 @@
+Arquivos retirados por conflito com a migration 005_membros_chegada_saida.sql
+(que e a versao usada pelo app.py, README e test_membros.py):
+- 005_membros_datas_relatorios.sql  (duplicava data_chegada/data_saida e quebrava o migrate)
+- test_relatorios.py                (testava data_membresia/motivo_saida/data_cargo, que o app.py atual nao tem)
+Se quiser adotar esse modelo no futuro, crie uma migration 006 sem repetir colunas existentes.
