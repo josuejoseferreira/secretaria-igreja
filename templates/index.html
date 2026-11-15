@@ -14,6 +14,7 @@
 <body>
 <a class="skip" href="#conteudo">Ir para o conteúdo</a>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ch" viewBox="0 0 64 64"><path fill="currentColor" fill-rule="evenodd" d="M29.5 2h5v5H39v4.5h-4.5V18l17 12v6h6.5v24H6V36h6.5v-6l17-12V11.5H25V7h4.5zM32 30a6 6 0 0 0-6 6v24h12V36a6 6 0 0 0-6-6zm0 4.5a2 2 0 0 1 2 2V54h-4V36.5a2 2 0 0 1 2-2z"/></symbol>
 <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
 <symbol id="i-clip" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6M9 16h6"/></symbol>
 <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
@@ -49,7 +50,7 @@
 </header>
 <div class="scrim" id="scrim"></div>
 <aside class="side" id="side" aria-label="Navegação principal">
-  <div class="brand"><span class="logo"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg></span><div><b>Secretaria Geral</b><small>Sistema de gestão</small></div></div>
+  <div class="brand"><svg class="logo-f" aria-hidden="true" viewBox="0 0 64 64"><use href="#ch"/></svg><span class="logo"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg></span><div><b>Secretaria Geral</b><small>Sistema de gestão</small></div></div>
   <nav class="menu" aria-label="Menu">
     <span class="lb">Menu</span>
     <a href="#" data-v="home" class="on" aria-current="page"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg>Início</a>
@@ -66,9 +67,10 @@
 </aside>
 
 <main id="conteudo" tabindex="-1"><div class="wrap">
+<div class="mtop"><span class="mu"><span class="avatar" aria-hidden="true">{{ usuario[:1]|upper }}</span><span class="mn"><b>{{usuario}}</b><small>{{ "Administrador" if admin else "Usuário comum" }}</small></span></span></div>
 
 <section id="home" aria-labelledby="h-home">
-  <div class="ph-page"><div><h1 id="h-home">Início</h1><p class="s">Visão geral da Secretaria Geral</p></div></div>
+  <div class="ph-page"><div><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-home"/></svg></span><h1 id="h-home">Início</h1><p class="s">Visão geral da Secretaria Geral</p></div></div>
   <div class="kpi">
     <button type="button" class="card" id="kp1" aria-label="Ocorrências no mês: ver lista"><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg></span><span class="kt"><b id="k1">–</b><span>Ocorrências no mês</span></span><svg class="ic go" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
     <button type="button" class="card" id="kp2" aria-label="Congregações ativas: ver lista"><span class="ico g"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg></span><span class="kt"><b id="k2">–</b><span>Congregações ativas</span></span><svg class="ic go" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
@@ -92,7 +94,7 @@
 </section>
 
 <section id="oc" hidden aria-labelledby="h-oc">
-  <div class="ph-page"><div><h1 id="h-oc">Ocorrências</h1><p class="s">Consulte, filtre e gerencie as ocorrências</p></div>
+  <div class="ph-page"><div><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-clip"/></svg></span><h1 id="h-oc">Ocorrências</h1><p class="s">Consulte, filtre e gerencie as ocorrências</p></div>
     <div class="acts"><button type="button" class="p" id="bn"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Nova ocorrência</button></div></div>
   <details class="card fdet" open><summary class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-filter"/></svg>Filtros<svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
     <div class="filters"><label>Data inicial<input type="date" id="fde"></label><label>Data final<input type="date" id="fate"></label><label>Congregação<select id="fcong"></select></label><label>Ocorrência<select id="ftipo"></select></label><label>Nome<input id="fnome" placeholder="Digite o nome"></label>
@@ -104,7 +106,7 @@
 </section>
 
 <section id="mb" hidden aria-labelledby="h-mb">
-  <div class="ph-page"><div><h1 id="h-mb">Membros</h1><p class="s">Cadastro e consulta de membros</p></div>
+  <div class="ph-page"><div><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-users"/></svg></span><h1 id="h-mb">Membros</h1><p class="s">Cadastro e consulta de membros</p></div>
     <div class="acts"><button type="button" class="p" id="mbn"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>Novo membro</button></div></div>
   <details class="card fdet" open><summary class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-filter"/></svg>Filtros<svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
     <div class="filters"><label>Status<select id="mfs"></select></label><label>Congregação<select id="mfc"></select></label><label>Nome<input id="mfn" placeholder="Digite o nome"></label><label>Status da Membresia<select id="mfm"></select></label><label>Cargo Eclesiástico<select id="mfg"></select></label>
@@ -115,7 +117,7 @@
 </section>
 
 <section id="an" hidden aria-labelledby="h-an">
-  <div class="ph-page"><div><h1 id="h-an">Aniversariantes</h1><p class="s">Consulte os aniversariantes por período, mês, nome ou congregação</p></div>
+  <div class="ph-page"><div><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-gift"/></svg></span><h1 id="h-an">Aniversariantes</h1><p class="s">Consulte os aniversariantes por período, mês, nome ou congregação</p></div>
     <div class="acts"><button type="button" id="abp"><svg class="ic" aria-hidden="true"><use href="#i-print"/></svg>Imprimir</button></div></div>
   <details class="card fdet" open><summary class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-filter"/></svg>Filtros<svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
     <div class="filters"><label>Período inicial<input type="date" id="ade"></label><label>Período final<input type="date" id="aate"></label><label>Mês<select id="ames"></select></label><label>Congregação<select id="acong"></select></label><label>Nome<input id="anome" placeholder="Digite o nome"></label>
@@ -127,7 +129,7 @@
 </section>
 
 <section id="rl" hidden aria-labelledby="h-rl">
-  <div class="ph-page"><div><h1 id="h-rl">Relatórios</h1><p class="s">Compare o período escolhido com o período anterior, calculado automaticamente</p></div>
+  <div class="ph-page"><div><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-chart"/></svg></span><h1 id="h-rl">Relatórios</h1><p class="s">Compare o período escolhido com o período anterior, calculado automaticamente</p></div>
     <div class="acts"><button type="button" id="rlp" disabled><svg class="ic" aria-hidden="true"><use href="#i-print"/></svg>Imprimir</button></div></div>
   <details class="card fdet" open><summary class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-filter"/></svg>Filtros<svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
     <div class="filters"><label class="w2">Descrição<select id="rld"></select></label><label>Data inicial<input type="date" id="rli"></label><label>Data final<input type="date" id="rlf"></label>
@@ -147,7 +149,7 @@
 </section>
 
 <section id="cg" hidden aria-labelledby="h-cg">
-  <div class="ph-page"><div><h1 id="h-cg">Congregações</h1><p class="s">Gerencie as congregações disponíveis</p></div></div>
+  <div class="ph-page"><div><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-church"/></svg></span><h1 id="h-cg">Congregações</h1><p class="s">Gerencie as congregações disponíveis</p></div></div>
   <div class="card"><h2 class="card-h" id="ctt"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg><span id="cttx">Nova congregação</span></h2>
     <div class="cgform"><input type="hidden" id="cid"><label>Nome da congregação<input id="cn"></label><label>Código (opcional)<input id="cc"></label><label>Situação<select id="ca"><option value="1">Ativa</option><option value="0">Inativa</option></select></label>
       <div class="fa"><button type="button" class="p" id="cs">Salvar</button><button type="button" id="cx">Cancelar</button></div></div>
@@ -156,14 +158,20 @@
 </section>
 
 {% if admin %}<section id="us" hidden aria-labelledby="h-us">
-  <div class="ph-page"><div><h1 id="h-us">Usuários</h1><p class="s">Cadastre usuários, defina o perfil de acesso e as congregações liberadas para cada um</p></div>
+  <div class="ph-page"><div><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-users"/></svg></span><h1 id="h-us">Usuários</h1><p class="s">Cadastre usuários, defina o perfil de acesso e as congregações liberadas para cada um</p></div>
     <div class="acts"><button type="button" class="p" id="usn"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Novo usuário</button></div></div>
   <div id="uer" class="alert" role="alert"></div>
+  <div class="kpi mk">
+    <div class="card"><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg></span><span class="kt"><b id="uk1">–</b><span>Usuários cadastrados</span></span></div>
+    <div class="card"><span class="ico g"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></span><span class="kt"><b id="uk2">–</b><span>Ativos</span></span></div>
+    <div class="card"><span class="ico o"><svg class="ic" aria-hidden="true"><use href="#i-power"/></svg></span><span class="kt"><b id="uk3">–</b><span>Inativos</span></span></div>
+    <div class="card"><span class="ico v"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg></span><span class="kt"><b id="uk4">–</b><span>Congregações ativas</span></span></div>
+  </div>
   <div class="card flush"><div class="t"><table class="rt"><thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th>Congregações</th><th>Situação</th><th class="ac">Ações</th></tr></thead><tbody id="utb"></tbody></table></div></div>
 </section>
 {% endif %}
 <section id="cf" hidden aria-labelledby="h-cf">
-  <div class="ph-page"><div><h1 id="h-cf">Configuração</h1><p class="s">Ajustes gerais do sistema</p></div></div>
+  <div class="ph-page"><div><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-sliders"/></svg></span><h1 id="h-cf">Configuração</h1><p class="s">Ajustes gerais do sistema</p></div></div>
   <div class="tabs" role="tablist" aria-label="Seções da configuração"><button type="button" class="tab" role="tab" id="tab-fx" aria-selected="true" aria-controls="cf-fx">Faixa etária</button><button type="button" class="tab" role="tab" id="tab-tema" aria-selected="false" aria-controls="cf-tema">Tema</button><button type="button" class="tab" role="tab" id="tab-fonte" aria-selected="false" aria-controls="cf-fonte">Fonte</button></div>
   <div class="card" id="cf-fx" role="tabpanel" aria-labelledby="tab-fx">
     <h2 class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>Faixa etária</h2>
@@ -470,7 +478,8 @@ $('#rlg').onclick=relatorio;$('#rld').onchange=relatorio;$('#rll').onclick=()=>{
 let UL=[];
 async function usuarios(){const er=$('#uer');er.textContent='';const r=await api('/api/usuarios');if(!r.ok){er.textContent=r.j.erro||'Não foi possível carregar os usuários.';return}UL=r.j;
  const nm=id=>(M.todas.find(c=>c.id==id)||{}).nome||('#'+id);
- $('#utb').innerHTML=UL.map(u=>{const eu=u.id==M.usuario.id,adm=u.perfil=='admin';return `<tr><td class="nm" data-label="Nome">${H(u.nome)}${eu?' <span class="hint">(você)</span>':''}</td><td data-label="Login">${H(u.login)}</td><td data-label="Perfil"><span class="badge ${adm?'st-Ativo':'st-Congregado'}">${adm?'Administrador':'Usuário comum'}</span></td><td data-label="Congregações">${adm?'Todas':H(u.congregacoes.map(nm).join(', ')||'–')}</td><td data-label="Situação"><span class="badge ${u.ativo?'ok':'st-Inativo'}">${u.ativo?'Ativo':'Inativo'}</span></td><td class="ac"><div class="acoes">${ib(`data-ue="${u.id}"`,'edit','Editar')}${eu?'':ib(`data-ut="${u.id}"`,'power',u.ativo?'Desativar':'Ativar')}</div></td></tr>`}).join('')}
+ $('#uk1').textContent=UL.length;$('#uk2').textContent=UL.filter(u=>u.ativo).length;$('#uk3').textContent=UL.filter(u=>!u.ativo).length;$('#uk4').textContent=(M.congregacoes||[]).length;
+ $('#utb').innerHTML=UL.map(u=>{const eu=u.id==M.usuario.id,adm=u.perfil=='admin';return `<tr><td class="nm" data-label="Nome"><span class="av${adm?' a':''}" aria-hidden="true">${H(u.nome.slice(0,1).toUpperCase())}</span>${H(u.nome)}${eu?' <span class="hint">(você)</span>':''}</td><td data-label="Login">${H(u.login)}</td><td data-label="Perfil"><span class="badge ${adm?'st-Ativo':'st-Congregado'}">${adm?'Administrador':'Usuário comum'}</span></td><td data-label="Congregações">${adm?'Todas':H(u.congregacoes.map(nm).join(', ')||'–')}</td><td data-label="Situação"><span class="badge ${u.ativo?'ok':'st-Inativo'}">${u.ativo?'Ativo':'Inativo'}</span></td><td class="ac"><div class="acoes">${ib(`data-ue="${u.id}"`,'edit','Editar')}${eu?'':ib(`data-ut="${u.id}"`,'power',u.ativo?'Desativar':'Ativar')}</div></td></tr>`}).join('')}
 function formUsuario(id){const o=id?UL.find(u=>u.id==id):null,eu=!!o&&o.id==M.usuario.id,v=o||{nome:'',login:'',perfil:'usuario',ativo:true,congregacoes:[]},rq='<span class="req" aria-hidden="true">*</span>';
  open_(`<h2>${o?'Editar usuário':'Novo usuário'}</h2>
  <div class="f"><label class="w2"><span>Nome${rq}</span><input data-u="nome" value="${H(v.nome)}" maxlength="120"></label>
