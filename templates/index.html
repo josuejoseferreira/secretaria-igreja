@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#172B4D">
 <meta name="csrf" content="{{csrf}}">
 <title>Secretaria Geral</title>
+<script>try{var d=document.documentElement,t=localStorage.getItem("sec_tema"),f=localStorage.getItem("sec_fonte");if(t==="moderno"||t==="dark")d.dataset.tema=t;if(f==="pequena"||f==="grande")d.dataset.fonte=f}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
@@ -163,7 +164,7 @@
 {% endif %}
 <section id="cf" hidden aria-labelledby="h-cf">
   <div class="ph-page"><div><h1 id="h-cf">Configuração</h1><p class="s">Ajustes gerais do sistema</p></div></div>
-  <div class="tabs" role="tablist" aria-label="Seções da configuração"><button type="button" class="tab" role="tab" id="tab-fx" aria-selected="true" aria-controls="cf-fx">Faixa etária</button></div>
+  <div class="tabs" role="tablist" aria-label="Seções da configuração"><button type="button" class="tab" role="tab" id="tab-fx" aria-selected="true" aria-controls="cf-fx">Faixa etária</button><button type="button" class="tab" role="tab" id="tab-tema" aria-selected="false" aria-controls="cf-tema">Tema</button><button type="button" class="tab" role="tab" id="tab-fonte" aria-selected="false" aria-controls="cf-fonte">Fonte</button></div>
   <div class="card" id="cf-fx" role="tabpanel" aria-labelledby="tab-fx">
     <h2 class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>Faixa etária</h2>
     <p class="s" style="margin-bottom:0">Defina até que idade vai cada faixa. A idade é calculada em anos completos, a partir da data de nascimento do cadastro. Os resultados aparecem no resumo da tela Início.</p>
@@ -176,6 +177,24 @@
     </div>
     <div id="fxer" class="alert" role="alert"></div>
     <div class="fxacts"><button type="button" class="p" id="fxs">Salvar</button><button type="button" id="fxd">Restaurar padrão</button></div>
+  </div>
+  <div class="card" id="cf-tema" role="tabpanel" aria-labelledby="tab-tema" hidden>
+    <h2 class="card-h">Tema</h2>
+    <p class="s" style="margin-bottom:0">Escolha a aparência do sistema. A escolha vale para este navegador e é aplicada na hora.</p>
+    <div class="opts" role="radiogroup" aria-label="Tema">
+      <button type="button" class="opt" role="radio" aria-checked="false" data-tema-op="simples"><span class="sw" style="background:linear-gradient(90deg,#172B4D 0 22%,#F5F7FA 22%)"></span><b>Tema simples</b><span class="d">Visual atual: claro, limpo e direto.</span></button>
+      <button type="button" class="opt" role="radio" aria-checked="false" data-tema-op="moderno"><span class="sw" style="background:linear-gradient(90deg,#0B2A75 0 22%,transparent 22%),linear-gradient(135deg,#E8F0FF,#E4F8EC 55%,#FFF0E0)"></span><b>Tema moderno</b><span class="d">Azul profundo, cartões coloridos e cantos arredondados.</span></button>
+      <button type="button" class="opt" role="radio" aria-checked="false" data-tema-op="dark"><span class="sw" style="background:linear-gradient(90deg,#0A0F1C 0 22%,#121C31 22%)"></span><b>Tema dark</b><span class="d">Fundo escuro, confortável para pouca luz.</span></button>
+    </div>
+  </div>
+  <div class="card" id="cf-fonte" role="tabpanel" aria-labelledby="tab-fonte" hidden>
+    <h2 class="card-h">Fonte</h2>
+    <p class="s" style="margin-bottom:0">Escolha o tamanho das letras do sistema. A escolha vale para este navegador e é aplicada na hora.</p>
+    <div class="opts" role="radiogroup" aria-label="Tamanho da fonte">
+      <button type="button" class="opt" role="radio" aria-checked="false" data-fonte-op="pequena"><span class="aa" style="font-size:16px">Aa</span><b>Pequeno</b><span class="d">Mais conteúdo na tela.</span></button>
+      <button type="button" class="opt" role="radio" aria-checked="false" data-fonte-op="padrao"><span class="aa" style="font-size:22px">Aa</span><b>Padrão</b><span class="d">Tamanho atual do sistema.</span></button>
+      <button type="button" class="opt" role="radio" aria-checked="false" data-fonte-op="grande"><span class="aa" style="font-size:28px">Aa</span><b>Grande</b><span class="d">Letras maiores, leitura mais fácil.</span></button>
+    </div>
   </div>
 </section>
 </div></main>
@@ -395,6 +414,17 @@ async function anivers(){const q=new URLSearchParams({de:$('#ade').value,ate:$('
 $('#abf').onclick=anivers;$('#abl').onclick=()=>{['ade','aate','ames','acong','anome'].forEach(i=>$('#'+i).value='');anivers()};$('#anome').onkeydown=e=>e.key=='Enter'&&anivers();
 $('#abp').onclick=()=>window.open('/aniversariantes/imprimir?'+AQ,'_blank');
 /* ===== Configuração > Faixa etária ===== */
+/* Configuração > Tema / Fonte (preferência guardada neste navegador) */
+const PREF=(k,v)=>{try{if(v!==undefined)localStorage.setItem(k,v);return localStorage.getItem(k)}catch(_){return null}};
+function marcaPref(){const t=PREF('sec_tema')||'simples',f=PREF('sec_fonte')||'padrao';
+ document.querySelectorAll('[data-tema-op]').forEach(b=>b.setAttribute('aria-checked',b.dataset.temaOp==t));
+ document.querySelectorAll('[data-fonte-op]').forEach(b=>b.setAttribute('aria-checked',b.dataset.fonteOp==f))}
+function aplicaPref(k,v){const d=document.documentElement,a=k=='sec_tema'?'tema':'fonte',neutro=k=='sec_tema'?'simples':'padrao';PREF(k,v);v==neutro?d.removeAttribute('data-'+a):d.setAttribute('data-'+a,v);marcaPref()}
+document.querySelectorAll('[data-tema-op]').forEach(b=>b.onclick=()=>aplicaPref('sec_tema',b.dataset.temaOp));
+document.querySelectorAll('[data-fonte-op]').forEach(b=>b.onclick=()=>aplicaPref('sec_fonte',b.dataset.fonteOp));
+const CFTABS=['fx','tema','fonte'];
+CFTABS.forEach(k=>$('#tab-'+k).onclick=()=>CFTABS.forEach(o=>{$('#tab-'+o).setAttribute('aria-selected',o==k);$('#cf-'+o).hidden=o!=k}));
+marcaPref();
 const FXS=['crianca','adolescente','jovem','adulto'];let FXPAD={crianca:11,adolescente:17,jovem:29,adulto:59};
 function fxRange(){let de=0;FXS.forEach(k=>{$('#fxde-'+k).textContent=de;const v=$('#fx-'+k).value;de=v!==''&&!isNaN(+v)?+v+1:'?'});$('#fxde-idoso').textContent=de}
 async function config(){clearErr($('#cf-fx'));$('#fxer').textContent='';const r=await api('/api/config/faixas-etarias');
