@@ -67,6 +67,7 @@
     <a href="#" data-v="oc"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Ocorrências</a>
     <a href="#" data-v="mb"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>Membros</a>
     <a href="#" data-v="an"><svg class="ic" aria-hidden="true"><use href="#i-gift"/></svg>Aniversariantes</a>
+    <a href="#" data-v="ag"><svg class="ic" aria-hidden="true"><use href="#i-cal"/></svg>Agenda</a>
     <a href="#" data-v="rl"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>Relatórios</a>
 {% if admin %}    <a href="#" data-v="cg"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg>Congregações</a>
     <a href="#" data-v="us"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>Usuários</a>
@@ -206,6 +207,23 @@
   <div class="card flush"><div class="t"><table class="rt"><thead><tr><th>Congregação</th><th>Código</th><th>Situação</th><th class="ac">Ações</th></tr></thead><tbody id="ct"></tbody></table></div><div class="pg"><span id="cpgi" class="s"></span><label>Por página<select id="cpor"><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>50</option><option>100</option></select></label><div class="pgn"><button type="button" id="cpa" aria-label="Página anterior"><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg></button><span id="cnum" class="pgn"></span><button type="button" id="cpn" aria-label="Próxima página"><svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div></div></div>
 </section>
 
+<section id="ag" hidden aria-labelledby="h-ag">
+  <div class="ph-page"><div class="ph-t"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-cal"/></svg></span><div><h1 id="h-ag">Agenda</h1><p class="s">Programação da semana, eventos e aniversariantes, prontos para exibir no Datashow.</p></div></div>
+    <div class="acts"><button type="button" class="p" id="agds"><svg class="ic" aria-hidden="true"><use href="#i-eye"/></svg>Datashow</button></div></div>
+  <div class="card ag-nav"><button type="button" id="agp"><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg>Semana anterior</button>
+    <div class="ag-per"><b id="agt">–</b><span class="s" id="ags"></span></div>
+    <button type="button" id="agh">Hoje</button><button type="button" id="agx">Próxima semana<svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div>
+  <div class="ag-tabs" role="tablist" aria-label="Seções da agenda">
+    <button type="button" role="tab" id="agtb1" aria-selected="true" aria-controls="agp1" data-t="1">Semana</button>
+    <button type="button" role="tab" id="agtb2" aria-selected="false" aria-controls="agp2" data-t="2" tabindex="-1">Eventos</button>
+    <button type="button" role="tab" id="agtb3" aria-selected="false" aria-controls="agp3" data-t="3" tabindex="-1">Aniversariantes da semana</button></div>
+  <div id="agp1" role="tabpanel" aria-labelledby="agtb1"><div id="agdest" class="ag-dest"></div><div class="card ag-sem" id="aglist" aria-live="polite"></div></div>
+  <div id="agp2" role="tabpanel" aria-labelledby="agtb2" hidden><div class="card ag-sem"><p class="hint" style="margin:0 0 var(--s3)">Eventos e lembretes (festas, encontros, congressos). Aparecem na tela “Eventos” do Datashow. Para um período, preencha também a data final.</p>
+    <form class="ag-add ag-addev" id="agevf" autocomplete="off"><label><span class="sr-only">Data inicial</span><input type="date" name="i" required aria-label="Data inicial"></label><label><span class="sr-only">Data final (opcional)</span><input type="date" name="f" aria-label="Data final (opcional)" title="Data final (opcional)"></label><label class="grow"><span class="sr-only">Descrição</span><input type="text" name="t" maxlength="200" required placeholder="Novo evento (ex.: Festa das crianças na Cong. Ribeira)" aria-label="Descrição do evento"></label><button type="submit" class="p ib" aria-label="Adicionar evento" title="Adicionar evento"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span class="bt">Adicionar</span></button></form>
+    <div id="agev"></div></div></div>
+  <div id="agp3" role="tabpanel" aria-labelledby="agtb3" hidden><div class="card ag-sem" id="agan"></div></div>
+</section>
+
 {% if admin %}<section id="us" hidden aria-labelledby="h-us">
   <div class="ph-page"><div class="ph-t"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-users"/></svg></span><div><h1 id="h-us">Usuários</h1><p class="s">Cadastre usuários, defina o perfil de acesso e as congregações liberadas para cada um.</p></div></div>
     <div class="acts"><button type="button" class="p" id="usn"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>Novo usuário</button></div></div>
@@ -283,8 +301,8 @@ const sync=()=>{const on=innerWidth>900?!APP.classList.contains('nav-off'):side.
 mbtn.onclick=()=>{if(innerWidth>900){APP.classList.toggle('nav-off');sync()}else menu(!side.classList.contains('on'))};scrim.onclick=()=>menu(false);
 $('#bell').onclick=()=>toast('Você não tem notificações no momento.');$('#meb').onclick=()=>show('pf');$('.userbox .who').style.cursor='pointer';$('.userbox .who').onclick=()=>show('pf');sync();
 window.addEventListener('resize',()=>{if(innerWidth>900&&side.classList.contains('on'))menu(false);sync()});
-const NOMES={home:'Início',oc:'Ocorrências',mb:'Membros',an:'Aniversariantes',rl:'Relatórios',cg:'Congregações',us:'Usuários',cf:'Configuração',pf:'Meu perfil'};
-function show(v){if(!ADMIN&&['cg','cf','us'].includes(v))v='home';['home','oc','mb','an','rl','cg','cf','us','pf'].forEach(i=>{const e=$('#'+i);if(e)e.hidden=i!=v});$('#bc').innerHTML=v=='home'?'':`<a href="#" data-v="home">${NOMES.home}</a>${ico('chev-r')}<span>${NOMES[v]}</span>`;document.querySelectorAll('.menu a[data-v]').forEach(a=>{const on=a.dataset.v==v;a.classList.toggle('on',on);on?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});menu(false);window.scrollTo(0,0);if(v=='home')painel();if(v=='oc'){lista();ocKpi()}if(v=='mb'){membros(1);mbKpi()}if(v=='an'){if(!ANIV_INI){ANIV_INI=true;$('#ames').value=String(new Date().getMonth()+1)}anivers();anKpi()}if(v=='pf')perfil();if(v=='rl'){if(!REL_INI){REL_INI=true;relPadrao()}relatorio()}if(v=='cg')congs();if(v=='cf')config();if(v=='us')usuarios()}
+const NOMES={home:'Início',oc:'Ocorrências',mb:'Membros',an:'Aniversariantes',ag:'Agenda',rl:'Relatórios',cg:'Congregações',us:'Usuários',cf:'Configuração',pf:'Meu perfil'};
+function show(v){if(!ADMIN&&['cg','cf','us'].includes(v))v='home';['home','oc','mb','an','ag','rl','cg','cf','us','pf'].forEach(i=>{const e=$('#'+i);if(e)e.hidden=i!=v});$('#bc').innerHTML=v=='home'?'':`<a href="#" data-v="home">${NOMES.home}</a>${ico('chev-r')}<span>${NOMES[v]}</span>`;document.querySelectorAll('.menu a[data-v]').forEach(a=>{const on=a.dataset.v==v;a.classList.toggle('on',on);on?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});menu(false);window.scrollTo(0,0);if(v=='home')painel();if(v=='oc'){lista();ocKpi()}if(v=='mb'){membros(1);mbKpi()}if(v=='an'){if(!ANIV_INI){ANIV_INI=true;$('#ames').value=String(new Date().getMonth()+1)}anivers();anKpi()}if(v=='pf')perfil();if(v=='ag')agenda();if(v=='rl'){if(!REL_INI){REL_INI=true;relPadrao()}relatorio()}if(v=='cg')congs();if(v=='cf')config();if(v=='us')usuarios()}
 document.querySelectorAll('.menu a[data-v]').forEach(a=>a.onclick=e=>{e.preventDefault();show(a.dataset.v)});
 $('#bc').onclick=e=>{const a=e.target.closest('a[data-v]');if(a){e.preventDefault();show(a.dataset.v)}};
 $('#qo').onclick=()=>{show('oc');form()};
@@ -606,6 +624,80 @@ if(ADMIN){UPG=mkPg('u',()=>renderU());$('#usn').onclick=()=>formUsuario();
   const u=UL.find(x=>x.id==b.dataset.ut);if(!u)return;
   const go=async()=>{const r=await api('/api/usuarios/'+u.id,{m:'PUT',b:{nome:u.nome,perfil:u.perfil,ativo:!u.ativo,congregacoes:u.congregacoes}});if(r.ok){toast(u.ativo?'Usuário desativado':'Usuário ativado');usuarios()}else toast((r.j.erros&&r.j.erros[0].msg)||r.j.erro||'Não foi possível alterar','err')};
   if(u.ativo)ask('Desativar usuário',`Desativar <b>${H(u.nome)}</b>? Ele perde o acesso imediatamente, mas o histórico dos lançamentos é mantido.`,'Sim, desativar',go);else go()}}
+/* ===== AGENDA: semana, eventos, aniversariantes, Datashow ===== */
+let AG={sem:null,dados:null,ev:[],an:null};
+const fdm=d=>d.slice(8,10)+'/'+d.slice(5,7);
+const hh=h=>h?(h.endsWith(':00')?h.slice(0,2)+'h':h+'h'):'';
+function agPeriodo(a,b){if(!b||b==a)return fd(a);const da=+a.slice(8,10),db=+b.slice(8,10);if(a.slice(5,7)!=b.slice(5,7))return fdm(a)+' a '+fdm(b);return db-da==1?da+' e '+db+'/'+a.slice(5,7):da+' a '+db+'/'+a.slice(5,7)}
+const agErr=r=>r.j.erros?r.j.erros.map(e=>e.msg).join(' '):(r.j.erro||'Não foi possível salvar.');
+const agLinha=(c,dest)=>`<li class="ag-it${dest?' dest':''}"><span class="ag-tx">${c.hora?'<b class="ag-h">'+c.hora+'</b> - ':''}${H(c.titulo)}</span><span class="ag-ac">${ib(`data-dst="${c.id}" aria-pressed="${dest}"`,dest?'star-f':'star',dest?'Remover destaque':'Destacar na semana','ag-star')}${ib(`data-ae="${c.id}"`,'edit','Editar')}${ib(`data-ad="${c.id}"`,'trash','Excluir','dd')}</span></li>`;
+const agAdd=d=>`<form class="ag-add" data-d="${d}" autocomplete="off"><input type="time" name="h" aria-label="Horário (opcional)" title="Horário (opcional)"><input type="text" name="t" maxlength="200" required placeholder="Adicionar compromisso e apertar Enter" aria-label="Descrição do compromisso"><button type="submit" class="p ib" aria-label="Adicionar" title="Adicionar">${ico('plus')}<span class="bt">Adicionar</span></button></form>`;
+function agRender(foco){
+ const w=AG.dados,dst=w.destaque;
+ $('#agt').textContent=fdm(w.inicio)+' a '+fdm(w.fim)+'/'+w.fim.slice(0,4);
+ const hoje=isoD(new Date());$('#ags').textContent=hoje>=w.inicio&&hoje<=w.fim?'Semana atual':'';
+ $('#agdest').innerHTML=dst?`<div class="ag-dh">${ico('star-f')}EVENTO EM DESTAQUE DA SEMANA</div><div class="ag-dt">${H(dst.titulo)}</div><div class="ag-dm">${fd(dst.data)}${dst.hora?' às '+dst.hora:''}</div>`
+  :`<div class="ag-dh">${ico('star')}EVENTO EM DESTAQUE DA SEMANA</div><div class="ag-dm">Nenhum evento em destaque. Use a estrela ao lado de um compromisso para destacá-lo no Datashow.</div>`;
+ $('#aglist').innerHTML=w.dias.map(d=>`<div class="ag-dia"><h3>${H(d.nome)} <span class="s">${fdm(d.data)}</span></h3>${d.compromissos.length?'<ul>'+d.compromissos.map(c=>agLinha(c,!!dst&&dst.id==c.id)).join('')+'</ul>':'<p class="ag-vz">Sem compromissos.</p>'}${agAdd(d.data)}</div>`).join('');
+ $('#agev').innerHTML=AG.ev.length?'<ul class="ag-ul">'+AG.ev.map(e=>`<li class="ag-it"><span class="ag-tx"><b class="ag-h">${agPeriodo(e.data_inicio,e.data_fim)}</b> - ${H(e.titulo)}</span><span class="ag-ac">${ib(`data-ee="${e.id}"`,'edit','Editar')}${ib(`data-ed="${e.id}"`,'trash','Excluir','dd')}</span></li>`).join('')+'</ul>':'<p class="ag-vz">Nenhum evento a partir desta semana.</p>';
+ const an=AG.an.rows;
+ $('#agan').innerHTML=an.length?w.dias.map(d=>{const L=an.filter(a=>a.data==d.data);return L.length?`<div class="ag-dia"><h3>${H(d.nome)} <span class="s">${fdm(d.data)}</span></h3><ul>${L.map(a=>`<li class="ag-it"><span class="ag-tx">${H(a.nome)}${a.congregacao?' <span class="ag-m">('+H(a.congregacao)+')</span>':''}</span></li>`).join('')}</ul></div>`:''}).join(''):'<p class="ag-vz">Nenhum aniversariante nesta semana.</p>';
+ if(foco){const f=document.querySelector(foco);if(f)f.focus({preventScroll:true})}
+}
+async function agenda(ref,foco){
+ if(ref)AG.sem=ref;const q=AG.sem?'?data='+AG.sem:'';
+ const [s,e,a]=await Promise.all([api('/api/agenda/semana'+q),api('/api/agenda/eventos'+q),api('/api/agenda/aniversariantes'+q)]);
+ if(!s.ok){$('#aglist').innerHTML='<p class="alert" role="alert">'+H(s.j.erro||'Não foi possível carregar a agenda.')+'</p>';return}
+ AG.dados=s.j;AG.sem=s.j.inicio;AG.ev=e.ok?e.j:[];AG.an=a.ok?a.j:{rows:[]};agRender(foco)}
+function agTab(n){[1,2,3].forEach(i=>{const t=$('#agtb'+i),on=i==n;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;$('#agp'+i).hidden=!on})}
+document.querySelectorAll('.ag-tabs [data-t]').forEach(b=>{b.onclick=()=>agTab(+b.dataset.t);b.onkeydown=e=>{const k={ArrowRight:1,ArrowLeft:-1}[e.key];if(k){const n=(+b.dataset.t-1+k+3)%3+1;agTab(n);$('#agtb'+n).focus()}}});
+/* edição (janela simples: só data, horário e descrição) */
+function formCompromisso(id){
+ const o=AG.dados.dias.flatMap(d=>d.compromissos).find(c=>c.id==id),rq='<span class="req" aria-hidden="true">*</span>';if(!o)return;
+ open_(`<h2>Editar compromisso</h2>
+ <div class="f"><label><span>Data${rq}</span><input type="date" data-g="data" value="${H(o.data)}"></label>
+ <label><span>Horário <span class="hint">(opcional)</span></span><input type="time" data-g="hora" value="${H(o.hora||'')}"></label>
+ <label class="w3"><span>Descrição${rq}</span><input data-g="titulo" value="${H(o.titulo)}" maxlength="200" autocomplete="off"></label></div>
+ <div id="me"></div><div class="row"><button type="button" id="cn_">Cancelar</button><button type="button" class="p" id="sv">Salvar</button></div>`);
+ const q=k=>$(`#md [data-g=${k}]`);$('#cn_').onclick=close;foco(q('titulo'));
+ const salvar=async()=>{const b=$('#sv');$('#me').textContent='';clearErr($('#md'));const body={data:q('data').value,hora:q('hora').value,titulo:q('titulo').value};
+  let bad=false;if(!body.data){fieldErr(q('data'),'Informe a data.');bad=true}if(!body.titulo.trim()){fieldErr(q('titulo'),'Informe a descrição.');bad=true}if(bad){focaErro();return}
+  b.disabled=true;b.classList.add('busy');const r=await api('/api/agenda/compromissos/'+id,{m:'PUT',b:body});b.disabled=false;b.classList.remove('busy');
+  if(r.ok){toast('Compromisso atualizado');close();agenda(body.data<AG.dados.inicio||body.data>AG.dados.fim?body.data:AG.dados.inicio)}else $('#me').textContent=agErr(r)};
+ $('#sv').onclick=salvar;$('#md').onkeydown=e=>{if(e.key=='Enter'&&e.target.tagName=='INPUT'){e.preventDefault();salvar()}}}
+function formEvento(id){
+ const o=AG.ev.find(e=>e.id==id),rq='<span class="req" aria-hidden="true">*</span>';if(!o)return;
+ open_(`<h2>Editar evento</h2>
+ <div class="f"><label><span>Data inicial${rq}</span><input type="date" data-g="i" value="${H(o.data_inicio)}"></label>
+ <label><span>Data final <span class="hint">(opcional)</span></span><input type="date" data-g="f" value="${H(o.data_fim||'')}"></label>
+ <label class="w3"><span>Descrição${rq}</span><input data-g="t" value="${H(o.titulo)}" maxlength="200" autocomplete="off"></label></div>
+ <div id="me"></div><div class="row"><button type="button" id="cn_">Cancelar</button><button type="button" class="p" id="sv">Salvar</button></div>`);
+ const q=k=>$(`#md [data-g=${k}]`);$('#cn_').onclick=close;foco(q('t'));
+ const salvar=async()=>{const b=$('#sv');$('#me').textContent='';clearErr($('#md'));const body={data_inicio:q('i').value,data_fim:q('f').value,titulo:q('t').value};
+  let bad=false;if(!body.data_inicio){fieldErr(q('i'),'Informe a data.');bad=true}if(!body.titulo.trim()){fieldErr(q('t'),'Informe a descrição.');bad=true}if(bad){focaErro();return}
+  b.disabled=true;b.classList.add('busy');const r=await api('/api/agenda/eventos/'+id,{m:'PUT',b:body});b.disabled=false;b.classList.remove('busy');
+  if(r.ok){toast('Evento atualizado');close();agenda()}else $('#me').textContent=agErr(r)};
+ $('#sv').onclick=salvar;$('#md').onkeydown=e=>{if(e.key=='Enter'&&e.target.tagName=='INPUT'){e.preventDefault();salvar()}}}
+/* cadastro rápido dentro de cada dia: horário + descrição + Enter, sem abrir janela */
+$('#aglist').addEventListener('submit',async e=>{e.preventDefault();const f=e.target.closest('form.ag-add');if(!f)return;
+ const t=f.t.value.trim();if(!t)return;const b=f.querySelector('button');b.disabled=true;
+ const r=await api('/api/agenda/compromissos',{m:'POST',b:{data:f.dataset.d,hora:f.h.value,titulo:t}});b.disabled=false;
+ if(r.ok){toast('Compromisso adicionado');agenda(AG.dados.inicio,`#aglist form[data-d="${f.dataset.d}"] input[name=t]`)}else toast(agErr(r),'err')});
+$('#agevf').addEventListener('submit',async e=>{e.preventDefault();const f=e.target;const t=f.t.value.trim();if(!t||!f.i.value)return;const b=f.querySelector('button');b.disabled=true;
+ const r=await api('/api/agenda/eventos',{m:'POST',b:{data_inicio:f.i.value,data_fim:f.f.value,titulo:t}});b.disabled=false;
+ if(r.ok){toast('Evento adicionado');f.t.value='';f.f.value='';agenda(null,'#agevf input[name=t]')}else toast(agErr(r),'err')});
+$('#agp').onclick=()=>agenda(AG.dados.anterior);$('#agx').onclick=()=>agenda(AG.dados.proxima);$('#agh').onclick=()=>agenda(isoD(new Date()));
+$('#agds').onclick=()=>window.open('/datashow?data='+(AG.dados?AG.dados.inicio:isoD(new Date())),'_blank');
+$('#aglist').onclick=async e=>{const b=e.target.closest('button');if(!b||b.type=='submit')return;
+ if(b.dataset.ae)return formCompromisso(+b.dataset.ae);
+ if(b.dataset.ad){const c=AG.dados.dias.flatMap(d=>d.compromissos).find(x=>x.id==b.dataset.ad);
+  return ask('Excluir compromisso',`Excluir <b>${H(c.titulo)}</b> de ${fd(c.data)}? Esta ação não pode ser desfeita.`,'Sim, excluir',async()=>{const r=await api('/api/agenda/compromissos/'+c.id,{m:'DELETE'});if(r.ok){toast('Compromisso excluído');agenda(AG.dados.inicio)}else toast(r.j.erro||'Não foi possível excluir','err')})}
+ if(b.dataset.dst){const id=+b.dataset.dst,ja=AG.dados.destaque&&AG.dados.destaque.id==id;
+  const r=await api('/api/agenda/destaque',{m:'PUT',b:{semana:AG.dados.inicio,compromisso_id:ja?null:id}});if(r.ok){toast(ja?'Destaque removido':'Evento destacado');agenda(AG.dados.inicio)}else toast(r.j.erro||'Não foi possível destacar','err')}};
+$('#agev').onclick=e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.ee)return formEvento(+b.dataset.ee);
+ if(b.dataset.ed){const v=AG.ev.find(x=>x.id==b.dataset.ed);
+  ask('Excluir evento',`Excluir <b>${H(v.titulo)}</b>? Esta ação não pode ser desfeita.`,'Sim, excluir',async()=>{const r=await api('/api/agenda/eventos/'+v.id,{m:'DELETE'});if(r.ok){toast('Evento excluído');agenda()}else toast(r.j.erro||'Não foi possível excluir','err')})}};
 meta().then(()=>show('home'));
 </script>
 </body></html>

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="csrf" content="{{ csrf }}">
+<title>Datashow – Anúncios da semana</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;color:#fff;font-family:"Segoe UI",Inter,Arial,Helvetica,sans-serif;overflow:hidden}
+#tela{position:fixed;inset:0;display:flex;flex-direction:column;padding:3.2vh 4vw 7vh}
+.tit{font-size:clamp(28px,7.2vh,90px);font-weight:700;color:#FFFF00;text-decoration:underline;text-decoration-thickness:.06em;text-underline-offset:.12em;margin:0 0 3vh;line-height:1.1}
+.corpo{flex:1;min-height:0;overflow:hidden}
+.ln{margin:0 0 1.6vh;font-weight:700;line-height:1.2;text-transform:uppercase;overflow-wrap:anywhere}
+.ln b{color:#E3A33B;font-weight:700;text-transform:none}
+.c1{color:#00B0F0}.c2{color:#fff}
+.vz{color:#8a8a8a;font-weight:600;text-transform:uppercase}
+.dest{border:.35vh solid #FFFF00;border-radius:1.2vh;padding:1.6vh 2vw;margin:0 0 3vh}
+.dest small{display:block;color:#FFFF00;font-size:.5em;letter-spacing:.08em;margin-bottom:.4em}
+.dest span{color:#fff}
+.an .tit{color:#FF0000;font-style:italic;text-align:center}
+.an .corpo{text-align:center}.an .ln{color:#00B0F0;font-weight:500}.an .ln i{color:#8a8a8a;font-style:normal;font-size:.55em;margin-left:.6em}
+#hud{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:1.2vh 2vw;background:linear-gradient(transparent,rgba(0,0,0,.9));opacity:1;transition:opacity .4s}
+body.idle #hud{opacity:0}body.idle{cursor:none}
+#cnt{color:#bbb;font-size:clamp(13px,2.2vh,24px);letter-spacing:.06em;font-weight:600}
+#sem{color:#777;font-size:clamp(12px,2vh,20px)}
+.bt{background:#1b1b1b;color:#fff;border:1px solid #444;border-radius:8px;padding:.7em 1.1em;font:inherit;font-size:clamp(13px,2.2vh,22px);cursor:pointer}
+.bt:hover,.bt:focus-visible{background:#2a2a2a;border-color:#00B0F0;outline:none}
+#nav{display:flex;gap:8px;align-items:center}
+#msg{position:fixed;inset:0;display:grid;place-items:center;color:#bbb;font-size:3vh;text-align:center;padding:5vw}
+</style>
+</head>
+<body>
+<main id="tela" aria-live="polite"></main>
+<div id="hud">
+  <div><span id="cnt"></span> <span id="sem"></span></div>
+  <div id="nav"><button class="bt" id="pv" aria-label="Tela anterior">◀ Anterior</button><button class="bt" id="nx" aria-label="Próxima tela">Próxima ▶</button><button class="bt" id="fs" aria-label="Tela cheia">Tela cheia (F)</button></div>
+</div>
+<script>
+const $=s=>document.querySelector(s),H=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const P=new URLSearchParams(location.search);let TELAS=[],I=0,SEM='';
+const dm=d=>d.slice(8,10)+'/'+d.slice(5,7);
+const hora=h=>h?(h.endsWith(':00')?h.slice(0,2)+'h':h+'h'):'';
+function periodo(a,b){if(!b||b==a)return dm(a);const da=+a.slice(8,10),db=+b.slice(8,10),ma=a.slice(5,7),mb=b.slice(5,7);
+ if(ma!=mb)return dm(a)+' a '+dm(b);const n=db-da+1;
+ if(n==2)return da+' e '+db+'/'+ma;if(n==3)return da+', '+(da+1)+' e '+db+'/'+ma;return da+' a '+db+'/'+ma}
+function montar(w){const T=[];
+ w.dias.forEach(d=>T.push({nome:d.nome,tit:d.nome,html:d.compromissos.length?d.compromissos.map((c,i)=>`<p class="ln ${i%2?'c2':'c1'}">${c.hora?'<b>'+hora(c.hora)+'-</b> ':''}${H(c.titulo)}</p>`).join(''):'<p class="ln vz">Nenhum compromisso para este dia.</p>'}));
+ const dq=w.destaque,ev=w.eventos||[];
+ T.push({nome:'EVENTOS',tit:'EVENTOS',html:(dq?`<div class="dest ln c2"><small>★ EVENTO EM DESTAQUE DA SEMANA</small>${dq.hora?'<b>'+hora(dq.hora)+'-</b> ':''}${H(dq.titulo)} <span>(${dm(dq.data)})</span></div>`:'')+
+  (ev.length?ev.map((e,i)=>`<p class="ln ${i%2?'c2':'c1'}"><b>${periodo(e.data_inicio,e.data_fim)}-</b> ${H(e.titulo)}</p>`).join(''):(dq?'':'<p class="ln vz">Nenhum evento próximo.</p>'))});
+ const an=w.aniversariantes||[];
+ T.push({nome:'ANIVERSARIANTES',tit:'ANIVERSARIANTES',cls:'an',html:an.length?an.map(a=>`<p class="ln">${H(a.nome)}<i>${dm(a.data)}</i></p>`).join(''):'<p class="ln vz" style="color:#8a8a8a">Nenhum aniversariante nesta semana.</p>'});
+ return T}
+function fit(){const c=$('.corpo');if(!c)return;let fs=Math.min(innerHeight*.085,innerWidth*.05);c.style.fontSize=fs+'px';
+ while(c.scrollHeight>c.clientHeight+1&&fs>14){fs*=.93;c.style.fontSize=fs+'px'}}
+function draw(){const t=TELAS[I];$('#tela').className=t.cls||'';
+ $('#tela').innerHTML=`<h1 class="tit">${H(t.tit)}</h1><div class="corpo">${t.html}</div>`;
+ $('#cnt').textContent=`${t.nome} – ${I+1} DE ${TELAS.length}`;$('#pv').disabled=I==0;$('#nx').disabled=I==TELAS.length-1;fit()}
+const ir=n=>{if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();if(!TELAS.length)return;I=Math.min(Math.max(0,n),TELAS.length-1);draw()};
+async function carregar(manter){const r=await fetch('/api/agenda/datashow'+(P.get('data')?'?data='+encodeURIComponent(P.get('data')):''));
+ if(r.status==401){location='/login';return}
+ const j=await r.json();if(!r.ok){$('#tela').innerHTML='<div id="msg">'+H(j.erro||'Não foi possível carregar a agenda.')+'</div>';return}
+ SEM=dm(j.inicio)+' a '+dm(j.fim);$('#sem').textContent='· Semana '+SEM;TELAS=montar(j);
+ // abre no dia de hoje quando a semana exibida é a atual
+ if(!manter){const h=new Date(),hs=h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0')+'-'+String(h.getDate()).padStart(2,'0');I=0;j.dias.forEach((d,k)=>{if(d.data==hs)I=k})}
+ draw()}
+$('#pv').onclick=()=>ir(I-1);$('#nx').onclick=()=>ir(I+1);
+const tc=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{});
+$('#fs').onclick=tc;
+document.addEventListener('keydown',e=>{const k=e.key;
+ if(k=='ArrowRight'||k=='PageDown'||k==' '||k=='Enter'){e.preventDefault();ir(I+1)}
+ else if(k=='ArrowLeft'||k=='PageUp'||k=='Backspace'){e.preventDefault();ir(I-1)}
+ else if(k=='Home')ir(0);else if(k=='End')ir(TELAS.length-1);
+ else if(k=='f'||k=='F')tc();else if(k=='r'||k=='R')carregar(true);
+ else if(/^[1-9]$/.test(k))ir(+k-1)});
+$('#tela').onclick=e=>{ir(e.clientX<innerWidth*.3?I-1:I+1)};
+addEventListener('resize',fit);
+let idle;const acorda=()=>{document.body.classList.remove('idle');clearTimeout(idle);idle=setTimeout(()=>document.body.classList.add('idle'),3000)};
+['mousemove','keydown','touchstart'].forEach(ev=>addEventListener(ev,acorda));acorda();
+carregar(false);
+</script>
+</body>
+</html>

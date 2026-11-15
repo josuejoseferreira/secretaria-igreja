@@ -532,3 +532,33 @@ th small{display:block;text-transform:none;letter-spacing:0;font-weight:400;colo
 }
 @media (max-width:400px){.dl{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation-duration:.01ms!important}}
+
+/* ===== Agenda semanal ===== */
+.ag-nav{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:var(--s3) var(--s4)}
+.ag-nav button{display:inline-flex;align-items:center;gap:6px}
+.ag-per{flex:1;text-align:center;display:flex;flex-direction:column;min-width:140px}.ag-per b{font-size:1.15rem}
+.ag-dest{margin-bottom:var(--s4);padding:var(--s4) var(--s5);border-radius:var(--r-lg);background:linear-gradient(135deg,#EEF4FF,#E3EDFF);border:1px solid #C9DBFF}
+.ag-dh{display:flex;align-items:center;gap:8px;font-size:.78rem;font-weight:700;letter-spacing:.6px;color:var(--blue)}.ag-dh .ic{width:1.1rem;height:1.1rem}
+.ag-dt{font-size:1.5rem;font-weight:700;margin-top:6px;letter-spacing:-.3px}.ag-dm{color:var(--mut);margin-top:4px}
+.ag-dia{padding:var(--s3) 0;border-bottom:1px solid var(--line-2)}.ag-dia:last-child{border-bottom:0}
+.ag-dia h3{font-size:.95rem;letter-spacing:.4px;margin:0 0 6px}.ag-dia h3 .s{font-weight:400;color:var(--mut);margin-left:6px}
+.ag-dia ul{list-style:none;margin:0;padding:0}
+.ag-it{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);padding:6px 0 6px 12px;border-left:4px solid var(--cc,#2563EB);margin:2px 0}
+.ag-it.dest{background:#F2F7FF;border-radius:0 8px 8px 0}
+.ag-h{font-variant-numeric:tabular-nums}.ag-m{color:var(--mut)}
+.ag-ac{display:flex;gap:4px;flex:none}.ag-ac .bt{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ag-star[aria-pressed=true]{color:#F59E0B}
+.ag-vz{margin:0;color:var(--mut);font-size:.88rem}
+@media(max-width:600px){.ag-nav button{flex:1}.ag-per{order:-1;flex-basis:100%}.ag-dt{font-size:1.2rem}}
+
+/* Agenda: abas, cadastro rápido */
+.ag-tabs{display:flex;gap:4px;border-bottom:2px solid var(--line-2);margin-bottom:var(--s4);overflow-x:auto}
+.ag-tabs button{border:0;background:none;border-radius:10px 10px 0 0;padding:12px 18px;font-weight:600;color:var(--mut);cursor:pointer;white-space:nowrap;margin-bottom:-2px;border-bottom:3px solid transparent;min-height:44px}
+.ag-tabs button[aria-selected=true]{color:var(--blue);border-bottom-color:var(--blue);background:#EEF4FF}
+.ag-add{display:flex;gap:var(--s2);align-items:center;margin:8px 0 2px 12px}
+.ag-add input{min-height:40px}.ag-add input[type=time]{width:122px;flex:none}.ag-add input[type=date]{width:150px;flex:none}
+.ag-add input[type=text]{flex:1;min-width:0}.ag-add label.grow{flex:1;min-width:0}.ag-add label.grow input{width:100%}
+.ag-add .ib{flex:none}.ag-add .bt{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ag-addev{margin:0 0 var(--s3)}
+.ag-ul{list-style:none;margin:0;padding:0}
+@media(max-width:600px){.ag-add,.ag-addev{flex-wrap:wrap;margin-left:0}.ag-add input[type=text],.ag-addev label.grow{flex-basis:100%;order:3}.ag-add .ib{order:2}.ag-add input[type=time]{flex:1}}

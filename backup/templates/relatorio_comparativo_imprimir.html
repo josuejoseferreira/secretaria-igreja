@@ -1,0 +1,46 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Relatório comparativo</title>
+<style>
+@page{size:A4;margin:16mm 14mm 18mm}
+*{box-sizing:border-box}
+body{margin:0;padding:24px 16px;font:14px/1.45 Inter,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;color:#1E293B;background:#F1F5F9;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bar{max-width:820px;margin:0 auto 14px;display:flex;gap:8px;justify-content:flex-end}
+.bar button{font:inherit;font-weight:500;min-height:40px;padding:0 18px;border:1px solid #CBD5E1;border-radius:10px;background:#fff;color:#1E293B;cursor:pointer}
+.bar button.p{background:#2563EB;border-color:#2563EB;color:#fff}
+.doc{max-width:820px;margin:0 auto;background:#fff;padding:34px 40px;border-radius:12px;box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.inst{display:flex;justify-content:space-between;color:#64748B;font-size:12px;letter-spacing:.8px;text-transform:uppercase;padding-bottom:10px;border-bottom:3px solid #172B4D}
+h1{margin:16px 0 6px;text-align:center;font-size:22px;letter-spacing:2px;color:#172B4D}
+.info{margin:0 0 18px;display:flex;flex-wrap:wrap;justify-content:center;gap:6px 10px}
+.info span{padding:3px 12px;border:1px solid #CBD5E1;border-radius:999px;background:#F8FAFC;font-size:13px;color:#475569}
+.info span b{color:#172B4D;font-weight:600}
+table{width:100%;border-collapse:collapse}
+thead{display:table-header-group}
+tr{break-inside:avoid;page-break-inside:avoid}
+th,td{padding:8px 10px;border-bottom:1px solid #E2E8F0;text-align:left}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;color:#334155;background:#F1F5F9;border-bottom:2px solid #172B4D;vertical-align:bottom}
+th small{display:block;text-transform:none;letter-spacing:0;font-weight:400;color:#64748B;font-size:11.5px}
+th.n,td.n{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:nth-child(even) td{background:#FAFBFD}
+tr.tot td{font-weight:700;color:#172B4D;border-top:2px solid #172B4D;background:#F1F5F9!important}
+.v{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.v.subiu{background:#DCFCE7;color:#15803D}.v.caiu{background:#FEE2E2;color:#B91C1C}.v.igual{background:#E2E8F0;color:#475569}
+.notas{margin:16px 0 0;padding:10px 14px;border-left:3px solid #94A3B8;background:#F8FAFC;font-size:12px;color:#475569}
+.notas p{margin:0 0 4px}.notas p:last-child{margin:0}
+.rod{margin-top:16px;padding-top:8px;border-top:1px solid #CBD5E1;font-size:11.5px;color:#64748B;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media print{body{padding:0;background:#fff}.bar{display:none}.doc{max-width:none;padding:0;border-radius:0;box-shadow:none}}
+@media (max-width:600px){.doc{padding:20px 16px}th,td{padding:8px 6px}}
+</style></head><body>
+{% macro var(v) %}<span class="v {{ v.tipo }}">{% if v.tipo=='subiu' %}▲ +{{ v.dif }}{% elif v.tipo=='caiu' %}▼ {{ v.dif }}{% else %}= manteve{% endif %}{% if v.pct is not none and v.tipo!='igual' %} ({{ '%+d'|format(v.pct) }}%){% endif %}</span>{% endmacro %}
+{% macro dt(p) %}{{ p.de[8:10] }}/{{ p.de[5:7] }}/{{ p.de[0:4] }} a {{ p.ate[8:10] }}/{{ p.ate[5:7] }}/{{ p.ate[0:4] }}{% endmacro %}
+<div class="bar"><button class="p" onclick="window.print()">Imprimir</button><button onclick="window.close()">Fechar</button></div>
+<div class="doc">
+<div class="inst"><span>Secretaria Geral</span><span>Relatório</span></div>
+<h1>RELATÓRIO COMPARATIVO</h1>
+<div class="info"><span>Descrição: <b>{{ r.descricao }}</b></span><span>Período atual: <b>{{ dt(r.periodo_atual) }}</b></span><span>Período anterior: <b>{{ dt(r.periodo_anterior) }}</b></span></div>
+<table><thead><tr><th>Congregação</th><th class="n">Período anterior<small>{{ dt(r.periodo_anterior) }}</small></th><th class="n">Período atual<small>{{ dt(r.periodo_atual) }}</small></th></tr></thead>
+<tbody>{% for l in r.linhas %}<tr><td>{{ l.congregacao }}</td><td class="n">{{ l.anterior }}</td><td class="n">{{ l.atual }}{{ var(l.variacao) }}</td></tr>
+{% endfor %}<tr class="tot"><td>Total</td><td class="n">{{ r.total.anterior }}</td><td class="n">{{ r.total.atual }}{{ var(r.total.variacao) }}</td></tr></tbody></table>
+<div class="notas">{% for n in r.notas %}<p>{{ n }}</p>{% endfor %}</div>
+<div class="rod"><span>Variação: ▲ cresceu · ▼ diminuiu · = manteve</span><span>Emitido em {{ emitido }}{% if usuario %} por {{ usuario }}{% endif %}</span></div>
+</div>
+<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),300))</script>
+</body></html>

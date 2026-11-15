@@ -893,6 +893,183 @@ def editar_usuario(id):
         return jsonify(erros=[dict(msg="O sistema precisa ter ao menos um administrador ativo.")]), 400
     return jsonify(ok=True)
 
+# ---------------------------------------------------------------- AGENDA (semana, eventos, aniversariantes, Datashow)
+DIAS_SEMANA = ["SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA", "SÁBADO", "DOMINGO"]
+
+def segunda_da_semana(d):
+    """Segunda-feira da semana de d (a semana vai de segunda a domingo)."""
+    return d - timedelta(days=d.weekday())
+
+def parse_hora(x):
+    """'' / None -> None; 'HH:MM' válido -> time; qualquer outra coisa -> False."""
+    if x in (None, ""): return None
+    m = re.fullmatch(r"([01]\d|2[0-3]):([0-5]\d)(?::00)?", str(x).strip())
+    return datetime.strptime(m.group(1) + ":" + m.group(2), "%H:%M").time() if m else False
+
+def _titulo(d, erros):
+    t = re.sub(r"\s+", " ", str(d.get("titulo") or "")).strip()
+    if not t: erros.append("Informe a descrição.")
+    elif len(t) > 200: erros.append("A descrição pode ter no máximo 200 caracteres.")
+    return t
+
+def validar_compromisso(d):
+    """Compromisso = data + horário (opcional) + descrição. Devolve (valores, lista_de_erros)."""
+    erros, v = [], {}
+    v["data"] = parse_data(d.get("data"))
+    if not v["data"]: erros.append("Informe uma data válida."); v["data"] = None
+    v["hora"] = parse_hora(d.get("hora"))
+    if v["hora"] is False: erros.append("Horário inválido. Use o formato HH:MM."); v["hora"] = None
+    v["titulo"] = _titulo(d, erros)
+    return v, erros
+
+def validar_evento(d):
+    """Evento = título + data de início + data final (opcional)."""
+    erros, v = [], {}
+    v["data_inicio"] = parse_data(d.get("data_inicio"))
+    if not v["data_inicio"]: erros.append("Informe a data do evento."); v["data_inicio"] = None
+    v["data_fim"] = parse_data(d.get("data_fim"))
+    if v["data_fim"] is False: erros.append("Data final inválida."); v["data_fim"] = None
+    elif v["data_fim"] and v["data_inicio"] and v["data_fim"] < v["data_inicio"]: erros.append("A data final não pode ser anterior à data inicial.")
+    elif v["data_fim"] == v["data_inicio"]: v["data_fim"] = None
+    v["titulo"] = _titulo(d, erros)
+    return v, erros
+
+COLS_COMP = "c.id,c.data,to_char(c.hora,'HH24:MI') hora,c.titulo"
+
+def compromissos_entre(c, de, ate):
+    return c.execute("SELECT " + COLS_COMP + " FROM agenda_compromissos c WHERE c.data BETWEEN %s AND %s ORDER BY c.data, c.hora NULLS FIRST, lower(c.titulo), c.id", (de, ate)).fetchall()
+
+def eventos_desde(c, desde, ate=None):
+    """Eventos que ainda não terminaram em 'desde' (e começam até 'ate', se informado)."""
+    w, p = ["COALESCE(data_fim,data_inicio) >= %s"], [desde]
+    if ate: w.append("data_inicio <= %s"); p.append(ate)
+    return c.execute("SELECT id,data_inicio,data_fim,titulo FROM agenda_eventos WHERE " + " AND ".join(w) + " ORDER BY data_inicio, lower(titulo), id", p).fetchall()
+
+def aniversariantes_semana(ini):
+    """Aniversariantes de segunda a domingo (respeita as congregações do usuário). Devolve lista com a data do aniversário na semana."""
+    fim = ini + timedelta(days=6)
+    rows, erro = consultar_aniversariantes({"de": ini.isoformat(), "ate": fim.isoformat()})
+    out = []
+    for r in rows or []:
+        for i in range(7):
+            d = ini + timedelta(days=i)
+            if (d.month, d.day) == (r["mes"], r["dia"]): break
+        else:  # 29/02 em ano não bissexto: comemora em 28/02
+            d = next((ini + timedelta(days=i) for i in range(7) if (ini + timedelta(days=i)).month == 2 and (ini + timedelta(days=i)).day == 28), ini)
+        out.append(dict(id=r["id"], nome=r["nome"], congregacao=r["congregacao"], data=d, dia_semana=DIAS_SEMANA[d.weekday()]))
+    out.sort(key=lambda r: (r["data"], r["nome"].lower()))
+    return out
+
+def montar_semana(c, ref):
+    """Agenda de segunda a domingo da semana de ref, com o evento em destaque."""
+    ini = segunda_da_semana(ref); fim = ini + timedelta(days=6)
+    por_dia = {}
+    for r in compromissos_entre(c, ini, fim): por_dia.setdefault(r["data"], []).append(r)
+    dias = [dict(data=ini + timedelta(days=i), nome=DIAS_SEMANA[i], compromissos=por_dia.get(ini + timedelta(days=i), [])) for i in range(7)]
+    dq = c.execute("SELECT " + COLS_COMP + " FROM agenda_destaques d JOIN agenda_compromissos c ON c.id=d.compromisso_id WHERE d.semana=%s", (ini,)).fetchone()
+    return dict(inicio=ini, fim=fim, anterior=ini - timedelta(days=7), proxima=ini + timedelta(days=7), dias=dias, destaque=dq)
+
+def _ref():
+    """Data de referência da requisição (?data=); sem ela, hoje. Devolve (data, erro_response)."""
+    if not request.args.get("data"): return date.today(), None
+    d = parse_data(request.args.get("data"))
+    return (None, (jsonify(erro="Data inválida."), 400)) if not d else (d, None)
+
+@app.get("/api/agenda/semana")
+def agenda_semana():
+    ref, e = _ref()
+    if e: return e
+    with conn() as c: return jsonify(montar_semana(c, ref))
+
+@app.get("/api/agenda/aniversariantes")
+def agenda_aniversariantes():
+    ref, e = _ref()
+    if e: return e
+    ini = segunda_da_semana(ref)
+    return jsonify(inicio=ini, fim=ini + timedelta(days=6), rows=aniversariantes_semana(ini))
+
+@app.get("/api/agenda/eventos")
+def agenda_eventos():
+    ref, e = _ref()
+    if e: return e
+    with conn() as c: return jsonify(eventos_desde(c, segunda_da_semana(ref)))
+
+@app.get("/api/agenda/datashow")
+def agenda_datashow():
+    """Tudo que o Datashow precisa em uma chamada: 7 dias, destaque, eventos e aniversariantes."""
+    ref, e = _ref()
+    if e: return e
+    with conn() as c:
+        w = montar_semana(c, ref)
+        w["eventos"] = eventos_desde(c, w["inicio"], w["inicio"] + timedelta(days=90))
+    w["aniversariantes"] = aniversariantes_semana(w["inicio"])
+    return jsonify(w)
+
+@app.get("/datashow")
+def datashow():
+    return render_template("datashow.html", csrf=csrf())
+
+@app.post("/api/agenda/compromissos")
+@app.put("/api/agenda/compromissos/<int:id>")
+def salvar_compromisso(id=None):
+    v, erros = validar_compromisso(request.get_json(silent=True) or {})
+    if erros: return jsonify(erros=[dict(msg=m) for m in erros]), 400
+    try:
+        with conn() as c:
+            if id:
+                if not c.execute("UPDATE agenda_compromissos SET data=%s,hora=%s,titulo=%s,atualizado_em=now() WHERE id=%s", (v["data"], v["hora"], v["titulo"], id)).rowcount:
+                    return jsonify(erro="Compromisso não encontrado."), 404
+            else:
+                id = c.execute("INSERT INTO agenda_compromissos(data,hora,titulo,criado_por) VALUES(%s,%s,%s,%s) RETURNING id", (v["data"], v["hora"], v["titulo"], session["uid"])).fetchone()["id"]
+                return jsonify(id=id), 201
+    except psycopg.errors.UniqueViolation:
+        return jsonify(erros=[dict(msg="Já existe um compromisso com esta data, horário e descrição.")]), 409
+    return jsonify(id=id)
+
+@app.delete("/api/agenda/compromissos/<int:id>")
+def excluir_compromisso(id):
+    with conn() as c:  # o destaque que apontava para ele some junto (ON DELETE CASCADE)
+        if not c.execute("DELETE FROM agenda_compromissos WHERE id=%s", (id,)).rowcount: return jsonify(erro="Compromisso não encontrado."), 404
+    return jsonify(ok=True)
+
+@app.post("/api/agenda/eventos")
+@app.put("/api/agenda/eventos/<int:id>")
+def salvar_evento(id=None):
+    v, erros = validar_evento(request.get_json(silent=True) or {})
+    if erros: return jsonify(erros=[dict(msg=m) for m in erros]), 400
+    try:
+        with conn() as c:
+            if id:
+                if not c.execute("UPDATE agenda_eventos SET data_inicio=%s,data_fim=%s,titulo=%s WHERE id=%s", (v["data_inicio"], v["data_fim"], v["titulo"], id)).rowcount:
+                    return jsonify(erro="Evento não encontrado."), 404
+            else:
+                id = c.execute("INSERT INTO agenda_eventos(data_inicio,data_fim,titulo,criado_por) VALUES(%s,%s,%s,%s) RETURNING id", (v["data_inicio"], v["data_fim"], v["titulo"], session["uid"])).fetchone()["id"]
+                return jsonify(id=id), 201
+    except psycopg.errors.UniqueViolation:
+        return jsonify(erros=[dict(msg="Já existe um evento com esta data e descrição.")]), 409
+    return jsonify(id=id)
+
+@app.delete("/api/agenda/eventos/<int:id>")
+def excluir_evento(id):
+    with conn() as c:
+        if not c.execute("DELETE FROM agenda_eventos WHERE id=%s", (id,)).rowcount: return jsonify(erro="Evento não encontrado."), 404
+    return jsonify(ok=True)
+
+@app.put("/api/agenda/destaque")
+def definir_destaque():
+    d = request.get_json(silent=True) or {}
+    sem = parse_data(d.get("semana"))
+    if not sem: return jsonify(erro="Semana inválida."), 400
+    sem = segunda_da_semana(sem); cid = _int(d.get("compromisso_id"), 0)
+    with conn() as c:
+        if not cid:  # sem compromisso = remove o destaque da semana
+            c.execute("DELETE FROM agenda_destaques WHERE semana=%s", (sem,)); return jsonify(ok=True)
+        r = c.execute("SELECT data FROM agenda_compromissos WHERE id=%s", (cid,)).fetchone()
+        if not r or segunda_da_semana(r["data"]) != sem: return jsonify(erro="O evento em destaque precisa ser um compromisso desta semana."), 400
+        c.execute("INSERT INTO agenda_destaques(semana,compromisso_id,definido_por) VALUES(%s,%s,%s) "
+                  "ON CONFLICT(semana) DO UPDATE SET compromisso_id=EXCLUDED.compromisso_id,definido_por=EXCLUDED.definido_por,definido_em=now()", (sem, cid, session["uid"]))
+    return jsonify(ok=True)
+
 def trocar_senha():
     from getpass import getpass
     pw = getpass("Nova senha do admin (mín. 8 caracteres): ")

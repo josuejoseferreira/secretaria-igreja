@@ -1,0 +1,12 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS unaccent;
+CREATE OR REPLACE FUNCTION f_unaccent(text) RETURNS text AS $$ SELECT lower(public.unaccent('public.unaccent', $1)) $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;
+CREATE TABLE usuarios(id serial PRIMARY KEY, nome text NOT NULL, login text UNIQUE NOT NULL, senha_hash text NOT NULL, perfil text NOT NULL DEFAULT 'secretario', ativo boolean NOT NULL DEFAULT true);
+CREATE TABLE congregacoes(id serial PRIMARY KEY, nome text NOT NULL UNIQUE, codigo text, ativo boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE tipos_ocorrencia(id serial PRIMARY KEY, slug text UNIQUE NOT NULL, nome text NOT NULL, descricao text, ativo boolean NOT NULL DEFAULT true);
+CREATE TABLE lotes_ocorrencias(id serial PRIMARY KEY, tipo_ocorrencia_id int NOT NULL REFERENCES tipos_ocorrencia, congregacao_id int NOT NULL REFERENCES congregacoes, data_ocorrencia date NOT NULL, dados_comuns jsonb NOT NULL DEFAULT '{}', situacao text NOT NULL DEFAULT 'Lançada' CHECK (situacao IN ('Lançada','Conferida','Cancelada')), usuario_id int NOT NULL REFERENCES usuarios, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), cancelado_em timestamptz);
+CREATE TABLE ocorrencias(id serial PRIMARY KEY, lote_id int NOT NULL REFERENCES lotes_ocorrencias, nome text, nome_busca text NOT NULL DEFAULT '', dados_especificos jsonb NOT NULL DEFAULT '{}', created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), cancelado_em timestamptz);
+CREATE TABLE historico_ocorrencias(id serial PRIMARY KEY, ocorrencia_id int REFERENCES ocorrencias, lote_id int REFERENCES lotes_ocorrencias, usuario_id int NOT NULL REFERENCES usuarios, acao text NOT NULL, dados_anteriores jsonb, dados_novos jsonb, created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX ON lotes_ocorrencias(congregacao_id); CREATE INDEX ON lotes_ocorrencias(tipo_ocorrencia_id); CREATE INDEX ON lotes_ocorrencias(data_ocorrencia); CREATE INDEX ON lotes_ocorrencias(usuario_id); CREATE INDEX ON lotes_ocorrencias(situacao);
+CREATE INDEX ON ocorrencias(lote_id); CREATE INDEX ON historico_ocorrencias(lote_id);
+CREATE INDEX ix_ocorr_busca ON ocorrencias USING gin (nome_busca gin_trgm_ops);
