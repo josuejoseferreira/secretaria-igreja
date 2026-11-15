@@ -107,3 +107,4 @@ Como funciona a segurança:
 - Usuário comum precisa ter ao menos uma congregação. Membros sem congregação só aparecem para administradores.
 - A migration `006_usuarios_permissoes.sql` converte perfis antigos (ex.: `secretario`) em usuário comum **sem congregação liberada**: depois de atualizar, entre como administrador e libere as congregações de cada um.
 - Teste automático: `python test_usuarios.py` (usa o banco `_test`).
+- **Produção (Render/Neon):** o deploy **não** roda migrations sozinho. Depois de publicar uma versão nova, rode `python app.py migrate` apontando para o banco do Neon (use `DATABASE_URL_DIRECT` com a conexão direta). Sem isso, telas novas dão "Erro interno" ou "banco desatualizado".

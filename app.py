@@ -144,6 +144,12 @@ def health():
 @app.errorhandler(psycopg.OperationalError)
 def _db(e): return jsonify(erro="Banco de dados indisponível."), 503
 
+@app.errorhandler(psycopg.errors.UndefinedTable)
+@app.errorhandler(psycopg.errors.UndefinedColumn)
+def _desatualizado(e):
+    app.logger.exception("Banco desatualizado")
+    return jsonify(erro='O banco de dados está desatualizado. Rode "python app.py migrate" (apontando para esse banco) e reinicie o app.'), 500
+
 @app.errorhandler(Exception)
 def _err(e):
     from werkzeug.exceptions import HTTPException
