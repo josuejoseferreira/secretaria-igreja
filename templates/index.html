@@ -160,7 +160,7 @@
   <div class="card flush an-wrap"><h2 class="an-h"><svg class="ic" aria-hidden="true"><use href="#i-gift"/></svg>Aniversariantes</h2><div class="t"><table class="rt rt-an"><thead><tr><th>Nome</th><th>Congregação</th><th>Aniversário</th></tr></thead><tbody id="atb"></tbody></table></div>
     <svg class="an-ill" aria-hidden="true" viewBox="0 0 170 200"><path d="M40 70C28 40 44 10 66 10s34 30 22 60c-4 8-14 12-24 12s-20-4-24-12z" fill="#60A5FA"/><path d="M92 62C84 34 100 8 120 12s26 30 12 54c-6 8-16 12-24 10s-14-6-16-14z" fill="#F472B6"/><path d="M60 100c-14-22-2-46 16-46s28 20 16 44c-4 6-10 8-16 8s-12-2-16-6z" fill="#FBBF24" transform="translate(40 -6) scale(.8)"/><path d="M66 82l12 112M120 74l-28 120M112 62l-16 132" stroke="#9DB0D8" stroke-width="1.5" fill="none"/><rect x="56" y="150" width="70" height="40" rx="6" fill="#fff" stroke="#BCD2FF" stroke-width="2"/><rect x="56" y="150" width="70" height="14" rx="6" fill="#93C5FD"/><rect x="50" y="186" width="82" height="8" rx="4" fill="#BCD2FF"/><path d="M76 150v-14M91 150v-18M106 150v-14" stroke="#F472B6" stroke-width="4" stroke-linecap="round"/><path d="M76 134c-3-5 3-6 0-10 4 2 6 6 0 10zM91 130c-3-5 3-6 0-10 4 2 6 6 0 10zM106 134c-3-5 3-6 0-10 4 2 6 6 0 10z" fill="#FBBF24"/></svg>
     <div class="vazio" id="avz" hidden><svg class="ic" aria-hidden="true"><use href="#i-gift"/></svg><b>Nenhum aniversariante encontrado.</b><span>Ajuste os filtros da consulta.</span></div>
-    <div class="pg" id="apg" hidden><span id="ain" class="s"></span></div></div>
+    <div class="pg" id="apg" hidden><span id="apgi" class="s"></span><label>Por página<select id="apor"><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>50</option><option>100</option></select></label><div class="pgn"><button type="button" id="apa" aria-label="Página anterior"><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg></button><span id="anum" class="pgn"></span><button type="button" id="apn" aria-label="Próxima página"><svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div></div></div>
 </section>
 
 <section id="rl" hidden aria-labelledby="h-rl">
@@ -185,7 +185,7 @@
     <div class="kpi" id="rl-kpi"></div>
     <div class="card" id="rl-sec-grafico"><h2 class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>Comparativo por congregação</h2>
       <div class="legend"><span><i class="lgd a"></i>Período anterior</span><span><i class="lgd c"></i>Período atual</span></div><div id="rl-bars"></div></div>
-    <div class="card flush" id="rl-sec-tabela"><div class="t"><table class="rt"><thead><tr><th>Congregação</th><th id="rl-tha">Período anterior</th><th id="rl-thb">Período atual</th></tr></thead><tbody id="rlb"></tbody></table></div></div>
+    <div class="card flush" id="rl-sec-tabela"><div class="t"><table class="rt"><thead><tr><th>Congregação</th><th id="rl-tha">Período anterior</th><th id="rl-thb">Período atual</th></tr></thead><tbody id="rlb"></tbody></table></div><div class="pg"><span id="rtpgi" class="s"></span><label>Por página<select id="rtpor"><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>50</option><option>100</option></select></label><div class="pgn"><button type="button" id="rtpa" aria-label="Página anterior"><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg></button><span id="rtnum" class="pgn"></span><button type="button" id="rtpn" aria-label="Próxima página"><svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div></div></div>
     <div class="rl-notas" id="rl-notas"></div>
   </div>
 </section>
@@ -203,7 +203,7 @@
       <div class="fa"><button type="button" class="p" id="cs">Salvar</button><button type="button" id="cx">Cancelar</button></div></div>
     <div id="cer" class="alert" role="alert" style="margin:16px 0 0"></div></div>
   <div id="cer2" class="alert" role="alert"></div>
-  <div class="card flush"><div class="t"><table class="rt"><thead><tr><th>Congregação</th><th>Código</th><th>Situação</th><th class="ac">Ações</th></tr></thead><tbody id="ct"></tbody></table></div></div>
+  <div class="card flush"><div class="t"><table class="rt"><thead><tr><th>Congregação</th><th>Código</th><th>Situação</th><th class="ac">Ações</th></tr></thead><tbody id="ct"></tbody></table></div><div class="pg"><span id="cpgi" class="s"></span><label>Por página<select id="cpor"><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>50</option><option>100</option></select></label><div class="pgn"><button type="button" id="cpa" aria-label="Página anterior"><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg></button><span id="cnum" class="pgn"></span><button type="button" id="cpn" aria-label="Próxima página"><svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div></div></div>
 </section>
 
 {% if admin %}<section id="us" hidden aria-labelledby="h-us">
@@ -222,7 +222,7 @@
       <button type="button" class="ib" id="usr" aria-label="Atualizar lista" title="Atualizar lista"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg></button></div>
     <div class="t"><table class="rt"><thead><tr><th data-sort="nome" aria-sort="ascending">Nome<svg class="ic sic" aria-hidden="true"><use href="#i-chev"/></svg></th><th data-sort="login">Login<svg class="ic sic" aria-hidden="true"><use href="#i-chev"/></svg></th><th data-sort="perfil">Perfil<svg class="ic sic" aria-hidden="true"><use href="#i-chev"/></svg></th><th data-sort="cg">Congregações<svg class="ic sic" aria-hidden="true"><use href="#i-chev"/></svg></th><th data-sort="ativo">Situação<svg class="ic sic" aria-hidden="true"><use href="#i-chev"/></svg></th><th class="ac">Ações</th></tr></thead><tbody id="utb"></tbody></table></div>
     <div class="vazio" id="uvz" hidden><svg class="ic" aria-hidden="true"><use href="#i-inbox"/></svg><b>Nenhum usuário encontrado.</b><span>Ajuste a busca ou o filtro de status.</span></div>
-    <div class="pg"><span id="upgi" class="s"></span><div class="pgn"><button type="button" id="upa" aria-label="Página anterior"><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg></button><span id="upp" class="pgn"></span><button type="button" id="upn" aria-label="Próxima página"><svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div></div>
+    <div class="pg"><span id="upgi" class="s"></span><label>Por página<select id="upor"><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>50</option><option>100</option></select></label><div class="pgn"><button type="button" id="upa" aria-label="Página anterior"><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg></button><span id="unum" class="pgn"></span><button type="button" id="upn" aria-label="Próxima página"><svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div></div>
   </div>
 </section>
 {% endif %}
@@ -353,6 +353,14 @@ const mqF=matchMedia('(max-width:720px)'),syncF=()=>document.querySelectorAll('.
 document.querySelectorAll('.fdet').forEach(d=>d.addEventListener('toggle',()=>{if(!mqF.matches&&!d.open)d.open=true}));
 /* ===== Ocorrências ===== */
 let PG=1,POR=15,TOT=0;try{const s=+localStorage.getItem('por');if([5,10,15,20,30,50,100].includes(s))POR=s}catch(_){}
+/* paginação no navegador para listas que a API entrega inteiras (mesmo padrão visual de Ocorrências e Membros) */
+function mkPg(pre,render){const s={p:1,por:POR},o=$('#'+pre+'por');o.value=s.por;
+ o.onchange=e=>{s.por=+e.target.value;try{localStorage.setItem('por',s.por)}catch(_){}s.p=1;render()};
+ $('#'+pre+'pa').onclick=()=>{s.p--;render()};$('#'+pre+'pn').onclick=()=>{s.p++;render()};
+ $('#'+pre+'num').onclick=e=>{const b=e.target.closest('[data-p]');if(b){s.p=+b.dataset.p;render()}};
+ s.slice=L=>{const pages=Math.max(1,Math.ceil(L.length/s.por));s.p=Math.min(Math.max(1,s.p),pages);return{pages,V:L.slice((s.p-1)*s.por,s.p*s.por)}};
+ s.draw=(n,pages,un)=>{$('#'+pre+'pgi').textContent=n?`Mostrando ${(s.p-1)*s.por+1} a ${Math.min(s.p*s.por,n)} de ${nf(n)} ${un}`:'Nenhum registro';$('#'+pre+'num').innerHTML=pgnums(s.p,pages);$('#'+pre+'pa').disabled=s.p<=1;$('#'+pre+'pn').disabled=s.p>=pages};
+ return s}
 const busyT=(id,on)=>{const w=$(id).closest('.t');if(w)w.setAttribute('aria-busy',on)};
 function chips(){const h=[],a=$('#fde').value,b=$('#fate').value;
  if(a||b)h.push(`<span class="chip">Período: <b>${a?fd(a):'…'} a ${b?fd(b):'…'}</b><button type="button" data-cx="per" aria-label="Remover filtro de período">${ico('x')}</button></span>`);const c=$('#fchip');c.innerHTML=h.join('');c.hidden=!h.length}
@@ -407,7 +415,9 @@ $('#md').oninput=async e=>{const i=e.target;if(i.dataset.k!='cep')return;const d
   const set=(k,v)=>{b.querySelector(`[data-k=${k}]`).value=v||''};set('logradouro',j.logradouro);set('bairro',j.bairro);set('cidade',j.localidade);set('uf',j.uf);cm.textContent='';b.querySelector('[data-k=numero]').focus()}catch(_){cm.textContent='Não foi possível consultar o CEP agora. Preencha manualmente.'}};
 /* ===== Congregações ===== */
 const cerr=m=>{$('#cer').textContent=m||'';$('#cer2').textContent=$('#cgf').hidden?(m||''):''};
-async function congs(){const r=(await api('/api/congregacoes')).j;const at=r.filter(c=>c.ativo).length;$('#gk1').textContent=r.length;$('#gk2').textContent=at;$('#gk3').textContent=r.length-at;$('#ct').innerHTML=r.map(c=>{const a=`data-id="${c.id}" data-n="${H(c.nome)}" data-c="${H(c.codigo||'')}" data-a="${c.ativo?1:0}"`;return `<tr><td class="nm" data-label="Congregação">${H(c.nome)}</td><td data-label="Código">${H(c.codigo||'–')}</td><td data-label="Situação"><span class="badge ${c.ativo?'ok':'st-Inativo'}">${c.ativo?'Ativa':'Inativa'}</span></td><td class="ac"><div class="acoes">${ib(`data-ed ${a}`,'edit','Editar')}${ib(`data-tg ${a}`,'power',c.ativo?'Inativar':'Ativar',c.ativo?'o':'')}${ib(`data-del data-id="${c.id}" data-n="${H(c.nome)}"`,'trash','Excluir','d')}</div></td></tr>`}).join('')}
+let CL=[];const CPG=mkPg('c',()=>cgRender());
+function cgRender(){const{pages,V}=CPG.slice(CL);$('#ct').innerHTML=V.map(c=>{const a=`data-id="${c.id}" data-n="${H(c.nome)}" data-c="${H(c.codigo||'')}" data-a="${c.ativo?1:0}"`;return `<tr><td class="nm" data-label="Congregação">${H(c.nome)}</td><td data-label="Código">${H(c.codigo||'–')}</td><td data-label="Situação"><span class="badge ${c.ativo?'ok':'st-Inativo'}">${c.ativo?'Ativa':'Inativa'}</span></td><td class="ac"><div class="acoes">${ib(`data-ed ${a}`,'edit','Editar')}${ib(`data-tg ${a}`,'power',c.ativo?'Inativar':'Ativar',c.ativo?'o':'')}${ib(`data-del data-id="${c.id}" data-n="${H(c.nome)}"`,'trash','Excluir','d')}</div></td></tr>`}).join('');CPG.draw(CL.length,pages,'registros')}
+async function congs(){const r=(await api('/api/congregacoes')).j;CL=r;const at=r.filter(c=>c.ativo).length;$('#gk1').textContent=r.length;$('#gk2').textContent=at;$('#gk3').textContent=r.length-at;cgRender()}
 $('#ct').onclick=async e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;cerr('');clearErr($('#cg'));
  if('del' in d){ask('Excluir congregação',`Excluir a congregação <b>${H(d.n)}</b>? Só é possível se ela não tiver ocorrências.`,'Sim, excluir',async()=>{const r=await api('/api/congregacoes/'+d.id,{m:'DELETE'});if(r.ok){toast('Congregação excluída');await meta();congs()}else cerr(r.j.erro)});return}
  if('tg' in d){const ativar=d.a!='1',go=async()=>{const r=await api('/api/congregacoes/'+d.id,{m:'PUT',b:{nome:d.n,codigo:d.c,ativo:ativar}});if(r.ok){toast(ativar?'Congregação ativada':'Congregação inativada');await meta();congs()}else cerr(r.j.erro)};
@@ -492,11 +502,13 @@ async function ficha(id){let o=null;if(id){const r=await api('/api/membros/'+id)
 /* máscara de CPF (o CEP usa o mesmo preenchimento automático da aba Ocorrências) */
 $('#md').addEventListener('input',e=>{const i=e.target;if(i.dataset.k!='cpf')return;const d=i.value.replace(/\D/g,'').slice(0,11);i.value=d.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')});
 /* Aniversariantes */
+let AL=[];const APG=mkPg('a',()=>anRender());
 async function anivers(){const q=new URLSearchParams({de:$('#ade').value,ate:$('#aate').value,mes:$('#ames').value,cong:$('#acong').value,nome:$('#anome').value});AQ=q.toString();$('#aer').textContent='';busyT('#atb',true);
  const r=await api('/api/aniversariantes?'+AQ);busyT('#atb',false);if(!r.ok){$('#atb').innerHTML='';$('#avz').hidden=true;$('#apg').hidden=true;$('#aer').textContent=r.j.erro||'Erro ao consultar';return}
- const L=r.j.rows,varios=new Set(L.map(x=>x.mes)).size>1;let ult=0,h='';
- L.forEach(x=>{if(varios&&x.mes!=ult){ult=x.mes;h+=`<tr class="mes"><td colspan="3">${MESES[x.mes-1]}</td></tr>`}h+=`<tr><td class="nm" data-label="Nome"><span class="av ${avc(x.nome)}" aria-hidden="true">${ini(x.nome)}</span>${H(x.nome)}</td><td data-label="Congregação">${H(x.congregacao||'–')}</td><td data-label="Aniversário"><span class="day">${String(x.dia).padStart(2,'0')}/${String(x.mes).padStart(2,'0')}</span></td></tr>`});
- $('#atb').innerHTML=h;$('#avz').hidden=L.length>0;$('#apg').hidden=!L.length;$('#ain').textContent=L.length?`${L.length} aniversariante${L.length>1?'s':''}`:''}
+ AL=r.j.rows;APG.p=1;$('#avz').hidden=AL.length>0;$('#apg').hidden=!AL.length;anRender()}
+function anRender(){const L=AL,varios=new Set(L.map(x=>x.mes)).size>1,{pages,V}=APG.slice(L);let ult=0,h='';
+ V.forEach(x=>{if(varios&&x.mes!=ult){ult=x.mes;h+=`<tr class="mes"><td colspan="3">${MESES[x.mes-1]}</td></tr>`}h+=`<tr><td class="nm" data-label="Nome"><span class="av ${avc(x.nome)}" aria-hidden="true">${ini(x.nome)}</span>${H(x.nome)}</td><td data-label="Congregação">${H(x.congregacao||'–')}</td><td data-label="Aniversário"><span class="day">${String(x.dia).padStart(2,'0')}/${String(x.mes).padStart(2,'0')}</span></td></tr>`});
+ $('#atb').innerHTML=h;APG.draw(L.length,pages,L.length>1?'aniversariantes':'aniversariante')}
 $('#abf').onclick=anivers;$('#abl').onclick=()=>{['ade','aate','ames','acong','anome'].forEach(i=>$('#'+i).value='');anivers()};$('#anome').onkeydown=e=>e.key=='Enter'&&anivers();
 $('#abp').onclick=()=>window.open('/aniversariantes/imprimir?'+AQ,'_blank');
 /* ===== Configuração > Faixa etária ===== */
@@ -526,6 +538,9 @@ document.querySelectorAll('[data-rd]').forEach(b=>b.onclick=()=>{$('#rld').value
 const pfd=p=>`${fd(p.de)} a ${fd(p.ate)}`,sg=n=>(n>0?'+':n<0?'−':'')+Math.abs(n),VT={subiu:'Cresceu',caiu:'Diminuiu',igual:'Manteve'};
 function vbadge(v){const p=v.pct!=null?` (${sg(v.pct)}%)`:'',t={subiu:`▲ ${sg(v.dif)}${p}`,caiu:`▼ ${sg(v.dif)}${p}`,igual:'= manteve'}[v.tipo];return `<span class="var ${v.tipo}" title="${VT[v.tipo]}"><span aria-hidden="true">${t}</span><span class="sr-only">${VT[v.tipo]}${v.tipo=='igual'?'':' '+Math.abs(v.dif)}</span></span>`}
 function relPadrao(){const n=new Date();$('#rli').value=isoD(new Date(n.getFullYear(),n.getMonth(),1));$('#rlf').value=isoD(new Date(n.getFullYear(),n.getMonth()+1,0));$('#rld').value='oc:todas'}
+let RLR=null;const RPG=mkPg('rt',()=>relTab());
+const rlLin=(n,a,b,vr,cl='')=>`<tr class="${cl}"><td class="nm" data-label="Congregação">${H(n)}</td><td data-label="Período anterior"><span class="num">${a}</span></td><td data-label="Período atual"><span class="vl"><span class="num">${b}</span>${vbadge(vr)}</span></td></tr>`;
+function relTab(){const r=RLR,t=r.total,{pages,V}=RPG.slice(r.linhas);$('#rlb').innerHTML=V.map(l=>rlLin(l.congregacao,l.anterior,l.atual,l.variacao)).join('')+rlLin('Total',t.anterior,t.atual,t.variacao,'tot');RPG.draw(r.linhas.length,pages,'registros')}
 function relRender(r){const t=r.total,v=t.variacao,cl={subiu:'g',caiu:'r',igual:'n'}[v.tipo],gl={subiu:'▲',caiu:'▼',igual:'='}[v.tipo];
  $('#rl-desc').textContent=r.descricao;$('#rl-per').textContent=`Período atual: ${pfd(r.periodo_atual)} · Período anterior: ${pfd(r.periodo_anterior)}`;
  $('#rl-kpi').innerHTML=`<div class="card k-n"><span class="ico n">${ico('clock')}</span><span class="kt"><b>${nf(t.anterior)}</b><span>Período anterior</span><span>${pfd(r.periodo_anterior)}</span></span></div>
@@ -534,8 +549,7 @@ function relRender(r){const t=r.total,v=t.variacao,cl={subiu:'g',caiu:'r',igual:
  const mx=Math.max(1,...r.linhas.flatMap(l=>[l.anterior,l.atual])),w=n=>n?Math.max(2,n*100/mx):0;
  $('#rl-bars').innerHTML=r.linhas.length?r.linhas.map(l=>`<div class="bar2" role="img" aria-label="${H(l.congregacao)}: anterior ${l.anterior}, atual ${l.atual}"><span class="bn">${H(l.congregacao)}</span><div class="bps"><div class="bp"><span class="bt2"><i class="a" style="width:${w(l.anterior)}%"></i></span><b>${l.anterior}</b></div><div class="bp"><span class="bt2"><i class="c" style="width:${w(l.atual)}%"></i></span><b>${l.atual}</b></div></div></div>`).join(''):'<p class="hint">Nenhuma congregação para exibir.</p>';
  $('#rl-tha').innerHTML=`Período anterior<small>${pfd(r.periodo_anterior)}</small>`;$('#rl-thb').innerHTML=`Período atual<small>${pfd(r.periodo_atual)}</small>`;
- const lin=(n,a,b,vr,cl='')=>`<tr class="${cl}"><td class="nm" data-label="Congregação">${H(n)}</td><td data-label="Período anterior"><span class="num">${a}</span></td><td data-label="Período atual"><span class="vl"><span class="num">${b}</span>${vbadge(vr)}</span></td></tr>`;
- $('#rlb').innerHTML=r.linhas.map(l=>lin(l.congregacao,l.anterior,l.atual,l.variacao)).join('')+lin('Total',t.anterior,t.atual,v,'tot');
+ RLR=r;RPG.p=1;relTab();
  $('#rl-notas').innerHTML=r.notas.map(n=>`<p>${H(n)}</p>`).join('')}
 async function relatorio(){rlMark();clearErr($('#rl'));$('#rler').textContent='';const de=$('#rli').value,ate=$('#rlf').value,vz=()=>{$('#rlout').hidden=true;$('#rlp').disabled=true;$('#rl .fdet').open=true};
  if(!de||!ate||ate<de){if(!de)fieldErr($('#rli'),'Informe a data inicial.');if(!ate)fieldErr($('#rlf'),'Informe a data final.');if(de&&ate&&ate<de)fieldErr($('#rlf'),'A data final não pode ser anterior à data inicial.');vz();return}
@@ -556,13 +570,13 @@ async function usuarios(){const er=$('#uer');er.textContent='';const r=await api
  const nm=id=>(M.todas.find(c=>c.id==id)||{}).nome||('#'+id);
  $('#uk1').textContent=UL.length;$('#uk2').textContent=UL.filter(u=>u.ativo).length;$('#uk3').textContent=UL.filter(u=>!u.ativo).length;$('#uk4').textContent=(M.congregacoes||[]).length;
  renderU()}
-let UP=1;const UPOR=10,US={k:'nome',d:1};
-function renderU(pg){if(pg)UP=pg;const nm=id=>(M.todas.find(c=>c.id==id)||{}).nome||('#'+id),q=($('#usq').value||'').trim().toLowerCase(),st=$('#uss').value;
+let UPG=null;const US={k:'nome',d:1};
+function renderU(pg){if(pg)UPG.p=pg;const nm=id=>(M.todas.find(c=>c.id==id)||{}).nome||('#'+id),q=($('#usq').value||'').trim().toLowerCase(),st=$('#uss').value;
  const cgs=u=>u.perfil=='admin'?'Todas':(u.congregacoes.map(nm).join(', ')||'–');
- const key={nome:u=>u.nome,login:u=>u.login,perfil:u=>u.perfil,cg:cgs,ativo:u=>+u.ativo}[US.k],L=UL.filter(u=>(!st||String(+u.ativo)==st)&&(!q||[u.nome,u.login,cgs(u)].join(' ').toLowerCase().includes(q))).sort((a,b)=>String(key(a)).localeCompare(String(key(b)),'pt-BR',{sensitivity:'base'})*US.d||a.id-b.id),pages=Math.max(1,Math.ceil(L.length/UPOR));if(UP>pages)UP=pages;
- const V=L.slice((UP-1)*UPOR,UP*UPOR);$('#uvz').hidden=L.length>0;
+ const key={nome:u=>u.nome,login:u=>u.login,perfil:u=>u.perfil,cg:cgs,ativo:u=>+u.ativo}[US.k],L=UL.filter(u=>(!st||String(+u.ativo)==st)&&(!q||[u.nome,u.login,cgs(u)].join(' ').toLowerCase().includes(q))).sort((a,b)=>String(key(a)).localeCompare(String(key(b)),'pt-BR',{sensitivity:'base'})*US.d||a.id-b.id);
+ const{pages,V}=UPG.slice(L);$('#uvz').hidden=L.length>0;
  $('#utb').innerHTML=V.map(u=>{const eu=u.id==M.usuario.id,adm=u.perfil=='admin';return `<tr><td class="nm" data-label="Nome"><span class="av${adm?' a':''}" aria-hidden="true">${ico('user')}</span>${H(u.nome)}${eu?' <span class="hint">(você)</span>':''}</td><td data-label="Login">${H(u.login)}</td><td data-label="Perfil"><span class="badge ${adm?'adm':'pf'}">${ico(adm?'star-f':'shield-f')}${adm?'Administrador':'Usuário comum'}</span></td><td data-label="Congregações">${H(cgs(u))}</td><td data-label="Situação"><span class="badge ${u.ativo?'ok':'st-Inativo'}">${u.ativo?'Ativo':'Inativo'}</span></td><td class="ac"><div class="acoes">${ib(`data-ue="${u.id}"`,'edit','Editar')}${eu?'':ib(`data-ut="${u.id}"`,'power',u.ativo?'Desativar':'Ativar','d')}</div></td></tr>`}).join('');
- $('#upgi').textContent=L.length?`Mostrando ${(UP-1)*UPOR+1} a ${Math.min(UP*UPOR,L.length)} de ${nf(L.length)} registros`:'Nenhum registro';$('#upp').innerHTML=pgnums(UP,pages);$('#upa').disabled=UP<=1;$('#upn').disabled=UP>=pages}
+ UPG.draw(L.length,pages,'registros')}
 function formUsuario(id){const o=id?UL.find(u=>u.id==id):null,eu=!!o&&o.id==M.usuario.id,v=o||{nome:'',login:'',perfil:'usuario',ativo:true,congregacoes:[]},rq='<span class="req" aria-hidden="true">*</span>';
  open_(`<h2>${o?'Editar usuário':'Novo usuário'}</h2>
  <div class="f"><label class="w2"><span>Nome${rq}</span><input data-u="nome" value="${H(v.nome)}" maxlength="120"></label>
@@ -582,10 +596,10 @@ function formUsuario(id){const o=id?UL.find(u=>u.id==id):null,eu=!!o&&o.id==M.us
   if(!o)body.login=q('login').value;if(q('senha').value)body.senha=q('senha').value;
   b.disabled=true;b.classList.add('busy');const r=await api(o?'/api/usuarios/'+id:'/api/usuarios',{m:o?'PUT':'POST',b:body});b.disabled=false;b.classList.remove('busy');
   if(r.ok){toast(o?'Usuário atualizado':'Usuário cadastrado');close();await usuarios()}else $('#me').textContent=r.j.erros?r.j.erros.map(e=>e.msg).join(' '):(r.j.erro||'Não foi possível salvar.')}}
-if(ADMIN){$('#usn').onclick=()=>formUsuario();
+if(ADMIN){UPG=mkPg('u',()=>renderU());$('#usn').onclick=()=>formUsuario();
  const ufil=(s)=>{$('#usq').value='';$('#uss').value=s;renderU(1)};$('#ukb1').onclick=()=>ufil('');$('#ukb2').onclick=()=>ufil('1');$('#ukb3').onclick=()=>ufil('0');$('#ukb4').onclick=()=>show('cg');
  document.querySelectorAll('#us th[data-sort]').forEach(th=>{th.tabIndex=0;const go=()=>{US.d=US.k==th.dataset.sort?-US.d:1;US.k=th.dataset.sort;document.querySelectorAll('#us th[data-sort]').forEach(x=>x.removeAttribute('aria-sort'));th.setAttribute('aria-sort',US.d==1?'ascending':'descending');renderU(1)};th.onclick=go;th.onkeydown=e=>{if(e.key=='Enter'||e.key==' '){e.preventDefault();go()}}});
- $('#usq').oninput=()=>renderU(1);$('#uss').onchange=()=>renderU(1);$('#upa').onclick=()=>renderU(UP-1);$('#upn').onclick=()=>renderU(UP+1);$('#upp').onclick=e=>{const b=e.target.closest('[data-p]');if(b)renderU(+b.dataset.p)};
+ $('#usq').oninput=()=>renderU(1);$('#uss').onchange=()=>renderU(1);
  $('#usr').onclick=async()=>{const b=$('#usr');b.disabled=true;await usuarios();b.disabled=false;toast('Lista atualizada')};
  $('#utb').onclick=e=>{const b=e.target.closest('button');if(!b)return;
   if(b.dataset.ue)return formUsuario(+b.dataset.ue);
