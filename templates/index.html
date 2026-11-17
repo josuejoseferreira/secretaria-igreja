@@ -37,6 +37,11 @@
 <symbol id="i-check" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol>
 <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
 <symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+<symbol id="i-arrow-l" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+<symbol id="i-note" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
 <symbol id="i-chev-r" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
 <symbol id="i-chev-l" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
@@ -95,6 +100,12 @@
     <button type="button" class="card k-g" id="kp2" aria-label="Congregações ativas: ver lista"><span class="ico g"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg></span><span class="kt"><b id="k2">–</b><span>Congregações ativas</span></span><svg class="ic go" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
     <button type="button" class="card k-o" id="kp3" aria-label="Membros ativos: ver lista"><span class="ico o"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg></span><span class="kt"><b id="k3">–</b><span>Membros ativos</span></span><svg class="ic go" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
   </div>
+  <div class="card ag-home" id="agh2" aria-labelledby="agh-t" hidden>
+    <div class="rm-h"><h2 id="agh-t"><svg class="ic" aria-hidden="true"><use href="#i-cal"/></svg>Agenda da semana</h2><div class="acts"><button type="button" id="hgv">Abrir agenda</button><button type="button" class="p" id="hgd"><svg class="ic" aria-hidden="true"><use href="#i-eye"/></svg>Datashow</button></div></div>
+    <div id="hgdest"></div>
+    <div class="ag-hg"><div><h3 class="sub">Hoje</h3><ul class="ag-ul" id="hghoje"></ul></div><div><h3 class="sub">Próximos compromissos</h3><ul class="ag-ul" id="hgprox"></ul></div><div><h3 class="sub">Próximos eventos</h3><ul class="ag-ul" id="hgev"></ul></div></div>
+    <p class="hint" id="hgan"></p>
+  </div>
   <div class="card rm" id="rm" aria-labelledby="rm-t">
     <div class="rm-h"><h2 id="rm-t"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>Resumo dos membros</h2><span class="hint">Considera apenas cadastros com Status Ativo</span></div>
     <div id="rm-er" class="alert" role="alert"></div>
@@ -110,6 +121,8 @@
     <button type="button" id="qo"><span class="q"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></span>Nova ocorrência<svg class="ic go" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
     <button type="button" id="qm"><span class="q"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg></span>Novo membro<svg class="ic go" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
     <button type="button" id="qa"><span class="q"><svg class="ic" aria-hidden="true"><use href="#i-gift"/></svg></span>Aniversariantes<svg class="ic go" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+    <button type="button" id="qg"><span class="q"><svg class="ic" aria-hidden="true"><use href="#i-cal"/></svg></span>Agenda da semana<svg class="ic go" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+    <button type="button" id="qd"><span class="q"><svg class="ic" aria-hidden="true"><use href="#i-eye"/></svg></span>Abrir Datashow<svg class="ic go" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
   </div></div>
 </section>
 
@@ -144,6 +157,55 @@
   <div class="card flush"><div class="t"><table class="rt"><thead><tr><th>Nome</th><th>Congregação</th><th>Status</th><th>Status da Membresia</th><th>Cargo Eclesiástico</th><th class="ac">Ações</th></tr></thead><tbody id="mtb"></tbody></table></div>
     <div class="vazio" id="mvz" hidden><svg class="ic" aria-hidden="true"><use href="#i-inbox"/></svg><b>Nenhum membro encontrado.</b><span>Ajuste os filtros ou cadastre um novo membro.</span></div>
     <div class="pg"><span id="mpgi" class="s"></span><label>Por página<select id="mpor"><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>50</option><option>100</option></select></label><div class="pgn"><button type="button" id="mpa" aria-label="Página anterior"><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg></button><span id="mpp" class="pgn"></span><button type="button" id="mpn" aria-label="Próxima página"><svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div></div></div>
+</section>
+<section id="mf" hidden aria-labelledby="h-mf">
+  <div class="ph-page"><div class="ph-t"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-users"/></svg></span><div><h1 id="h-mf">Cadastro de Membro</h1><p class="s" id="mf-sub">Mantenha o cadastro dos membros da igreja sempre atualizado</p></div></div>
+    <div class="acts"><button type="button" id="mfvolta"><svg class="ic" aria-hidden="true"><use href="#i-arrow-l"/></svg>Voltar</button></div></div>
+  <div class="mf-tabs" role="tablist" aria-label="Seções do cadastro">
+    <button type="button" role="tab" id="mft1" data-mt="1" aria-selected="true" aria-controls="mfp1"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg><span>Dados Pessoais</span></button>
+    <button type="button" role="tab" id="mft2" data-mt="2" aria-selected="false" aria-controls="mfp2" tabindex="-1"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg><span>Endereço</span></button>
+    <button type="button" role="tab" id="mft3" data-mt="3" aria-selected="false" aria-controls="mfp3" tabindex="-1"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg><span>Dados Eclesiásticos</span></button>
+    <button type="button" role="tab" id="mft4" data-mt="4" aria-selected="false" aria-controls="mfp4" tabindex="-1"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg><span>Histórico</span></button>
+    <button type="button" role="tab" id="mft5" data-mt="5" aria-selected="false" aria-controls="mfp5" tabindex="-1"><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg><span>Observações</span></button></div>
+  <div class="mf-grid">
+    <aside class="card mf-foto" id="mffoto" aria-label="Fotografia do membro">
+      <div class="mf-avw"><div class="mf-av" id="mfav"><img id="mfimg" alt="Foto do membro" hidden><svg class="mf-sil" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="42" r="22" fill="currentColor"/><path d="M16 114c0-27 20-44 44-44s44 17 44 44z" fill="currentColor"/></svg></div>
+        <button type="button" class="mf-cam" id="mfcam" aria-label="Escolher ou tirar foto"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg></button></div>
+      <div class="mf-ft"><b>Foto do membro</b><p class="hint" id="mfft" aria-live="polite">Adicione uma foto para identificar o membro no sistema.</p>
+        <div class="mf-fb"><button type="button" class="p" id="mftk"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg>Tirar foto</button><button type="button" id="mfch"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg>Escolher imagem</button><button type="button" id="mfrm"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>Remover foto</button></div>
+        <p class="alert" id="mffe" role="alert"></p>
+        <p class="mf-info">Formatos: JPG, PNG ou WEBP · até 10 MB. A foto é recortada e reduzida automaticamente.</p></div>
+      <input type="file" id="mffile" accept="image/jpeg,image/png,image/webp" hidden><input type="file" id="mfcap" accept="image/*" capture="user" hidden></aside>
+    <div class="mf-main">
+      <div class="card mf-pane" id="mfp1" role="tabpanel" aria-labelledby="mft1"><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>Informações pessoais</h2>
+        <p class="hint">Os campos marcados com <span class="req" aria-hidden="true">*</span> são obrigatórios.</p>
+        <div class="f"><label class="w2"><span>Nome completo<span class="req" aria-hidden="true">*</span></span><input data-k="nome" maxlength="200" aria-required="true" autocomplete="off" placeholder="Digite o nome completo"></label>
+          <label>Data de nascimento<input type="date" data-k="data_nascimento"></label><label>Sexo<select data-k="sexo"></select></label><label>Estado civil<select data-k="estado_civil"></select></label>
+          <label>CPF<input data-k="cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></label><label>Telefone / WhatsApp<input data-k="telefone" inputmode="tel" placeholder="(00) 00000-0000"></label>
+          <label>E-mail<input data-k="email" type="email" inputmode="email" placeholder="exemplo@email.com"></label>
+          <label class="w2">Nome da mãe<input data-k="nome_mae" maxlength="200" autocomplete="off" placeholder="Digite o nome da mãe"></label><label class="w2">Nome do pai<input data-k="nome_pai" maxlength="200" autocomplete="off" placeholder="Digite o nome do pai"></label></div></div>
+      <div class="card mf-pane" id="mfp2" role="tabpanel" aria-labelledby="mft2" hidden><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg>Endereço</h2>
+        <div class="end"><b>Informe o CEP para preencher automaticamente</b>
+          <label class="a-cep">CEP<input data-k="cep" inputmode="numeric" maxlength="9" placeholder="00000-000"></label><label class="a-logradouro">Rua / Logradouro<input data-k="logradouro"></label><label class="a-numero">Número<input data-k="numero"></label>
+          <label class="a-complemento">Complemento<input data-k="complemento"></label><label class="a-bairro">Bairro<input data-k="bairro"></label><label class="a-cidade">Cidade<input data-k="cidade"></label><label class="a-uf">Estado<input data-k="uf" maxlength="2"></label><small class="cm"></small></div></div>
+      <div class="card mf-pane" id="mfp3" role="tabpanel" aria-labelledby="mft3" hidden><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg>Dados eclesiásticos</h2>
+        <div class="f"><label>Congregação<select data-k="congregacao_id"></select></label><label>Data de conversão<input type="date" data-k="data_conversao"></label><label>Data de batismo<input type="date" data-k="data_batismo"></label>
+          <label>Data de chegada à igreja<input type="date" data-k="data_chegada"></label><label>Data de recebimento<input type="date" data-k="data_recebimento"></label>
+          <label>Forma de recebimento<input data-k="forma_recebimento" list="mfdl_forma" autocomplete="off"><datalist id="mfdl_forma"></datalist></label>
+          <label><span>Status<span class="req" aria-hidden="true">*</span></span><select data-k="status"></select></label><label><span>Status da Membresia<span class="req" aria-hidden="true">*</span></span><select data-k="status_membresia"></select></label>
+          <label id="mflcg">Cargo Eclesiástico<select data-k="cargo"></select></label>
+          <label id="mflsd">Data de saída<input type="date" data-k="data_saida"></label><label id="mflfs">Forma de saída<input data-k="forma_saida" list="mfdl_fsaida" autocomplete="off"><datalist id="mfdl_fsaida"><option value="Carta de mudança"><option value="Falecimento"><option value="Pedido do membro"><option value="Desligamento"></datalist></label>
+          <p class="hint w3" style="margin:0">Chegada: quando veio para a igreja · Recebimento: quando foi registrado como membro · Saída (aparece com Status Desligado ou Faleceu): quando saiu com carta, faleceu ou foi desligado. Essas datas alimentam o Relatório.</p></div></div>
+      <div class="card mf-pane" id="mfp4" role="tabpanel" aria-labelledby="mft4" hidden><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Histórico do Membro</h2>
+        <p class="hint">O histórico é permanente: depois de salvo, o registro não pode ser alterado nem apagado.</p>
+        <div id="mfhist"></div>
+        <div class="hnew"><div class="f"><label>Data<input type="date" id="mfhd"></label><label>Secretário(a)<input id="mfhs" disabled></label><label class="w2">Descrição<textarea id="mfhx" rows="2" maxlength="5000" placeholder="Ex.: consagrado a diácono, mudança de congregação, motivo da disciplina..."></textarea></label></div>
+          <div class="row" style="margin-top:12px"><span id="mfhe" class="er" style="margin:0 auto 0 0"></span><button type="button" id="mfha"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar ao histórico</button></div></div></div>
+      <div class="card mf-pane" id="mfp5" role="tabpanel" aria-labelledby="mft5" hidden><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg>Observações</h2>
+        <label>Informações complementares<textarea data-k="observacoes" id="mfobs" rows="7" maxlength="2000" placeholder="Informações complementares sobre o membro..."></textarea></label><p class="hint" id="mfobsn" style="margin-top:6px;text-align:right"></p></div>
+    </div></div>
+  <div class="card mf-bar"><div id="mfe" class="alert" role="alert"></div>
+    <div class="mf-bt"><button type="button" id="mflimpar"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>Limpar formulário</button><span class="sp"></span><button type="button" id="mfcanc">Cancelar</button><button type="button" id="mfsc">Salvar e continuar<svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button><button type="button" class="p" id="mfsv"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Salvar cadastro</button></div></div>
 </section>
 
 <section id="an" hidden aria-labelledby="h-an">
@@ -210,18 +272,27 @@
 <section id="ag" hidden aria-labelledby="h-ag">
   <div class="ph-page"><div class="ph-t"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-cal"/></svg></span><div><h1 id="h-ag">Agenda</h1><p class="s">Programação da semana, eventos e aniversariantes, prontos para exibir no Datashow.</p></div></div>
     <div class="acts"><button type="button" class="p" id="agds"><svg class="ic" aria-hidden="true"><use href="#i-eye"/></svg>Datashow</button></div></div>
+  <div class="card ag-fl"><div class="filters"><label>Congregação<select id="agcg" aria-describedby="agcgh"></select></label></div><p class="hint" id="agcgh" style="margin:var(--s2) 0 0">Cada congregação monta o seu anúncio semanal. Você só vê as congregações liberadas para o seu usuário.</p></div>
   <div class="card ag-nav"><button type="button" id="agp"><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg>Semana anterior</button>
     <div class="ag-per"><b id="agt">–</b><span class="s" id="ags"></span></div>
     <button type="button" id="agh">Hoje</button><button type="button" id="agx">Próxima semana<svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div>
   <div class="ag-tabs" role="tablist" aria-label="Seções da agenda">
     <button type="button" role="tab" id="agtb1" aria-selected="true" aria-controls="agp1" data-t="1">Semana</button>
     <button type="button" role="tab" id="agtb2" aria-selected="false" aria-controls="agp2" data-t="2" tabindex="-1">Eventos</button>
-    <button type="button" role="tab" id="agtb3" aria-selected="false" aria-controls="agp3" data-t="3" tabindex="-1">Aniversariantes da semana</button></div>
+    <button type="button" role="tab" id="agtb3" aria-selected="false" aria-controls="agp3" data-t="3" tabindex="-1">Aniversariantes da semana</button>
+    <button type="button" role="tab" id="agtb4" aria-selected="false" aria-controls="agp4" data-t="4" tabindex="-1">Agenda anual</button></div>
   <div id="agp1" role="tabpanel" aria-labelledby="agtb1"><div id="agdest" class="ag-dest"></div><div class="card ag-sem" id="aglist" aria-live="polite"></div></div>
-  <div id="agp2" role="tabpanel" aria-labelledby="agtb2" hidden><div class="card ag-sem"><p class="hint" style="margin:0 0 var(--s3)">Eventos e lembretes (festas, encontros, congressos). Aparecem na tela “Eventos” do Datashow. Para um período, preencha também a data final.</p>
+  <div id="agp2" role="tabpanel" aria-labelledby="agtb2" hidden><div class="card ag-sem"><p class="hint" style="margin:0 0 var(--s3)">Eventos e lembretes (festas, encontros, congressos), comuns a todas as congregações. Aparecem na tela “Eventos” do Datashow. Para um período, preencha também a data final.</p>
     <form class="ag-add ag-addev" id="agevf" autocomplete="off"><label><span class="sr-only">Data inicial</span><input type="date" name="i" required aria-label="Data inicial"></label><label><span class="sr-only">Data final (opcional)</span><input type="date" name="f" aria-label="Data final (opcional)" title="Data final (opcional)"></label><label class="grow"><span class="sr-only">Descrição</span><input type="text" name="t" maxlength="200" required placeholder="Novo evento (ex.: Festa das crianças na Cong. Ribeira)" aria-label="Descrição do evento"></label><button type="submit" class="p ib" aria-label="Adicionar evento" title="Adicionar evento"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span class="bt">Adicionar</span></button></form>
     <div id="agev"></div></div></div>
   <div id="agp3" role="tabpanel" aria-labelledby="agtb3" hidden><div class="card ag-sem" id="agan"></div></div>
+  <div id="agp4" role="tabpanel" aria-labelledby="agtb4" hidden>
+    <div class="card ag-nav"><button type="button" id="anp"><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg>Ano anterior</button>
+      <div class="ag-per"><b id="ant">–</b></div><button type="button" id="anh">Este ano</button><button type="button" id="anx">Próximo ano<svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div>
+    <ul class="ag-leg" id="anleg" aria-label="Legenda"></ul>
+    <div class="ag-an" id="ancal"></div>
+    <div class="card ag-sem" id="andia" hidden aria-live="polite"></div>
+  </div>
 </section>
 
 {% if admin %}<section id="us" hidden aria-labelledby="h-us">
@@ -301,8 +372,9 @@ const sync=()=>{const on=innerWidth>900?!APP.classList.contains('nav-off'):side.
 mbtn.onclick=()=>{if(innerWidth>900){APP.classList.toggle('nav-off');sync()}else menu(!side.classList.contains('on'))};scrim.onclick=()=>menu(false);
 $('#bell').onclick=()=>toast('Você não tem notificações no momento.');$('#meb').onclick=()=>show('pf');$('.userbox .who').style.cursor='pointer';$('.userbox .who').onclick=()=>show('pf');sync();
 window.addEventListener('resize',()=>{if(innerWidth>900&&side.classList.contains('on'))menu(false);sync()});
-const NOMES={home:'Início',oc:'Ocorrências',mb:'Membros',an:'Aniversariantes',ag:'Agenda',rl:'Relatórios',cg:'Congregações',us:'Usuários',cf:'Configuração',pf:'Meu perfil'};
-function show(v){if(!ADMIN&&['cg','cf','us'].includes(v))v='home';['home','oc','mb','an','ag','rl','cg','cf','us','pf'].forEach(i=>{const e=$('#'+i);if(e)e.hidden=i!=v});$('#bc').innerHTML=v=='home'?'':`<a href="#" data-v="home">${NOMES.home}</a>${ico('chev-r')}<span>${NOMES[v]}</span>`;document.querySelectorAll('.menu a[data-v]').forEach(a=>{const on=a.dataset.v==v;a.classList.toggle('on',on);on?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});menu(false);window.scrollTo(0,0);if(v=='home')painel();if(v=='oc'){lista();ocKpi()}if(v=='mb'){membros(1);mbKpi()}if(v=='an'){if(!ANIV_INI){ANIV_INI=true;$('#ames').value=String(new Date().getMonth()+1)}anivers();anKpi()}if(v=='pf')perfil();if(v=='ag')agenda();if(v=='rl'){if(!REL_INI){REL_INI=true;relPadrao()}relatorio()}if(v=='cg')congs();if(v=='cf')config();if(v=='us')usuarios()}
+const NOMES={home:'Início',oc:'Ocorrências',mb:'Membros',an:'Aniversariantes',ag:'Agenda',rl:'Relatórios',cg:'Congregações',us:'Usuários',cf:'Configuração',pf:'Meu perfil',mf:'Cadastro de membro'};
+function show(v){if(!ADMIN&&['cg','cf','us'].includes(v))v='home';
+ if(v!='mf'&&MF.dirty&&!$('#mf').hidden){ask('Descartar alterações?','Há alterações não salvas neste cadastro. Se você sair agora, elas serão perdidas.','Sim, descartar',()=>{MF.dirty=false;show(v)});menu(false);return}['home','oc','mb','mf','an','ag','rl','cg','cf','us','pf'].forEach(i=>{const e=$('#'+i);if(e)e.hidden=i!=v});$('#bc').innerHTML=v=='home'?'':`<a href="#" data-v="home">${NOMES.home}</a>${ico('chev-r')}<span>${NOMES[v]}</span>`;document.querySelectorAll('.menu a[data-v]').forEach(a=>{const on=a.dataset.v==(v=='mf'?'mb':v);a.classList.toggle('on',on);on?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});menu(false);window.scrollTo(0,0);if(v=='home'){painel();agHome()}if(v=='oc'){lista();ocKpi()}if(v=='mb'){membros(1);mbKpi()}if(v=='an'){if(!ANIV_INI){ANIV_INI=true;$('#ames').value=String(new Date().getMonth()+1)}anivers();anKpi()}if(v=='pf')perfil();if(v=='ag')agenda();if(v=='rl'){if(!REL_INI){REL_INI=true;relPadrao()}relatorio()}if(v=='cg')congs();if(v=='cf')config();if(v=='us')usuarios()}
 document.querySelectorAll('.menu a[data-v]').forEach(a=>a.onclick=e=>{e.preventDefault();show(a.dataset.v)});
 $('#bc').onclick=e=>{const a=e.target.closest('a[data-v]');if(a){e.preventDefault();show(a.dataset.v)}};
 $('#qo').onclick=()=>{show('oc');form()};
@@ -428,9 +500,10 @@ async function form(id){const o=id?(await api('/api/ocorrencias/'+id)).j:null;le
  foco(document.querySelector('#md [data-k]'))};
  draw()}
 $('#bn').onclick=()=>form();
-$('#md').oninput=async e=>{const i=e.target;if(i.dataset.k!='cep')return;const d=i.value.replace(/\D/g,'').slice(0,8);i.value=d.length>5?d.slice(0,5)+'-'+d.slice(5):d;const b=i.closest('.end'),cm=b.querySelector('.cm');cm.textContent='';if(d.length<8)return;cm.textContent='Buscando CEP...';
+$('#md').oninput=e=>cepInput(e.target);
+async function cepInput(i){if(i.dataset.k!='cep')return;const d=i.value.replace(/\D/g,'').slice(0,8);i.value=d.length>5?d.slice(0,5)+'-'+d.slice(5):d;const b=i.closest('.end'),cm=b.querySelector('.cm');cm.textContent='';if(d.length<8)return;cm.textContent='Buscando CEP...';
  try{const j=await(await fetch(`https://viacep.com.br/ws/${d}/json/`)).json();if(j.erro){cm.textContent='CEP não encontrado. Preencha o endereço manualmente.';return}
-  const set=(k,v)=>{b.querySelector(`[data-k=${k}]`).value=v||''};set('logradouro',j.logradouro);set('bairro',j.bairro);set('cidade',j.localidade);set('uf',j.uf);cm.textContent='';b.querySelector('[data-k=numero]').focus()}catch(_){cm.textContent='Não foi possível consultar o CEP agora. Preencha manualmente.'}};
+  const set=(k,v)=>{b.querySelector(`[data-k=${k}]`).value=v||''};set('logradouro',j.logradouro);set('bairro',j.bairro);set('cidade',j.localidade);set('uf',j.uf);cm.textContent='';b.querySelector('[data-k=numero]').focus()}catch(_){cm.textContent='Não foi possível consultar o CEP agora. Preencha manualmente.'}}
 /* ===== Congregações ===== */
 const cerr=m=>{$('#cer').textContent=m||'';$('#cer2').textContent=$('#cgf').hidden?(m||''):''};
 let CL=[];const CPG=mkPg('c',()=>cgRender());
@@ -474,51 +547,121 @@ const hlinhas=(hist,pend)=>{const all=[...hist.map(h=>({d:h.data.slice(0,10),s:h
 const histTab=(hist,pend,id)=>`<div class="hist t"><table class="rt"><thead><tr><th>Data</th><th>Secretário(a)</th><th>Descrição</th></tr></thead><tbody ${id?`id="${id}"`:''}>${hlinhas(hist,pend)}</tbody></table></div>`;
 /* Visualizar */
 async function ver(id){const r=await api('/api/membros/'+id);if(!r.ok){toast(r.j.erro||'Não foi possível abrir o membro','err');return}const m=r.j,f=(l,x)=>`<div><small>${l}</small>${H(x||'–')}</div>`,dt=k=>m[k]?fd(m[k]):'';
- open_(`<h2>${H(m.nome)}</h2><h3 class="sec">Dados pessoais</h3><div class="dl">${f('Data de nascimento',dt('data_nascimento'))}${f('Sexo',m.sexo)}${f('Estado civil',m.estado_civil)}${f('CPF',m.cpf)}${f('Telefone / WhatsApp',m.telefone)}${f('E-mail',m.email)}</div>
+ open_(`<h2>${H(m.nome)}</h2><div class="ver-top"><div class="mf-av sm">${m.tem_foto?`<img src="/api/membros/${m.id}/foto?v=${m.foto_v}" alt="Foto de ${H(m.nome)}" onerror="this.remove()">`:''}<svg class="mf-sil" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="42" r="22" fill="currentColor"/><path d="M16 114c0-27 20-44 44-44s44 17 44 44z" fill="currentColor"/></svg></div><div><span class="badge st-${H(m.status)}">${H(m.status)}</span><p class="hint" style="margin-top:6px">${H(m.congregacao||'Sem congregação')}</p></div></div>
+ <h3 class="sec">Dados pessoais</h3><div class="dl">${f('Data de nascimento',dt('data_nascimento'))}${f('Sexo',m.sexo)}${f('Estado civil',m.estado_civil)}${f('CPF',m.cpf)}${f('Telefone / WhatsApp',m.telefone)}${f('E-mail',m.email)}${f('Nome da mãe',m.nome_mae)}${f('Nome do pai',m.nome_pai)}</div>
  <h3 class="sec">Endereço</h3><div class="dl">${f('CEP',m.cep)}${f('Rua / Logradouro',m.logradouro)}${f('Número',m.numero)}${f('Complemento',m.complemento)}${f('Bairro',m.bairro)}${f('Cidade',m.cidade)}${f('Estado',m.uf)}</div>
  <h3 class="sec">Dados eclesiásticos</h3><div class="dl">${f('Congregação',m.congregacao)}${f('Data de conversão',dt('data_conversao'))}${f('Data de batismo',dt('data_batismo'))}${f('Data de chegada à igreja',dt('data_chegada'))}${f('Data de recebimento',dt('data_recebimento'))}${f('Forma de recebimento',m.forma_recebimento)}${['Desligado','Faleceu'].includes(m.status)?f('Data de saída',dt('data_saida'))+f('Forma de saída',m.forma_saida):''}</div>
  <h3 class="sec">Situação na igreja</h3><div class="dl"><div><small>Status</small><span class="badge st-${H(m.status)}">${H(m.status)}</span></div>${f('Status da Membresia',m.status_membresia)}${m.status_membresia=='Membro'?f('Cargo Eclesiástico',m.cargo):''}</div>
+ ${m.observacoes?`<h3 class="sec">Observações</h3><p class="ver-obs">${H(m.observacoes)}</p>`:''}
  <h3 class="sec">Histórico do Membro</h3>${histTab(m.historico,[])}
  <div class="row"><button type="button" id="vc">Fechar</button><button type="button" class="p" id="ve">${ico('edit')}Editar</button></div>`);$('#vc').onclick=close;$('#ve').onclick=()=>{close();ficha(id)}}
-/* Ficha (novo / editar) */
+/* ===== Cadastro de membro (página própria: dados, endereço, eclesiásticos, histórico, observações, foto) ===== */
 const MAPM=[[/Status da Membresia/,'status_membresia'],[/Selecione o Status/,'status'],[/nome/i,'nome'],[/nascimento/i,'data_nascimento'],[/conversão/i,'data_conversao'],[/batismo/i,'data_batismo'],[/saída/i,'data_saida'],[/chegada/i,'data_chegada'],[/data de recebimento/i,'data_recebimento'],[/Estado civil/,'estado_civil'],[/Sexo/,'sexo'],[/CPF/,'cpf'],[/Telefone/,'telefone'],[/E-mail/,'email'],[/CEP/,'cep'],[/UF/,'uf'],[/ongregação/,'congregacao_id'],[/Cargo/,'cargo']];
-function markM(er){er.forEach(m=>{let k=null;const lg=m.match(/^Campo muito longo: (\w+)\./);if(lg)k=lg[1];else{const x=MAPM.find(([re])=>re.test(m));if(x)k=x[1]}if(k)fieldErr($(`#md [data-k=${k}]`),m)});focaErro()}
-async function ficha(id){let o=null;if(id){const r=await api('/api/membros/'+id);if(!r.ok){toast(r.j.erro||'Não foi possível abrir o membro','err');return}o=r.j}
- const K=M.membros,v=o||{status:'Ativo',status_membresia:'Membro'},val=k=>H(v[k]??''),dt=k=>H((v[k]||'').slice(0,10)),hist=o?o.historico:[],pend=[],
-  sel=(k,arr,vazio)=>`<select data-k="${k}">${vazio!=null?`<option value="">${vazio}</option>`:''}${arr.map(x=>`<option value="${H(x)}" ${v[k]==x?'selected':''}>${H(x)}</option>`).join('')}</select>`,
-  cgs=M.todas.filter(c=>c.ativo||(o&&c.id==o.congregacao_id)),isM=v.status_membresia=='Membro',saiu=['Desligado','Faleceu'].includes(v.status),rq='<span class="req" aria-hidden="true">*</span>';
- open_(`<h2>${o?'Editar membro':'Novo membro'}</h2>
- <p class="hint" style="margin-bottom:16px">Os campos marcados com ${rq} são obrigatórios.</p>
- <h3 class="sec">Dados pessoais</h3><div class="f"><label class="w2"><span>Nome completo${rq}</span><input data-k="nome" value="${val('nome')}" maxlength="200" aria-required="true" autocomplete="off"></label><label>Data de nascimento<input type="date" data-k="data_nascimento" value="${dt('data_nascimento')}"></label>
- <label>Sexo${sel('sexo',K.sexos,'Selecione...')}</label><label>Estado civil${sel('estado_civil',K.estados_civis,'Selecione...')}</label><label>CPF<input data-k="cpf" value="${val('cpf')}" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></label>
- <label>Telefone / WhatsApp<input data-k="telefone" value="${val('telefone')}" inputmode="tel" placeholder="(00) 00000-0000"></label><label>E-mail<input data-k="email" type="email" value="${val('email')}" inputmode="email"></label></div>
- <h3 class="sec">Endereço</h3><div class="end"><b>Informe o CEP para preencher automaticamente</b>${['cep','logradouro','numero','complemento','bairro','cidade','uf'].map(k=>`<label class="a-${k}">${ROTE[k]}<input data-k="${k}" value="${val(k)}" ${k=='cep'?'inputmode="numeric" maxlength="9" placeholder="00000-000"':''} ${k=='uf'?'maxlength="2"':''}></label>`).join('')}<small class="cm"></small></div>
- <h3 class="sec">Dados eclesiásticos</h3><div class="f"><label>Congregação<select data-k="congregacao_id"><option value="">Selecione...</option>${cgs.map(c=>`<option value="${c.id}" ${v.congregacao_id==c.id?'selected':''}>${H(c.nome)}</option>`).join('')}</select></label>
- <label>Data de conversão<input type="date" data-k="data_conversao" value="${dt('data_conversao')}"></label><label>Data de batismo<input type="date" data-k="data_batismo" value="${dt('data_batismo')}"></label><label>Data de chegada à igreja<input type="date" data-k="data_chegada" value="${dt('data_chegada')}"></label>
- <label>Data de recebimento<input type="date" data-k="data_recebimento" value="${dt('data_recebimento')}"></label>
- <label>Forma de recebimento<input data-k="forma_recebimento" list="dl_forma" value="${val('forma_recebimento')}"><datalist id="dl_forma">${K.formas.map(x=>`<option value="${H(x)}">`).join('')}</datalist></label>
- <label id="lsd" style="display:${saiu?'flex':'none'}">Data de saída<input type="date" data-k="data_saida" value="${dt('data_saida')}"></label>
- <label id="lfs" style="display:${saiu?'flex':'none'}">Forma de saída<input data-k="forma_saida" list="dl_fsaida" value="${val('forma_saida')}"><datalist id="dl_fsaida"><option value="Carta de mudança"><option value="Falecimento"><option value="Pedido do membro"><option value="Desligamento"></datalist></label>
- <p class="hint w3" style="margin:0">Chegada: quando veio para a igreja · Recebimento: quando foi registrado como membro · Saída (aparece com Status Desligado ou Faleceu): quando saiu com carta, faleceu ou foi desligado. Essas datas alimentam o Relatório.</p></div>
- <h3 class="sec">Situação na igreja</h3><div class="f"><label><span>Status${rq}</span>${sel('status',K.status)}</label><label><span>Status da Membresia${rq}</span>${sel('status_membresia',K.membresia)}</label><label id="lcg" style="display:${isM?'flex':'none'}">Cargo Eclesiástico${sel('cargo',K.cargos,'Nenhum')}</label></div>
- <h3 class="sec">Histórico do Membro</h3>${histTab(hist,pend,'hb')}
- <div class="hnew"><div class="f"><label>Data<input type="date" id="hd"></label><label>Secretário(a)<input id="hs" value="${H(USR)}" disabled></label><label class="w2">Descrição<textarea id="hx" rows="2" maxlength="5000" placeholder="Ex.: consagrado a diácono, mudança de congregação, motivo da disciplina..."></textarea></label></div>
- <div class="row" style="margin-top:12px"><span id="he" class="er" style="margin:0 auto 0 0"></span><button type="button" id="ha">${ico('plus')}Adicionar ao histórico</button></div></div>
- <div id="me"></div><div class="row stk"><button type="button" id="cn_">Cancelar</button><button type="button" class="p" id="sv">Salvar</button></div>`);
- const ms=$('#md [data-k=status_membresia]'),cg=$('#md [data-k=cargo]'),stat=$('#md [data-k=status]');ms.onchange=()=>{const m=ms.value=='Membro';$('#lcg').style.display=m?'flex':'none';if(!m)cg.value=''};
- stat.onchange=()=>{const s=['Desligado','Faleceu'].includes(stat.value);$('#lsd').style.display=$('#lfs').style.display=s?'flex':'none';if(!s){$('#md [data-k=data_saida]').value='';$('#md [data-k=forma_saida]').value=''}};
- $('#ha').onclick=()=>{const d=$('#hd').value,t=$('#hx').value.trim();if(!d||!t){$('#he').textContent='Informe a data e a descrição para adicionar.';return}pend.push({data:d,descricao:t});$('#hd').value=$('#hx').value='';$('#he').textContent='';$('#hb').innerHTML=hlinhas(hist,pend)};
- $('#hb').onclick=e=>{const b=e.target.closest('[data-hr]');if(!b)return;pend.splice(+b.dataset.hr,1);$('#hb').innerHTML=hlinhas(hist,pend)};
- $('#cn_').onclick=close;
- $('#sv').onclick=async()=>{const dd=$('#hd').value,tt=$('#hx').value.trim();let extra=[];clearErr($('#md'));$('#me').textContent='';
-  if(dd||tt){if(!dd||!tt){$('#me').textContent='Complete a data e a descrição do histórico (ou limpe os campos) antes de salvar.';return}extra=[{data:dd,descricao:tt}]}
-  const d=Object.fromEntries([...document.querySelectorAll('#md [data-k]')].map(i=>[i.dataset.k,i.value])),sv=$('#sv');sv.disabled=true;sv.classList.add('busy');
-  const r=await api(o?'/api/membros/'+id:'/api/membros',{m:o?'PUT':'POST',b:{...d,historico_novo:[...pend,...extra]}});
-  if(r.ok){toast(o?'Membro atualizado com sucesso':'Membro cadastrado com sucesso');close();membros();if(!$('#mb').hidden)mbKpi();return}
-  sv.disabled=false;sv.classList.remove('busy');const er=(r.j.erros||[{msg:r.j.erro}]).map(x=>x.msg);$('#me').innerHTML=er.map(H).join('<br>');markM(er)};
- foco($('#md [data-k=nome]'))}
+let MF={id:null,o:null,pend:[],foto:null,fotoRem:false,dirty:false,tab:1,built:false};
+const ehMovel=()=>/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.platform=='MacIntel'&&navigator.maxTouchPoints>1)||matchMedia('(pointer:coarse)').matches;
+const MFTIPOS=['image/jpeg','image/png','image/webp'],MFMAX=10*1024*1024;
+const mfK=k=>$(`#mf [data-k=${k}]`);
+function mfTab(n,foc){MF.tab=n;[1,2,3,4,5].forEach(i=>{const t=$('#mft'+i),on=i==n;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;$('#mfp'+i).hidden=!on});if(foc)$('#mft'+n).focus()}
+function mfMarcaErros(){[1,2,3,4,5].forEach(i=>$('#mft'+i).classList.toggle('err',!!$('#mfp'+i).querySelector('label.invalid')))}
+function markMF(er){er.forEach(m=>{let k=null;const lg=m.match(/^Campo muito longo: (\w+)\./);if(lg)k=lg[1];else{const x=MAPM.find(([re])=>re.test(m));if(x)k=x[1]}if(k)fieldErr(mfK(k),m)});mfMarcaErros();
+ const f=document.querySelector('#mf label.invalid input,#mf label.invalid select,#mf label.invalid textarea');if(f){mfTab(+f.closest('.mf-pane').id.slice(3));f.scrollIntoView({block:'center',behavior:'smooth'});foco(f)}}
+function mfVisib(){const m=mfK('status_membresia').value=='Membro',s=['Desligado','Faleceu'].includes(mfK('status').value);$('#mflcg').style.display=m?'flex':'none';$('#mflsd').style.display=$('#mflfs').style.display=s?'flex':'none'}
+function mfBuild(){if(MF.built)return;MF.built=true;const K=M.membros,opt=(arr,v)=>(v!=null?`<option value="">${v}</option>`:'')+arr.map(x=>`<option value="${H(x)}">${H(x)}</option>`).join('');
+ mfK('sexo').innerHTML=opt(K.sexos,'Selecione...');mfK('estado_civil').innerHTML=opt(K.estados_civis,'Selecione...');mfK('status').innerHTML=opt(K.status);mfK('status_membresia').innerHTML=opt(K.membresia);mfK('cargo').innerHTML=opt(K.cargos,'Nenhum');
+ $('#mfdl_forma').innerHTML=K.formas.map(x=>`<option value="${H(x)}">`).join('');
+ mfK('status_membresia').onchange=()=>{if(mfK('status_membresia').value!='Membro')mfK('cargo').value='';mfVisib()};
+ mfK('status').onchange=()=>{if(!['Desligado','Faleceu'].includes(mfK('status').value)){mfK('data_saida').value='';mfK('forma_saida').value=''}mfVisib()};
+ document.querySelectorAll('.mf-tabs [data-mt]').forEach(b=>{b.onclick=()=>mfTab(+b.dataset.mt);b.onkeydown=e=>{const d={ArrowRight:1,ArrowLeft:-1}[e.key];if(d)mfTab((+b.dataset.mt-1+d+5)%5+1,true)}});
+ const sujo=()=>{MF.dirty=true};$('#mf').addEventListener('input',e=>{sujo();if(e.target.id=='mfobs')mfObsN()});$('#mf').addEventListener('change',sujo);
+ $('#mf').addEventListener('input',e=>cepInput(e.target));$('#mf').addEventListener('input',e=>cpfMask(e.target));
+ $('#mfvolta').onclick=$('#mfcanc').onclick=()=>show('mb');
+ $('#mfsv').onclick=()=>mfSalvar(false);$('#mfsc').onclick=()=>mfSalvar(true);
+ $('#mflimpar').onclick=()=>ask('Limpar formulário','Todos os campos preenchidos, a foto e os registros de histórico ainda não salvos serão apagados.','Sim, limpar',()=>{mfCarrega(null);MF.pend=[];MF.foto=null;MF.fotoRem=false;mfHist();mfFotoVer();MF.dirty=false;mfTab(1)},false);
+ $('#mfha').onclick=()=>{const d=$('#mfhd').value,t=$('#mfhx').value.trim();if(!d||!t){$('#mfhe').textContent='Informe a data e a descrição para adicionar.';return}MF.pend.push({data:d,descricao:t});MF.dirty=true;$('#mfhd').value=$('#mfhx').value='';$('#mfhe').textContent='';mfHist()};
+ $('#mfhist').onclick=e=>{const b=e.target.closest('[data-hr]');if(!b)return;MF.pend.splice(+b.dataset.hr,1);mfHist()};
+ /* foto */
+ $('#mfch').onclick=()=>$('#mffile').click();$('#mfcam').onclick=()=>$('#mffile').click();
+ /* celular/tablet: abre a câmera nativa do aparelho (funciona até em http); computador: webcam pelo navegador */
+ $('#mftk').onclick=()=>ehMovel()?$('#mfcap').click():mfCamera();
+ $('#mffile').onchange=$('#mfcap').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)mfEscolhe(f)};
+ $('#mfrm').onclick=()=>{if(MF.foto){MF.foto=null}else MF.fotoRem=true;MF.dirty=true;mfFotoMsg('');mfFotoVer()};
+ const fc=$('#mffoto');['dragenter','dragover'].forEach(n=>fc.addEventListener(n,e=>{e.preventDefault();fc.classList.add('drop')}));['dragleave','drop'].forEach(n=>fc.addEventListener(n,e=>{e.preventDefault();fc.classList.remove('drop')}));
+ fc.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(f)mfEscolhe(f)});
+ $('#mfimg').onerror=()=>{$('#mfimg').hidden=true;$('#mfimg').nextElementSibling.style.display=''};
+ addEventListener('beforeunload',e=>{if(MF.dirty&&!$('#mf').hidden){e.preventDefault();e.returnValue=''}})}
+const mfObsN=()=>{$('#mfobsn').textContent=$('#mfobs').value.length+' / 2000'};
+function mfCarrega(o){const v=o||{status:'Ativo',status_membresia:'Membro'};
+ mfK('congregacao_id').innerHTML='<option value="">Selecione...</option>'+M.todas.filter(c=>c.ativo||(o&&c.id==o.congregacao_id)).map(c=>`<option value="${c.id}">${H(c.nome)}</option>`).join('');
+ document.querySelectorAll('#mf [data-k]').forEach(i=>{const x=v[i.dataset.k];i.value=x==null?'':(i.type=='date'?String(x).slice(0,10):x)});
+ clearErr($('#mf'));mfMarcaErros();$('#mfe').textContent='';$('#mfhs').value=USR;$('#mfhd').value=$('#mfhx').value='';$('#mfhe').textContent='';mfVisib();mfObsN()}
+const mfHist=()=>{$('#mfhist').innerHTML=histTab(MF.o?MF.o.historico:[],MF.pend,'mfhb')};
+async function mfOpen(id,tab){let o=null;if(id){const r=await api('/api/membros/'+id);if(!r.ok){toast(r.j.erro||'Não foi possível abrir o membro','err');return}o=r.j}
+ mfBuild();MF.id=id||null;MF.o=o;MF.pend=[];MF.foto=null;MF.fotoRem=false;MF.dirty=false;mfCarrega(o);mfHist();mfFotoMsg('');mfFotoVer();
+ $('#h-mf').textContent=o?'Editar membro':'Cadastro de Membro';$('#mf-sub').textContent=o?o.nome:'Mantenha o cadastro dos membros da igreja sempre atualizado';$('#mflimpar').style.display=o?'none':'';
+ MF.go=true;show('mf');MF.go=false;$('#bc').innerHTML=`<a href="#" data-v="home">${NOMES.home}</a>${ico('chev-r')}<a href="#" data-v="mb">Membros</a>${ico('chev-r')}<span>${o?'Editar':'Novo cadastro'}</span>`;mfTab(tab||1);foco(mfK('nome'))}
+const ficha=id=>mfOpen(id);
+async function mfSalvar(continuar){clearErr($('#mf'));$('#mfe').textContent='';mfMarcaErros();
+ const dd=$('#mfhd').value,tt=$('#mfhx').value.trim();let extra=[];
+ if(dd||tt){if(!dd||!tt){$('#mfe').textContent='Complete a data e a descrição do histórico (ou limpe os campos) antes de salvar.';mfTab(4);return}extra=[{data:dd,descricao:tt}]}
+ const d=Object.fromEntries([...document.querySelectorAll('#mf [data-k]')].map(i=>[i.dataset.k,i.value]));
+ if(MF.foto)d.foto=MF.foto.dataUrl;else if(MF.fotoRem&&MF.o&&MF.o.tem_foto)d.foto_remover=true;
+ const bs=['#mfsv','#mfsc'].map(s=>$(s));bs.forEach(b=>b.disabled=true);(continuar?bs[1]:bs[0]).classList.add('busy');
+ const r=await api(MF.id?'/api/membros/'+MF.id:'/api/membros',{m:MF.id?'PUT':'POST',b:{...d,historico_novo:[...MF.pend,...extra]}});
+ bs.forEach(b=>{b.disabled=false;b.classList.remove('busy')});
+ if(r.ok){const novo=!MF.id;toast(novo?'Membro cadastrado com sucesso':'Membro atualizado com sucesso');MF.dirty=false;mbKpi();if(continuar)await mfOpen(r.j.id,MF.tab);else show('mb');return}
+ const er=(r.j.erros||[{msg:r.j.erro||'Não foi possível salvar.'}]).map(x=>x.msg);$('#mfe').innerHTML=er.map(H).join('<br>');markMF(er)}
+/* ----- foto: escolher, câmera, recorte ----- */
+const mfFotoMsg=m=>{$('#mffe').textContent=m||''};
+function mfFotoVer(){const img=$('#mfimg'),sil=img.nextElementSibling;let src=null;
+ if(MF.foto)src=MF.foto.url;else if(!MF.fotoRem&&MF.o&&MF.o.tem_foto)src=`/api/membros/${MF.id}/foto?v=${MF.o.foto_v}`;
+ if(src){img.src=src;img.hidden=false;sil.style.display='none'}else{img.removeAttribute('src');img.hidden=true;sil.style.display=''}
+ $('#mfrm').disabled=!src;
+ $('#mfft').textContent=MF.foto?'Nova foto selecionada. Ela será gravada quando você salvar o cadastro.':MF.fotoRem?'A foto será removida quando você salvar o cadastro.':src?'Foto cadastrada. Para trocar, escolha outra imagem ou tire uma nova.':'Adicione uma foto para identificar o membro no sistema.'}
+async function mfEscolhe(f){mfFotoMsg('');
+ if(!MFTIPOS.includes(f.type)){mfFotoMsg(/heic|heif/i.test(f.type+f.name)?'Fotos em formato HEIC não são aceitas. Use JPG, PNG ou WEBP (no iPhone, escolha “Mais compatível” nos ajustes da câmera).':'Arquivo inválido. Envie uma imagem JPG, PNG ou WEBP.');return}
+ if(f.size>MFMAX){mfFotoMsg('A imagem é grande demais (máximo de 10 MB). Escolha uma foto menor.');return}
+ const url=URL.createObjectURL(f),img=new Image();img.src=url;
+ try{await img.decode()}catch(_){URL.revokeObjectURL(url);mfFotoMsg('Não foi possível ler esta imagem. O arquivo pode estar corrompido.');return}
+ if(img.naturalWidth<64||img.naturalHeight<64){URL.revokeObjectURL(url);mfFotoMsg('A imagem é muito pequena. Use uma foto com pelo menos 64 × 64 pixels.');return}
+ mfRecorte(img,url)}
+function mfRecorte(img,url){const S=Math.max(200,Math.min(300,innerWidth-96));
+ open_(`<h2>Recortar foto</h2><p class="hint" style="margin-bottom:12px">Arraste a imagem para posicionar o rosto e use o zoom para ajustar.</p>
+ <div class="cr"><div class="cr-v" style="width:${S}px;height:${S}px"><canvas id="crc" width="${S}" height="${S}" aria-label="Área de recorte da foto"></canvas><span class="cr-m" aria-hidden="true"></span></div>
+ <div class="cr-s"><span>Pré-visualização</span><canvas id="crp" width="96" height="96" class="cr-p" aria-hidden="true"></canvas></div></div>
+ <label class="cr-z">Zoom<input type="range" id="crz" min="1" max="4" step="0.01" value="1"></label>
+ <div class="row"><button type="button" id="crn">Cancelar</button><button type="button" class="p" id="crok">Confirmar recorte</button></div>`,'sm');
+ const c=$('#crc'),x=c.getContext('2d'),p=$('#crp').getContext('2d'),w=img.naturalWidth,h=img.naturalHeight,k0=Math.max(S/w,S/h);let z=1,cx=w/2,cy=h/2;
+ const clamp=()=>{const q=S/2/(k0*z);cx=Math.min(Math.max(cx,q),w-q);cy=Math.min(Math.max(cy,q),h-q)},
+  desenha=(ctx,t)=>{const q=S/(k0*z);ctx.fillStyle='#fff';ctx.fillRect(0,0,t,t);ctx.drawImage(img,cx-q/2,cy-q/2,q,q,0,0,t,t)},
+  draw=()=>{clamp();desenha(x,S);p.drawImage(c,0,0,S,S,0,0,96,96);$('#crz').value=z};
+ const P=new Map();let d0=0;
+ c.onpointerdown=e=>{c.setPointerCapture(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);d0=0};
+ c.onpointermove=e=>{if(!P.has(e.pointerId))return;const a=P.get(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);
+  if(P.size==1){const k=k0*z;cx-=(e.clientX-a[0])/k;cy-=(e.clientY-a[1])/k}
+  else if(P.size==2){const [u,v]=[...P.values()],d=Math.hypot(u[0]-v[0],u[1]-v[1]);if(d0)z=Math.min(4,Math.max(1,z*d/d0));d0=d}draw()};
+ c.onpointerup=c.onpointercancel=e=>{P.delete(e.pointerId);d0=0};
+ c.onwheel=e=>{e.preventDefault();z=Math.min(4,Math.max(1,z*(e.deltaY<0?1.08:.93)));draw()};
+ $('#crz').oninput=e=>{z=+e.target.value;draw()};draw();
+ const fim=()=>{URL.revokeObjectURL(url)};$('#crn').onclick=()=>{fim();close()};
+ $('#crok').onclick=()=>{const o=document.createElement('canvas');o.width=o.height=480;desenha(o.getContext('2d'),480);
+  o.toBlob(b=>{if(!b){mfFotoMsg('Não foi possível processar a imagem neste navegador.');fim();close();return}
+   const fr=new FileReader();fr.onload=()=>{if(MF.foto)URL.revokeObjectURL(MF.foto.url);MF.foto={url:URL.createObjectURL(b),dataUrl:fr.result};MF.fotoRem=false;MF.dirty=true;fim();close();mfFotoVer()};fr.readAsDataURL(b)},'image/jpeg',.86)}}
+function mfCamera(){
+ const so=(t)=>open_(`<h2>Tirar foto</h2><p>${t}</p><div class="row"><button type="button" id="cam1">Fechar</button><button type="button" class="p" id="cam2">${ico('image')}Escolher imagem do computador</button></div>`,'sm');
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){so('Este navegador só libera a câmera em conexão segura (https ou localhost). Escolha uma imagem do computador ou abra o sistema pelo celular para usar a câmera do aparelho.');$('#cam1').onclick=close;$('#cam2').onclick=()=>{close();$('#mffile').click()};return}
+ open_(`<h2>Tirar foto</h2><div class="cam"><video id="camv" autoplay playsinline muted></video></div><p class="hint" id="camm" style="margin-top:10px">Autorize o uso da câmera no aviso do navegador...</p>
+ <div class="row"><button type="button" id="camc">Cancelar</button><button type="button" class="p" id="camok" disabled>${ico('camera')}Capturar foto</button></div>`,'sm');
+ let st=null,vivo=true;const para=()=>{vivo=false;if(st)st.getTracks().forEach(t=>t.stop());st=null};
+ const vig=setInterval(()=>{if(!$('#camv')){clearInterval(vig);para()}},400);
+ $('#camc').onclick=()=>{para();close()};
+ navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:960}},audio:false}).then(s=>{if(!vivo||!$('#camv')){s.getTracks().forEach(t=>t.stop());return}st=s;const v=$('#camv');v.srcObject=s;v.onloadedmetadata=()=>{$('#camm').textContent='Enquadre o rosto e clique em “Capturar foto”.';$('#camok').disabled=false}}).catch(er=>{
+  para();const n=er&&er.name,m=n=='NotAllowedError'||n=='SecurityError'?'A permissão da câmera foi negada. Libere o acesso no ícone de cadeado do navegador e tente novamente, ou escolha uma imagem do computador.':n=='NotFoundError'||n=='OverconstrainedError'?'Nenhuma câmera foi encontrada neste dispositivo. Escolha uma imagem do computador.':n=='NotReadableError'?'A câmera está sendo usada por outro programa. Feche-o e tente novamente.':'Não foi possível acessar a câmera. Escolha uma imagem do computador.';
+  clearInterval(vig);so(m);$('#cam1').onclick=close;$('#cam2').onclick=()=>{close();$('#mffile').click()}});
+ $('#camok').onclick=()=>{const v=$('#camv');if(!v||!v.videoWidth)return;const cv=document.createElement('canvas');cv.width=v.videoWidth;cv.height=v.videoHeight;cv.getContext('2d').drawImage(v,0,0);clearInterval(vig);para();
+  cv.toBlob(b=>{const u=URL.createObjectURL(b),im=new Image();im.onload=()=>mfRecorte(im,u);im.src=u},'image/jpeg',.92)}}
 /* máscara de CPF (o CEP usa o mesmo preenchimento automático da aba Ocorrências) */
-$('#md').addEventListener('input',e=>{const i=e.target;if(i.dataset.k!='cpf')return;const d=i.value.replace(/\D/g,'').slice(0,11);i.value=d.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')});
+const cpfMask=i=>{if(i.dataset.k!='cpf')return;const d=i.value.replace(/\D/g,'').slice(0,11);i.value=d.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')};
+$('#md').addEventListener('input',e=>cpfMask(e.target));
 /* Aniversariantes */
 let AL=[];const APG=mkPg('a',()=>anRender());
 async function anivers(){const q=new URLSearchParams({de:$('#ade').value,ate:$('#aate').value,mes:$('#ames').value,cong:$('#acong').value,nome:$('#anome').value});AQ=q.toString();$('#aer').textContent='';busyT('#atb',true);
@@ -625,79 +768,196 @@ if(ADMIN){UPG=mkPg('u',()=>renderU());$('#usn').onclick=()=>formUsuario();
   const go=async()=>{const r=await api('/api/usuarios/'+u.id,{m:'PUT',b:{nome:u.nome,perfil:u.perfil,ativo:!u.ativo,congregacoes:u.congregacoes}});if(r.ok){toast(u.ativo?'Usuário desativado':'Usuário ativado');usuarios()}else toast((r.j.erros&&r.j.erros[0].msg)||r.j.erro||'Não foi possível alterar','err')};
   if(u.ativo)ask('Desativar usuário',`Desativar <b>${H(u.nome)}</b>? Ele perde o acesso imediatamente, mas o histórico dos lançamentos é mantido.`,'Sim, desativar',go);else go()}}
 /* ===== AGENDA: semana, eventos, aniversariantes, Datashow ===== */
-let AG={sem:null,dados:null,ev:[],an:null};
+let AG={sem:null,dados:null,ev:[],an:null,cong:''};
+/* congregação escolhida na Agenda: '' = todas as liberadas ao usuário · '0' = compromissos antigos, sem congregação (só administrador) · 'n' = congregação n */
+const agCongs=()=>M.congregacoes||[];
+const agUma=()=>!ADMIN&&agCongs().length==1;          // usuário comum com uma congregação só: fica fixa nela
+const agQ=(extra={})=>{const q=new URLSearchParams(extra);if(AG.cong!=='')q.set('cong',AG.cong);const t=q.toString();return t?'?'+t:''};
+const agCongNome=id=>{const c=agCongs().find(x=>x.id==id);return c?c.nome:''};
+function agCongInit(){const el=$('#agcg'),L=agCongs();
+ if(agUma()){AG.cong=String(L[0].id);el.innerHTML=`<option value="${L[0].id}">${H(L[0].nome)}</option>`;el.disabled=true;return}
+ if(AG.cong!==''&&AG.cong!=='0'&&!L.some(c=>c.id==AG.cong))AG.cong='';
+ el.disabled=false;
+ el.innerHTML='<option value="">'+(ADMIN?'Todas as congregações':'Todas as minhas congregações')+'</option>'+L.map(c=>`<option value="${c.id}">${H(c.nome)}</option>`).join('')+(ADMIN?'<option value="0">Sem congregação (anteriores)</option>':'');
+ el.value=AG.cong}
+/* quando a visão não é de uma congregação só, o cadastro rápido pergunta a congregação do compromisso */
+const agSelCong=(nome,sel)=>`<select name="${nome}" required aria-label="Congregação do compromisso" title="Congregação do compromisso"><option value="">Congregação…</option>${agCongs().map(c=>`<option value="${c.id}"${c.id==sel?' selected':''}>${H(c.nome)}</option>`).join('')}</select>`;
+const agTag=c=>AG.cong===''&&c.congregacao?' <span class="ag-m">('+H(c.congregacao)+')</span>':(c.congregacao_id==null&&ADMIN?' <span class="ag-m">(sem congregação)</span>':'');
 const fdm=d=>d.slice(8,10)+'/'+d.slice(5,7);
+const AGAB=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
 const hh=h=>h?(h.endsWith(':00')?h.slice(0,2)+'h':h+'h'):'';
 function agPeriodo(a,b){if(!b||b==a)return fd(a);const da=+a.slice(8,10),db=+b.slice(8,10);if(a.slice(5,7)!=b.slice(5,7))return fdm(a)+' a '+fdm(b);return db-da==1?da+' e '+db+'/'+a.slice(5,7):da+' a '+db+'/'+a.slice(5,7)}
 const agErr=r=>r.j.erros?r.j.erros.map(e=>e.msg).join(' '):(r.j.erro||'Não foi possível salvar.');
-const agLinha=(c,dest)=>`<li class="ag-it${dest?' dest':''}"><span class="ag-tx">${c.hora?'<b class="ag-h">'+c.hora+'</b> - ':''}${H(c.titulo)}</span><span class="ag-ac">${ib(`data-dst="${c.id}" aria-pressed="${dest}"`,dest?'star-f':'star',dest?'Remover destaque':'Destacar na semana','ag-star')}${ib(`data-ae="${c.id}"`,'edit','Editar')}${ib(`data-ad="${c.id}"`,'trash','Excluir','dd')}</span></li>`;
-const agAdd=d=>`<form class="ag-add" data-d="${d}" autocomplete="off"><input type="time" name="h" aria-label="Horário (opcional)" title="Horário (opcional)"><input type="text" name="t" maxlength="200" required placeholder="Adicionar compromisso e apertar Enter" aria-label="Descrição do compromisso"><button type="submit" class="p ib" aria-label="Adicionar" title="Adicionar">${ico('plus')}<span class="bt">Adicionar</span></button></form>`;
+const agLinha=(c,dest)=>`<li class="ag-it${dest?' dest':''}"><span class="ag-tx">${c.hora?'<b class="ag-h">'+c.hora+'</b> - ':''}${H(c.titulo)}${agTag(c)}</span><span class="ag-ac">${ib(`data-dst="${c.id}" aria-pressed="${dest}"`,dest?'star-f':'star',dest?'Remover destaque':'Destacar na semana','ag-star')}${ib(`data-ar="${c.id}"`,'refresh','Repetir em outros dias')}${ib(`data-ae="${c.id}"`,'edit','Editar')}${ib(`data-ad="${c.id}"`,'trash','Excluir','dd')}</span></li>`;
+const agAdd=d=>`<form class="ag-add" data-d="${d}" autocomplete="off">${AG.cong===''||AG.cong==='0'?agSelCong('g',''):''}<input type="time" name="h" aria-label="Horário (opcional)" title="Horário (opcional)"><input type="text" name="t" maxlength="200" required placeholder="Adicionar compromisso e apertar Enter" aria-label="Descrição do compromisso"><button type="submit" class="p ib" aria-label="Adicionar" title="Adicionar">${ico('plus')}<span class="bt">Adicionar</span></button></form>`;
 function agRender(foco){
  const w=AG.dados,dst=w.destaque;
  $('#agt').textContent=fdm(w.inicio)+' a '+fdm(w.fim)+'/'+w.fim.slice(0,4);
  const hoje=isoD(new Date());$('#ags').textContent=hoje>=w.inicio&&hoje<=w.fim?'Semana atual':'';
- $('#agdest').innerHTML=dst?`<div class="ag-dh">${ico('star-f')}EVENTO EM DESTAQUE DA SEMANA</div><div class="ag-dt">${H(dst.titulo)}</div><div class="ag-dm">${fd(dst.data)}${dst.hora?' às '+dst.hora:''}</div>`
+ const dsts=w.destaques||[],dids=new Set(dsts.map(x=>x.id));
+ $('#agdest').innerHTML=dsts.length?dsts.map(x=>`<div class="ag-dh">${ico('star-f')}EVENTO EM DESTAQUE DA SEMANA${x.congregacao&&AG.cong===''?' · '+H(x.congregacao):''}</div><div class="ag-dt">${H(x.titulo)}</div><div class="ag-dm">${fd(x.data)}${x.hora?' às '+x.hora:''}</div>`).join('')
   :`<div class="ag-dh">${ico('star')}EVENTO EM DESTAQUE DA SEMANA</div><div class="ag-dm">Nenhum evento em destaque. Use a estrela ao lado de um compromisso para destacá-lo no Datashow.</div>`;
- $('#aglist').innerHTML=w.dias.map(d=>`<div class="ag-dia"><h3>${H(d.nome)} <span class="s">${fdm(d.data)}</span></h3>${d.compromissos.length?'<ul>'+d.compromissos.map(c=>agLinha(c,!!dst&&dst.id==c.id)).join('')+'</ul>':'<p class="ag-vz">Sem compromissos.</p>'}${agAdd(d.data)}</div>`).join('');
- $('#agev').innerHTML=AG.ev.length?'<ul class="ag-ul">'+AG.ev.map(e=>`<li class="ag-it"><span class="ag-tx"><b class="ag-h">${agPeriodo(e.data_inicio,e.data_fim)}</b> - ${H(e.titulo)}</span><span class="ag-ac">${ib(`data-ee="${e.id}"`,'edit','Editar')}${ib(`data-ed="${e.id}"`,'trash','Excluir','dd')}</span></li>`).join('')+'</ul>':'<p class="ag-vz">Nenhum evento a partir desta semana.</p>';
+ $('#aglist').innerHTML=w.dias.map(d=>`<div class="ag-dia"><h3>${H(d.nome)} <span class="s">${fdm(d.data)}</span></h3>${d.compromissos.length?'<ul>'+d.compromissos.map(c=>agLinha(c,dids.has(c.id))).join('')+'</ul>':'<p class="ag-vz">Sem compromissos.</p>'}${agAdd(d.data)}</div>`).join('');
+ $('#agev').innerHTML=AG.ev.length?'<ul class="ag-ul">'+AG.ev.map(e=>`<li class="ag-it" style="--cc:${H(e.cor||'#94A3B8')}"><span class="ag-tx"><b class="ag-h">${agPeriodo(e.data_inicio,e.data_fim)}</b> - ${H(e.titulo)}${e.categoria?' <span class="ag-tag" style="background:'+H(e.cor)+'">'+H(e.categoria)+'</span>':''}</span><span class="ag-ac">${ib(`data-ee="${e.id}"`,'edit','Editar')}${ib(`data-ed="${e.id}"`,'trash','Excluir','dd')}</span></li>`).join('')+'</ul>':'<p class="ag-vz">Nenhum evento a partir desta semana.</p>';
  const an=AG.an.rows;
  $('#agan').innerHTML=an.length?w.dias.map(d=>{const L=an.filter(a=>a.data==d.data);return L.length?`<div class="ag-dia"><h3>${H(d.nome)} <span class="s">${fdm(d.data)}</span></h3><ul>${L.map(a=>`<li class="ag-it"><span class="ag-tx">${H(a.nome)}${a.congregacao?' <span class="ag-m">('+H(a.congregacao)+')</span>':''}</span></li>`).join('')}</ul></div>`:''}).join(''):'<p class="ag-vz">Nenhum aniversariante nesta semana.</p>';
  if(foco){const f=document.querySelector(foco);if(f)f.focus({preventScroll:true})}
 }
 async function agenda(ref,foco){
- if(ref)AG.sem=ref;const q=AG.sem?'?data='+AG.sem:'';
- const [s,e,a]=await Promise.all([api('/api/agenda/semana'+q),api('/api/agenda/eventos'+q),api('/api/agenda/aniversariantes'+q)]);
+ agCongInit();
+ if(ref)AG.sem=ref;const q=agQ(AG.sem?{data:AG.sem}:{}),qe=AG.sem?'?data='+AG.sem:'';
+ const [s,e,a]=await Promise.all([api('/api/agenda/semana'+q),api('/api/agenda/eventos'+qe),api('/api/agenda/aniversariantes'+q)]);
  if(!s.ok){$('#aglist').innerHTML='<p class="alert" role="alert">'+H(s.j.erro||'Não foi possível carregar a agenda.')+'</p>';return}
  AG.dados=s.j;AG.sem=s.j.inicio;AG.ev=e.ok?e.j:[];AG.an=a.ok?a.j:{rows:[]};agRender(foco)}
-function agTab(n){[1,2,3].forEach(i=>{const t=$('#agtb'+i),on=i==n;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;$('#agp'+i).hidden=!on})}
-document.querySelectorAll('.ag-tabs [data-t]').forEach(b=>{b.onclick=()=>agTab(+b.dataset.t);b.onkeydown=e=>{const k={ArrowRight:1,ArrowLeft:-1}[e.key];if(k){const n=(+b.dataset.t-1+k+3)%3+1;agTab(n);$('#agtb'+n).focus()}}});
+function agTab(n){[1,2,3,4].forEach(i=>{const t=$('#agtb'+i),on=i==n;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;$('#agp'+i).hidden=!on});$('#ag > .ag-nav').hidden=n==4;if(n==4&&!AN.dados)yaAnual()}
+document.querySelectorAll('.ag-tabs [data-t]').forEach(b=>{b.onclick=()=>agTab(+b.dataset.t);b.onkeydown=e=>{const k={ArrowRight:1,ArrowLeft:-1}[e.key];if(k){const n=(+b.dataset.t-1+k+4)%4+1;agTab(n);$('#agtb'+n).focus()}}});
 /* edição (janela simples: só data, horário e descrição) */
 function formCompromisso(id){
  const o=AG.dados.dias.flatMap(d=>d.compromissos).find(c=>c.id==id),rq='<span class="req" aria-hidden="true">*</span>';if(!o)return;
+ const gl=agCongs().slice();if(o.congregacao_id!=null&&!gl.some(c=>c.id==o.congregacao_id))gl.push({id:o.congregacao_id,nome:(o.congregacao||'#'+o.congregacao_id)+' (inativa)'});
  open_(`<h2>Editar compromisso</h2>
  <div class="f"><label><span>Data${rq}</span><input type="date" data-g="data" value="${H(o.data)}"></label>
  <label><span>Horário <span class="hint">(opcional)</span></span><input type="time" data-g="hora" value="${H(o.hora||'')}"></label>
- <label class="w3"><span>Descrição${rq}</span><input data-g="titulo" value="${H(o.titulo)}" maxlength="200" autocomplete="off"></label></div>
+ <label class="w3"><span>Descrição${rq}</span><input data-g="titulo" value="${H(o.titulo)}" maxlength="200" autocomplete="off"></label>
+ ${agUma()?'':`<label class="w3"><span>Congregação${o.congregacao_id==null?'':rq}</span><select data-g="congregacao_id"><option value="">${o.congregacao_id==null?'Sem congregação (escolha uma)':'Selecione…'}</option>${gl.map(c=>`<option value="${c.id}"${c.id==o.congregacao_id?' selected':''}>${H(c.nome)}</option>`).join('')}</select></label>`}</div>
  <div id="me"></div><div class="row"><button type="button" id="cn_">Cancelar</button><button type="button" class="p" id="sv">Salvar</button></div>`);
  const q=k=>$(`#md [data-g=${k}]`);$('#cn_').onclick=close;foco(q('titulo'));
- const salvar=async()=>{const b=$('#sv');$('#me').textContent='';clearErr($('#md'));const body={data:q('data').value,hora:q('hora').value,titulo:q('titulo').value};
-  let bad=false;if(!body.data){fieldErr(q('data'),'Informe a data.');bad=true}if(!body.titulo.trim()){fieldErr(q('titulo'),'Informe a descrição.');bad=true}if(bad){focaErro();return}
+ const salvar=async()=>{const b=$('#sv');$('#me').textContent='';clearErr($('#md'));const body={data:q('data').value,hora:q('hora').value,titulo:q('titulo').value};if(q('congregacao_id'))body.congregacao_id=q('congregacao_id').value;
+  let bad=false;if(q('congregacao_id')&&o.congregacao_id!=null&&!body.congregacao_id){fieldErr(q('congregacao_id'),'Selecione a congregação.');bad=true}if(!body.data){fieldErr(q('data'),'Informe a data.');bad=true}if(!body.titulo.trim()){fieldErr(q('titulo'),'Informe a descrição.');bad=true}if(bad){focaErro();return}
   b.disabled=true;b.classList.add('busy');const r=await api('/api/agenda/compromissos/'+id,{m:'PUT',b:body});b.disabled=false;b.classList.remove('busy');
   if(r.ok){toast('Compromisso atualizado');close();agenda(body.data<AG.dados.inicio||body.data>AG.dados.fim?body.data:AG.dados.inicio)}else $('#me').textContent=agErr(r)};
  $('#sv').onclick=salvar;$('#md').onkeydown=e=>{if(e.key=='Enter'&&e.target.tagName=='INPUT'){e.preventDefault();salvar()}}}
-function formEvento(id){
- const o=AG.ev.find(e=>e.id==id),rq='<span class="req" aria-hidden="true">*</span>';if(!o)return;
+let AGC=null;
+async function agCats(){if(!AGC){const r=await api('/api/agenda/categorias');AGC=r.ok?r.j:[]}return AGC}
+const agAtualiza=()=>{agenda();if(AN.dados)yaAnual()};
+async function formEvento(o){
+ const rq='<span class="req" aria-hidden="true">*</span>',cats=await agCats();if(!o)return;
  open_(`<h2>Editar evento</h2>
  <div class="f"><label><span>Data inicial${rq}</span><input type="date" data-g="i" value="${H(o.data_inicio)}"></label>
  <label><span>Data final <span class="hint">(opcional)</span></span><input type="date" data-g="f" value="${H(o.data_fim||'')}"></label>
- <label class="w3"><span>Descrição${rq}</span><input data-g="t" value="${H(o.titulo)}" maxlength="200" autocomplete="off"></label></div>
+ <label class="w3"><span>Descrição${rq}</span><input data-g="t" value="${H(o.titulo)}" maxlength="200" autocomplete="off"></label>
+ <label class="w3"><span>Categoria <span class="hint">(cor no calendário anual)</span></span><select data-g="k"><option value="">Sem categoria</option>${cats.map(k=>`<option value="${k.id}" ${k.id==o.categoria_id?'selected':''}>${H(k.nome)}</option>`).join('')}</select></label></div>
  <div id="me"></div><div class="row"><button type="button" id="cn_">Cancelar</button><button type="button" class="p" id="sv">Salvar</button></div>`);
  const q=k=>$(`#md [data-g=${k}]`);$('#cn_').onclick=close;foco(q('t'));
- const salvar=async()=>{const b=$('#sv');$('#me').textContent='';clearErr($('#md'));const body={data_inicio:q('i').value,data_fim:q('f').value,titulo:q('t').value};
+ const salvar=async()=>{const b=$('#sv');$('#me').textContent='';clearErr($('#md'));const body={data_inicio:q('i').value,data_fim:q('f').value,titulo:q('t').value,categoria_id:q('k').value};
   let bad=false;if(!body.data_inicio){fieldErr(q('i'),'Informe a data.');bad=true}if(!body.titulo.trim()){fieldErr(q('t'),'Informe a descrição.');bad=true}if(bad){focaErro();return}
-  b.disabled=true;b.classList.add('busy');const r=await api('/api/agenda/eventos/'+id,{m:'PUT',b:body});b.disabled=false;b.classList.remove('busy');
-  if(r.ok){toast('Evento atualizado');close();agenda()}else $('#me').textContent=agErr(r)};
+  b.disabled=true;b.classList.add('busy');const r=await api('/api/agenda/eventos/'+o.id,{m:'PUT',b:body});b.disabled=false;b.classList.remove('busy');
+  if(r.ok){toast('Evento atualizado');close();agAtualiza()}else $('#me').textContent=agErr(r)};
  $('#sv').onclick=salvar;$('#md').onkeydown=e=>{if(e.key=='Enter'&&e.target.tagName=='INPUT'){e.preventDefault();salvar()}}}
+/* duplicar evento em outras datas (mantém a duração; datas que já têm o mesmo evento são ignoradas) */
+function formDuplicar(o){
+ const dur=o.data_fim?Math.round((new Date(o.data_fim)-new Date(o.data_inicio))/864e5)+1:1;let datas=[],seq=0,pode=false;
+ open_(`<h2>Duplicar evento</h2><p class="ag-ro"><b>${H(o.titulo)}</b><br><span class="s">${agPeriodo(o.data_inicio,o.data_fim)}${dur>1?' · '+dur+' dias (a duração é mantida)':''}</span></p>
+ <label class="ag-dup-a"><span>Em quais datas copiar?</span><span class="ag-dup-l"><input type="date" id="dd"><button type="button" id="dadd">Adicionar data</button></span></label>
+ <ul class="ag-chips" id="dch" aria-label="Datas escolhidas"></ul>
+ <div id="dpv" class="ag-prev" aria-live="polite"></div><div id="me"></div>
+ <div class="row"><button type="button" id="cn_">Cancelar</button><button type="button" class="p" id="sv" disabled>Criar cópias</button></div>`);
+ const chips=()=>{$('#dch').innerHTML=datas.map(d=>`<li><span>${fd(d)}</span><button type="button" data-rm="${d}" aria-label="Remover ${fd(d)}">×</button></li>`).join('')};
+ const prev=async()=>{const n=++seq;pode=false;$('#sv').disabled=true;$('#me').textContent='';chips();if(!datas.length){$('#dpv').innerHTML='';return}
+  const r=await api('/api/agenda/eventos/'+o.id+'/duplicar',{m:'POST',b:{datas,simular:true}});if(n!=seq)return;
+  if(!r.ok){$('#dpv').innerHTML='';$('#me').textContent=agErr(r);return}
+  const N=r.j.datas.filter(x=>x.status=='nova').length;pode=N>0;
+  $('#dpv').innerHTML=`<p class="ag-rs"><b>${N}</b> ${N==1?'evento será criado':'eventos serão criados'}${r.j.ignorados?` · <span class="ag-ig">${r.j.ignorados} já ${r.j.ignorados==1?'existe e será ignorado':'existem e serão ignorados'}</span>`:''}</p><ul class="ag-pl">${r.j.datas.map(x=>`<li class="${x.status}"><span>${agPeriodo(x.data,x.data_fim)}</span><em>${x.status=='nova'?'novo':'já existe'}</em></li>`).join('')}</ul>`;
+  $('#sv').disabled=!pode;$('#sv').textContent=pode?`Criar ${N} ${N==1?'cópia':'cópias'}`:'Criar cópias'};
+ const add=()=>{const v=$('#dd').value;if(!v)return;if(!datas.includes(v)&&v!=o.data_inicio)datas.push(v);datas.sort();$('#dd').value='';prev()};
+ $('#dadd').onclick=add;$('#dd').onkeydown=e=>{if(e.key=='Enter'){e.preventDefault();add()}};$('#dd').onchange=add;
+ $('#dch').onclick=e=>{const b=e.target.closest('[data-rm]');if(b){datas=datas.filter(x=>x!=b.dataset.rm);prev()}};$('#cn_').onclick=close;foco($('#dd'));
+ $('#sv').onclick=async()=>{if(!pode)return;const b=$('#sv');b.disabled=true;b.classList.add('busy');const r=await api('/api/agenda/eventos/'+o.id+'/duplicar',{m:'POST',b:{datas}});b.classList.remove('busy');
+  if(r.ok){toast(`${r.j.criados} ${r.j.criados==1?'evento criado':'eventos criados'}${r.j.ignorados?' ('+r.j.ignorados+' já existia'+(r.j.ignorados==1?'':'m')+')':''}`);close();agAtualiza()}else{b.disabled=false;$('#me').textContent=agErr(r)}}}
+const agExcluirEv=o=>ask('Excluir evento',`Excluir <b>${H(o.titulo)}</b>? Esta ação não pode ser desfeita.`,'Sim, excluir',async()=>{const r=await api('/api/agenda/eventos/'+o.id,{m:'DELETE'});if(r.ok){toast('Evento excluído');agAtualiza()}else toast(r.j.erro||'Não foi possível excluir','err')});
+/* ===== Dashboard: cartão da agenda ===== */
+const abreDatashow=()=>window.open('/datashow'+agQ({data:isoD(new Date())}),'_blank');
+async function agHome(){
+ const r=await api('/api/agenda/resumo'+agQ({data:isoD(new Date())})),el=$('#agh2');if(!r.ok){el.hidden=true;return}const j=r.j;el.hidden=false;
+ const dmab=d=>{const x=new Date(d+'T12:00:00');return AGAB[(x.getDay()+6)%7]+' '+fdm(d)};
+ const li=(h,v)=>`<li class="ag-it"><span class="ag-tx">${h}${v}</span></li>`,vz=t=>`<li class="ag-vz">${t}</li>`,tg=c=>j.multi&&c.congregacao?' <span class="ag-m">('+H(c.congregacao)+')</span>':'';
+ $('#hgdest').innerHTML=(j.destaques||[]).map(dq=>`<div class="ag-dest ag-dest-s"><div class="ag-dh">${ico('star-f')}EVENTO EM DESTAQUE DA SEMANA${j.multi&&dq.congregacao?' · '+H(dq.congregacao):''}</div><div class="ag-dt">${H(dq.titulo)}</div><div class="ag-dm">${fd(dq.data)}${dq.hora?' às '+dq.hora:''}</div></div>`).join('');
+ $('#hghoje').innerHTML=j.compromissos_hoje.length?j.compromissos_hoje.map(c=>li(c.hora?'<b class="ag-h">'+c.hora+'</b> - ':'',H(c.titulo)+tg(c))).join(''):vz('Nenhum compromisso hoje.');
+ $('#hgprox').innerHTML=j.proximos.length?j.proximos.map(c=>li('<b class="ag-h">'+dmab(c.data)+'</b>'+(c.hora?' '+c.hora:'')+' - ',H(c.titulo)+tg(c))).join(''):vz('Nenhum compromisso agendado.');
+ $('#hgev').innerHTML=j.eventos.length?j.eventos.map(e=>li('<b class="ag-h">'+agPeriodo(e.data_inicio,e.data_fim)+'</b> - ',H(e.titulo))).join(''):vz('Nenhum evento próximo.');
+ const n=j.aniversariantes_semana,h=j.aniversariantes_hoje;
+ $('#hgan').textContent=n?`${n} ${n==1?'aniversariante':'aniversariantes'} nesta semana${h.length?' · Hoje: '+h.join(', '):''}.`:'Nenhum aniversariante nesta semana.'}
+$('#hgv').onclick=()=>show('ag');$('#hgd').onclick=abreDatashow;$('#qg').onclick=()=>show('ag');$('#qd').onclick=abreDatashow;
+/* ===== AGENDA ANUAL: 12 calendários (segunda a domingo), legenda e painel do dia ===== */
+let AN={ano:new Date().getFullYear(),dados:null,sel:null};
+const CINZA='#94A3B8',DSEM=['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
+const diasDoEv=(e,ano)=>{const o=[];let d=new Date(e.data_inicio+'T12:00:00');const f=new Date((e.data_fim||e.data_inicio)+'T12:00:00');for(let n=0;d<=f&&n<400;n++,d.setDate(d.getDate()+1))if(d.getFullYear()==ano)o.push(isoD(d));return o};
+function yaMapas(){const j=AN.dados,ev={},cp={};j.eventos.forEach(e=>diasDoEv(e,j.ano).forEach(d=>(ev[d]=ev[d]||[]).push(e)));j.compromissos.forEach(c=>(cp[c.data]=cp[c.data]||[]).push(c));AN.ev=ev;AN.cp=cp}
+const corEv=e=>e.cor||CINZA;
+function yaRender(){
+ const j=AN.dados,hoje=isoD(new Date());$('#ant').textContent=j.ano;
+ $('#anleg').innerHTML=j.categorias.map(k=>`<li><i style="background:${H(k.cor)}"></i>${H(k.nome)}</li>`).join('')+`<li><i style="background:${CINZA}"></i>Sem categoria</li><li><i class="dot"></i>Compromissos da semana</li>`;
+ $('#ancal').innerHTML=MESES.map((nm,m)=>{const ini=(new Date(j.ano,m,1).getDay()+6)%7,n=new Date(j.ano,m+1,0).getDate();let h='';for(let i=0;i<ini;i++)h+='<span></span>';
+  for(let d=1;d<=n;d++){const iso=j.ano+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'),E=AN.ev[iso]||[],C=AN.cp[iso]||[],cs=[...new Set(E.map(corEv))];
+   const bg=cs.length>1?`background:linear-gradient(135deg,${cs[0]} 50%,${cs[1]} 50%)`:cs.length?`background:${cs[0]}`:'';
+   const lab=`${d} de ${nm}${E.length?', '+E.length+(E.length==1?' evento':' eventos'):''}${C.length?', '+C.length+(C.length==1?' compromisso':' compromissos'):''}`;
+   h+=`<button type="button" class="ac-d${E.length?' ev':''}${C.length?' cp':''}${iso==hoje?' hoje':''}${iso==AN.sel?' sel':''}" data-d="${iso}" style="${bg}" aria-label="${lab}">${d}</button>`}
+  return `<section class="ac-m${m==new Date().getMonth()&&j.ano==new Date().getFullYear()?' atual':''}" aria-label="${nm} de ${j.ano}"><h3>${nm}</h3><div class="ac-g" role="group"><span class="ac-w" aria-hidden="true">S</span><span class="ac-w" aria-hidden="true">T</span><span class="ac-w" aria-hidden="true">Q</span><span class="ac-w" aria-hidden="true">Q</span><span class="ac-w" aria-hidden="true">S</span><span class="ac-w" aria-hidden="true">S</span><span class="ac-w" aria-hidden="true">D</span>${h}</div></section>`}).join('');
+ if(AN.sel&&AN.sel.startsWith(j.ano))yaDia(AN.sel,false)}
+async function yaAnual(ano){
+ if(ano)AN.ano=ano;const r=await api('/api/agenda/anual'+agQ({ano:AN.ano}));
+ if(!r.ok){$('#ancal').innerHTML='<p class="alert" role="alert">'+H(r.j.erro||'Não foi possível carregar a agenda yaAnual.')+'</p>';return}
+ AN.dados=r.j;AN.ano=r.j.ano;if(AN.sel&&!AN.sel.startsWith(AN.ano))AN.sel=null;yaMapas();yaRender();if(!AN.sel)$('#andia').hidden=true}
+function yaDia(iso,rolar=true){
+ AN.sel=iso;document.querySelectorAll('#ancal .ac-d').forEach(b=>b.classList.toggle('sel',b.dataset.d==iso));
+ const E=AN.ev[iso]||[],C=AN.cp[iso]||[],dt=new Date(iso+'T12:00:00'),nome=DSEM[(dt.getDay()+6)%7],el=$('#andia'),cats=AN.dados.categorias;
+ el.hidden=false;
+ el.innerHTML=`<div class="ag-dh2"><h3>${nome}, ${fd(iso)}</h3><button type="button" id="andv" class="ag-link">Ver esta semana</button></div>
+ <h4 class="ag-sub">Eventos</h4>${E.length?'<ul class="ag-ul">'+E.map(e=>`<li class="ag-it" style="--cc:${H(corEv(e))}"><span class="ag-tx"><span class="ag-tag" style="background:${H(corEv(e))}">${H(e.categoria||'Sem categoria')}</span> <b class="ag-h">${agPeriodo(e.data_inicio,e.data_fim)}</b> - ${H(e.titulo)}</span>${ADMIN?`<span class="ag-ac">${ib(`data-ae2="${e.id}"`,'edit','Editar')}${ib(`data-adup="${e.id}"`,'refresh','Duplicar em outras datas')}${ib(`data-ad2="${e.id}"`,'trash','Excluir','dd')}</span>`:''}</li>`).join('')+'</ul>':'<p class="ag-vz">Nenhum evento neste dia.</p>'}
+ <h4 class="ag-sub">Compromissos da semana</h4>${C.length?'<ul class="ag-ul">'+C.map(c=>`<li class="ag-it"><span class="ag-tx">${c.hora?'<b class="ag-h">'+c.hora+'</b> - ':''}${H(c.titulo)}</span></li>`).join('')+'</ul>':'<p class="ag-vz">Nenhum compromisso neste dia.</p>'}
+ ${ADMIN?`<form class="ag-add ag-addan" id="andf" data-d="${iso}" autocomplete="off"><label class="grow"><span class="sr-only">Descrição do evento</span><input type="text" name="t" maxlength="200" required placeholder="Novo evento neste dia (ex.: Congresso de jovens)" aria-label="Descrição do evento"></label><label><span class="sr-only">Categoria</span><select name="k" aria-label="Categoria"><option value="">Sem categoria</option>${cats.map(k=>`<option value="${k.id}">${H(k.nome)}</option>`).join('')}</select></label><label><span class="sr-only">Data final (opcional)</span><input type="date" name="f" min="${iso}" aria-label="Data final (opcional)" title="Data final (opcional)"></label><button type="submit" class="p ib" aria-label="Adicionar evento" title="Adicionar evento">${ico('plus')}<span class="bt">Adicionar</span></button></form>`:'<p class="hint" style="margin-top:var(--s3)">Apenas o administrador altera a agenda yaAnual.</p>'}`;
+ if(rolar)el.scrollIntoView({block:'nearest',behavior:'smooth'})}
+$('#ancal').onclick=e=>{const b=e.target.closest('.ac-d');if(b)yaDia(b.dataset.d)};
+$('#anp').onclick=()=>yaAnual(AN.ano-1);$('#anx').onclick=()=>yaAnual(AN.ano+1);$('#anh').onclick=()=>yaAnual(new Date().getFullYear());
+$('#andia').onclick=e=>{const b=e.target.closest('button');if(!b)return;const f=id=>AN.dados.eventos.find(x=>x.id==id);
+ if(b.id=='andv'){agTab(1);agenda(AN.sel);return}
+ if(b.dataset.ae2)return formEvento(f(b.dataset.ae2));if(b.dataset.adup)return formDuplicar(f(b.dataset.adup));if(b.dataset.ad2)return agExcluirEv(f(b.dataset.ad2))};
+$('#andia').addEventListener('submit',async e=>{e.preventDefault();const f=e.target.closest('#andf');if(!f)return;const t=f.t.value.trim();if(!t)return;const b=f.querySelector('button');b.disabled=true;
+ const r=await api('/api/agenda/eventos',{m:'POST',b:{data_inicio:f.dataset.d,data_fim:f.f.value,titulo:t,categoria_id:f.k.value}});b.disabled=false;
+ if(r.ok){toast('Evento adicionado');await yaAnual();agenda();const i=$('#andf input[name=t]');if(i)i.focus({preventScroll:true})}else toast(agErr(r),'err')});
+/* repetir o compromisso em outros dias (cópias independentes; datas que já têm o mesmo compromisso são ignoradas) */
+function formRepetir(id){
+ const c=AG.dados.dias.flatMap(d=>d.compromissos).find(x=>x.id==id);if(!c)return;const orig=AG.dados.dias.findIndex(d=>d.data==c.data);let seq=0,tm,pode=false;
+ open_(`<h2>Repetir compromisso</h2>
+ <p class="ag-ro"><b>${c.hora?c.hora+' - ':''}${H(c.titulo)}</b><br><span class="s">${H(AG.dados.dias[orig].nome)} ${fdm(c.data)}</span></p>
+ <fieldset class="ag-dias"><legend>Repetir em quais dias da semana?</legend>${AGAB.map((n,i)=>`<label class="ag-chk"><input type="checkbox" value="${i}"><span>${n}${i==orig?'<small> (dia atual)</small>':''}</span></label>`).join('')}</fieldset>
+ <label class="ag-sem-n"><span>Por quantas semanas?</span><input type="number" id="rsem" min="1" max="52" value="1" inputmode="numeric"><span class="hint">1 = só nesta semana · 4 = esta e as 3 seguintes</span></label>
+ <div id="rprev" class="ag-prev" aria-live="polite"><p class="hint">Marque os dias para ver as datas.</p></div>
+ <div id="me"></div><div class="row"><button type="button" id="cn_">Cancelar</button><button type="button" class="p" id="sv" disabled>Criar cópias</button></div>`);
+ const corpo=()=>({dias:[...document.querySelectorAll('#md .ag-dias input:checked')].map(x=>+x.value),semanas:+$('#rsem').value||0});
+ const prev=async()=>{const n=++seq,b=corpo();pode=false;$('#sv').disabled=true;$('#me').textContent='';
+  if(!b.dias.length){$('#rprev').innerHTML='<p class="hint">Marque os dias para ver as datas.</p>';return}
+  const r=await api('/api/agenda/compromissos/'+id+'/repetir',{m:'POST',b:{...b,simular:true}});if(n!=seq)return;
+  if(!r.ok){$('#rprev').innerHTML='';$('#me').textContent=agErr(r);return}
+  const N=r.j.datas.filter(x=>x.status=='nova').length;pode=N>0;
+  $('#rprev').innerHTML=`<p class="ag-rs"><b>${N}</b> ${N==1?'compromisso será criado':'compromissos serão criados'}${r.j.ignorados?` · <span class="ag-ig">${r.j.ignorados} já ${r.j.ignorados==1?'existe e será ignorado':'existem e serão ignorados'}</span>`:''}</p><ul class="ag-pl">${r.j.datas.map(x=>`<li class="${x.status}"><span>${H(x.nome.charAt(0)+x.nome.slice(1).toLowerCase().replace(/-feira/,''))} ${fd(x.data)}</span><em>${x.status=='nova'?'nova':'já existe'}</em></li>`).join('')}</ul>`;
+  $('#sv').disabled=!pode;$('#sv').textContent=pode?`Criar ${N} ${N==1?'cópia':'cópias'}`:'Criar cópias'};
+ const agenda_=()=>{clearTimeout(tm);tm=setTimeout(prev,200)};
+ $('#md .ag-dias').onchange=agenda_;$('#rsem').oninput=agenda_;$('#cn_').onclick=close;
+ $('#sv').onclick=async()=>{if(!pode)return;const b=$('#sv');b.disabled=true;b.classList.add('busy');const r=await api('/api/agenda/compromissos/'+id+'/repetir',{m:'POST',b:corpo()});b.classList.remove('busy');
+  if(r.ok){toast(`${r.j.criados} ${r.j.criados==1?'compromisso criado':'compromissos criados'}${r.j.ignorados?' ('+r.j.ignorados+' já existia'+(r.j.ignorados==1?'':'m')+')':''}`);close();agenda(AG.dados.inicio)}else{b.disabled=false;$('#me').textContent=agErr(r)}}}
 /* cadastro rápido dentro de cada dia: horário + descrição + Enter, sem abrir janela */
 $('#aglist').addEventListener('submit',async e=>{e.preventDefault();const f=e.target.closest('form.ag-add');if(!f)return;
  const t=f.t.value.trim();if(!t)return;const b=f.querySelector('button');b.disabled=true;
- const r=await api('/api/agenda/compromissos',{m:'POST',b:{data:f.dataset.d,hora:f.h.value,titulo:t}});b.disabled=false;
+ const cg=f.g?f.g.value:AG.cong;if(!cg||cg==='0'){b.disabled=false;toast('Selecione a congregação do compromisso.','err');if(f.g)f.g.focus();return}
+ const r=await api('/api/agenda/compromissos',{m:'POST',b:{data:f.dataset.d,hora:f.h.value,titulo:t,congregacao_id:+cg}});b.disabled=false;
  if(r.ok){toast('Compromisso adicionado');agenda(AG.dados.inicio,`#aglist form[data-d="${f.dataset.d}"] input[name=t]`)}else toast(agErr(r),'err')});
 $('#agevf').addEventListener('submit',async e=>{e.preventDefault();const f=e.target;const t=f.t.value.trim();if(!t||!f.i.value)return;const b=f.querySelector('button');b.disabled=true;
  const r=await api('/api/agenda/eventos',{m:'POST',b:{data_inicio:f.i.value,data_fim:f.f.value,titulo:t}});b.disabled=false;
  if(r.ok){toast('Evento adicionado');f.t.value='';f.f.value='';agenda(null,'#agevf input[name=t]')}else toast(agErr(r),'err')});
+$('#agcg').onchange=e=>{AG.cong=e.target.value;agAtualiza();agHome()};
 $('#agp').onclick=()=>agenda(AG.dados.anterior);$('#agx').onclick=()=>agenda(AG.dados.proxima);$('#agh').onclick=()=>agenda(isoD(new Date()));
-$('#agds').onclick=()=>window.open('/datashow?data='+(AG.dados?AG.dados.inicio:isoD(new Date())),'_blank');
+$('#agds').onclick=()=>window.open('/datashow'+agQ({data:AG.dados?AG.dados.inicio:isoD(new Date())}),'_blank');
 $('#aglist').onclick=async e=>{const b=e.target.closest('button');if(!b||b.type=='submit')return;
  if(b.dataset.ae)return formCompromisso(+b.dataset.ae);
+ if(b.dataset.ar)return formRepetir(+b.dataset.ar);
  if(b.dataset.ad){const c=AG.dados.dias.flatMap(d=>d.compromissos).find(x=>x.id==b.dataset.ad);
   return ask('Excluir compromisso',`Excluir <b>${H(c.titulo)}</b> de ${fd(c.data)}? Esta ação não pode ser desfeita.`,'Sim, excluir',async()=>{const r=await api('/api/agenda/compromissos/'+c.id,{m:'DELETE'});if(r.ok){toast('Compromisso excluído');agenda(AG.dados.inicio)}else toast(r.j.erro||'Não foi possível excluir','err')})}
- if(b.dataset.dst){const id=+b.dataset.dst,ja=AG.dados.destaque&&AG.dados.destaque.id==id;
-  const r=await api('/api/agenda/destaque',{m:'PUT',b:{semana:AG.dados.inicio,compromisso_id:ja?null:id}});if(r.ok){toast(ja?'Destaque removido':'Evento destacado');agenda(AG.dados.inicio)}else toast(r.j.erro||'Não foi possível destacar','err')}};
+ if(b.dataset.dst){const id=+b.dataset.dst,cp=AG.dados.dias.flatMap(d=>d.compromissos).find(x=>x.id==id),ja=(AG.dados.destaques||[]).some(x=>x.id==id);
+  const r=await api('/api/agenda/destaque',{m:'PUT',b:{semana:AG.dados.inicio,compromisso_id:ja?null:id,congregacao_id:cp?cp.congregacao_id:null}});if(r.ok){toast(ja?'Destaque removido':'Evento destacado');agenda(AG.dados.inicio)}else toast(r.j.erro||'Não foi possível destacar','err')}};
 $('#agev').onclick=e=>{const b=e.target.closest('button');if(!b)return;
- if(b.dataset.ee)return formEvento(+b.dataset.ee);
- if(b.dataset.ed){const v=AG.ev.find(x=>x.id==b.dataset.ed);
-  ask('Excluir evento',`Excluir <b>${H(v.titulo)}</b>? Esta ação não pode ser desfeita.`,'Sim, excluir',async()=>{const r=await api('/api/agenda/eventos/'+v.id,{m:'DELETE'});if(r.ok){toast('Evento excluído');agenda()}else toast(r.j.erro||'Não foi possível excluir','err')})}};
+ if(b.dataset.ee)return formEvento(AG.ev.find(x=>x.id==b.dataset.ee));
+ if(b.dataset.ed)agExcluirEv(AG.ev.find(x=>x.id==b.dataset.ed))};
 meta().then(()=>show('home'));
 </script>
 </body></html>

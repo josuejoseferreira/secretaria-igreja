@@ -38,17 +38,17 @@ body.idle #hud{opacity:0}body.idle{cursor:none}
 </div>
 <script>
 const $=s=>document.querySelector(s),H=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const P=new URLSearchParams(location.search);let TELAS=[],I=0,SEM='';
+const P=new URLSearchParams(location.search);let TELAS=[],I=0,SEM='',CONG='';
 const dm=d=>d.slice(8,10)+'/'+d.slice(5,7);
 const hora=h=>h?(h.endsWith(':00')?h.slice(0,2)+'h':h+'h'):'';
 function periodo(a,b){if(!b||b==a)return dm(a);const da=+a.slice(8,10),db=+b.slice(8,10),ma=a.slice(5,7),mb=b.slice(5,7);
  if(ma!=mb)return dm(a)+' a '+dm(b);const n=db-da+1;
  if(n==2)return da+' e '+db+'/'+ma;if(n==3)return da+', '+(da+1)+' e '+db+'/'+ma;return da+' a '+db+'/'+ma}
-function montar(w){const T=[];
- w.dias.forEach(d=>T.push({nome:d.nome,tit:d.nome,html:d.compromissos.length?d.compromissos.map((c,i)=>`<p class="ln ${i%2?'c2':'c1'}">${c.hora?'<b>'+hora(c.hora)+'-</b> ':''}${H(c.titulo)}</p>`).join(''):'<p class="ln vz">Nenhum compromisso para este dia.</p>'}));
- const dq=w.destaque,ev=w.eventos||[];
- T.push({nome:'EVENTOS',tit:'EVENTOS',html:(dq?`<div class="dest ln c2"><small>★ EVENTO EM DESTAQUE DA SEMANA</small>${dq.hora?'<b>'+hora(dq.hora)+'-</b> ':''}${H(dq.titulo)} <span>(${dm(dq.data)})</span></div>`:'')+
-  (ev.length?ev.map((e,i)=>`<p class="ln ${i%2?'c2':'c1'}"><b>${periodo(e.data_inicio,e.data_fim)}-</b> ${H(e.titulo)}</p>`).join(''):(dq?'':'<p class="ln vz">Nenhum evento próximo.</p>'))});
+function montar(w){const T=[],tg=c=>w.multi&&c.congregacao?` <i style="font-size:.5em;opacity:.7">(${H(c.congregacao)})</i>`:'';
+ w.dias.forEach(d=>T.push({nome:d.nome,tit:d.nome,html:d.compromissos.length?d.compromissos.map((c,i)=>`<p class="ln ${i%2?'c2':'c1'}">${c.hora?'<b>'+hora(c.hora)+'-</b> ':''}${H(c.titulo)}${tg(c)}</p>`).join(''):'<p class="ln vz">Nenhum compromisso para este dia.</p>'}));
+ const dqs=w.destaques||[],ev=w.eventos||[];
+ T.push({nome:'EVENTOS',tit:'EVENTOS',html:dqs.map(dq=>`<div class="dest ln c2"><small>★ EVENTO EM DESTAQUE DA SEMANA${w.multi&&dq.congregacao?' · '+H(dq.congregacao):''}</small>${dq.hora?'<b>'+hora(dq.hora)+'-</b> ':''}${H(dq.titulo)} <span>(${dm(dq.data)})</span></div>`).join('')+
+  (ev.length?ev.map((e,i)=>`<p class="ln ${i%2?'c2':'c1'}"><b>${periodo(e.data_inicio,e.data_fim)}-</b> ${H(e.titulo)}</p>`).join(''):(dqs.length?'':'<p class="ln vz">Nenhum evento próximo.</p>'))});
  const an=w.aniversariantes||[];
  T.push({nome:'ANIVERSARIANTES',tit:'ANIVERSARIANTES',cls:'an',html:an.length?an.map(a=>`<p class="ln">${H(a.nome)}<i>${dm(a.data)}</i></p>`).join(''):'<p class="ln vz" style="color:#8a8a8a">Nenhum aniversariante nesta semana.</p>'});
  return T}
@@ -58,10 +58,11 @@ function draw(){const t=TELAS[I];$('#tela').className=t.cls||'';
  $('#tela').innerHTML=`<h1 class="tit">${H(t.tit)}</h1><div class="corpo">${t.html}</div>`;
  $('#cnt').textContent=`${t.nome} – ${I+1} DE ${TELAS.length}`;$('#pv').disabled=I==0;$('#nx').disabled=I==TELAS.length-1;fit()}
 const ir=n=>{if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();if(!TELAS.length)return;I=Math.min(Math.max(0,n),TELAS.length-1);draw()};
-async function carregar(manter){const r=await fetch('/api/agenda/datashow'+(P.get('data')?'?data='+encodeURIComponent(P.get('data')):''));
+async function carregar(manter){const q=new URLSearchParams();if(P.get('data'))q.set('data',P.get('data'));if(P.get('cong')!==null&&P.get('cong')!=='')q.set('cong',P.get('cong'));
+ const r=await fetch('/api/agenda/datashow'+(q.toString()?'?'+q:''));
  if(r.status==401){location='/login';return}
  const j=await r.json();if(!r.ok){$('#tela').innerHTML='<div id="msg">'+H(j.erro||'Não foi possível carregar a agenda.')+'</div>';return}
- SEM=dm(j.inicio)+' a '+dm(j.fim);$('#sem').textContent='· Semana '+SEM;TELAS=montar(j);
+ SEM=dm(j.inicio)+' a '+dm(j.fim);CONG=j.congregacao?j.congregacao.nome:'';$('#sem').textContent=(CONG?'· '+CONG+' ':'· ')+'Semana '+SEM;document.title='Datashow – Anúncios da semana'+(CONG?' – '+CONG:'');TELAS=montar(j);
  // abre no dia de hoje quando a semana exibida é a atual
  if(!manter){const h=new Date(),hs=h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0')+'-'+String(h.getDate()).padStart(2,'0');I=0;j.dias.forEach((d,k)=>{if(d.data==hs)I=k})}
  draw()}

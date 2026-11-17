@@ -1,10 +1,10 @@
-import os, re, glob, json, sys, secrets, hashlib
+import os, re, glob, json, sys, secrets, hashlib, base64
 from functools import wraps
 import psycopg
 from dotenv import load_dotenv
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
-from flask import Flask, request, jsonify, session, redirect, render_template, g
+from flask import Flask, request, jsonify, session, redirect, render_template, g, Response
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from flask.json.provider import DefaultJSONProvider
@@ -399,7 +399,7 @@ MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "A
 ROT_DATAS = dict(data_nascimento="Data de nascimento", data_conversao="Data de conversão", data_batismo="Data de batismo", data_chegada="Data de chegada", data_recebimento="Data de recebimento", data_saida="Data de saída")
 COLS_MEMBRO = ["nome", "data_nascimento", "sexo", "estado_civil", "cpf", "telefone", "email", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf",
                "congregacao_id", "data_conversao", "data_batismo", "data_recebimento", "forma_recebimento", "status", "status_membresia", "cargo",
-               "data_chegada", "data_saida", "forma_saida"]
+               "data_chegada", "data_saida", "forma_saida", "nome_mae", "nome_pai", "observacoes"]
 
 def _int(x, padrao=0):
     try: return int(x)
@@ -446,9 +446,11 @@ def validar_membro(d):
     elif cep: v["cep"] = cep[:5] + "-" + cep[5:]
     v["uf"] = s("uf").upper() or None
     if v["uf"] and not re.fullmatch(r"[A-Z]{2}", v["uf"]): erros.append("UF inválida (2 letras)."); v["uf"] = None
-    for k in ("logradouro", "numero", "complemento", "bairro", "cidade", "forma_recebimento", "forma_saida"):
-        v[k] = s(k) or None
+    for k in ("logradouro", "numero", "complemento", "bairro", "cidade", "forma_recebimento", "forma_saida", "nome_mae", "nome_pai"):
+        v[k] = " ".join(s(k).split()) or None
         if v[k] and len(v[k]) > 200: erros.append(f"Campo muito longo: {k.replace('_', ' ')}."); v[k] = None
+    v["observacoes"] = s("observacoes") or None
+    if v["observacoes"] and len(v["observacoes"]) > 2000: erros.append("Campo muito longo: observacoes."); v["observacoes"] = None
     cg = d.get("congregacao_id"); v["congregacao_id"] = None
     if cg not in (None, ""):
         v["congregacao_id"] = _int(cg, None)
@@ -467,6 +469,22 @@ def validar_membro(d):
     if (sai or v["forma_saida"]) and v["status"] not in ("Desligado", "Faleceu"):
         erros.append("Informe a data e a forma de saída apenas quando o Status for Desligado ou Faleceu."); v["data_saida"] = v["forma_saida"] = None
     return v, erros
+
+FOTO_MAX = 2 * 1024 * 1024   # a página reduz a foto para ~100 KB; este é o teto aceito pelo servidor
+
+def validar_foto(texto):
+    """Foto enviada como data URL (data:image/jpeg;base64,...). Confere o conteúdo real (não só o nome/tipo
+    informado) e o tamanho. Retorna (bytes, tipo, erro)."""
+    m = re.fullmatch(r"data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\s]+)", texto.strip()) if isinstance(texto, str) else None
+    if not m: return None, None, "Foto inválida. Use uma imagem JPG, PNG ou WEBP."
+    try: b = base64.b64decode(m.group(2), validate=False)
+    except Exception: return None, None, "Foto inválida. Use uma imagem JPG, PNG ou WEBP."
+    if not b: return None, None, "Foto inválida."
+    if len(b) > FOTO_MAX: return None, None, "A foto é grande demais (máximo de 2 MB depois de ajustada)."
+    real = ("image/jpeg" if b[:3] == b"\xff\xd8\xff" else "image/png" if b[:8] == b"\x89PNG\r\n\x1a\n"
+            else "image/webp" if b[:4] == b"RIFF" and b[8:12] == b"WEBP" else None)
+    if real != m.group(1): return None, None, "O arquivo enviado não é uma imagem JPG, PNG ou WEBP válida."
+    return b, real, None
 
 def validar_historico(lista):
     """Registros NOVOS do histórico: (data, descrição). O secretário nunca vem do cliente."""
@@ -506,16 +524,35 @@ def ver_membro(id):
         m = c.execute("SELECT m.*,cg.nome congregacao FROM membros m LEFT JOIN congregacoes cg ON cg.id=m.congregacao_id WHERE m.id=%s AND m.excluido_em IS NULL", (id,)).fetchone()
         if not m or not cong_ok(m["congregacao_id"]): return jsonify(erro="Membro não encontrado."), 404
         m["historico"] = c.execute("SELECT id,data,secretario_nome secretario,descricao FROM historico_membro WHERE membro_id=%s ORDER BY data,id", (id,)).fetchall()
+        f = c.execute("SELECT EXTRACT(EPOCH FROM atualizado_em)::bigint v FROM membro_foto WHERE membro_id=%s", (id,)).fetchone()
+    m["tem_foto"], m["foto_v"] = bool(f), (f["v"] if f else None)
     m.pop("nome_busca", None)
     return jsonify(m)
+
+@app.get("/api/membros/<int:id>/foto")
+def foto_membro(id):
+    with conn() as c:
+        r = c.execute("SELECT f.imagem,f.tipo,m.congregacao_id,EXTRACT(EPOCH FROM f.atualizado_em)::bigint v FROM membro_foto f JOIN membros m ON m.id=f.membro_id WHERE f.membro_id=%s AND m.excluido_em IS NULL", (id,)).fetchone()
+    if not r or not cong_ok(r["congregacao_id"]): return jsonify(erro="Foto não encontrada."), 404
+    resp = Response(bytes(r["imagem"]), mimetype=r["tipo"])
+    resp.headers["Cache-Control"] = "private, max-age=86400"   # o endereço leva ?v=<data da foto>, então trocar a foto renova
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Content-Disposition"] = "inline"
+    resp.add_etag()
+    return resp.make_conditional(request)
 
 @app.post("/api/membros")
 @app.put("/api/membros/<int:id>")
 def salvar_membro(id=None):
+    if (request.content_length or 0) > 4 * 1024 * 1024: return jsonify(erros=[dict(msg="Os dados enviados são grandes demais.")]), 413
     d = request.get_json(silent=True) or {}
     v, erros = validar_membro(d)
     novos, e2 = validar_historico(d.get("historico_novo") or [])
     erros += e2
+    foto = None
+    if d.get("foto"):  # foto nova ou substituta (a página manda a imagem já recortada e reduzida)
+        foto = validar_foto(d["foto"])
+        if foto[2]: erros.append(foto[2])
     if erros: return jsonify(erros=[dict(msg=m) for m in erros]), 400
     try:
         with conn() as c:  # uma transação: ficha + novos registros do histórico, ou nada
@@ -532,6 +569,10 @@ def salvar_membro(id=None):
             else:
                 id = c.execute("INSERT INTO membros(" + ",".join(COLS_MEMBRO) + ",nome_busca) VALUES(" + ",".join(["%s"] * len(COLS_MEMBRO)) + ",f_unaccent(%s)) RETURNING id", vals + [v["nome"]]).fetchone()["id"]
                 atual = False
+            if foto and not foto[2]:
+                c.execute("INSERT INTO membro_foto(membro_id,imagem,tipo,tamanho) VALUES(%s,%s,%s,%s) ON CONFLICT(membro_id) DO UPDATE SET imagem=EXCLUDED.imagem,tipo=EXCLUDED.tipo,tamanho=EXCLUDED.tamanho,atualizado_em=now()", (id, foto[0], foto[1], len(foto[0])))
+            elif d.get("foto_remover") is True:
+                c.execute("DELETE FROM membro_foto WHERE membro_id=%s", (id,))
             for dt, desc in novos:  # secretário = usuário logado (nunca informado pelo navegador)
                 c.execute("INSERT INTO historico_membro(membro_id,data,secretario_id,secretario_nome,descricao) VALUES(%s,%s,%s,%s,%s)", (id, dt, session["uid"], session["nome"], desc))
     except psycopg.errors.UniqueViolation:
@@ -932,23 +973,60 @@ def validar_evento(d):
     elif v["data_fim"] and v["data_inicio"] and v["data_fim"] < v["data_inicio"]: erros.append("A data final não pode ser anterior à data inicial.")
     elif v["data_fim"] == v["data_inicio"]: v["data_fim"] = None
     v["titulo"] = _titulo(d, erros)
+    v["tem_categoria"] = "categoria_id" in d          # quem não envia (cadastro rápido) não mexe na categoria existente
+    v["categoria_id"] = _int(d.get("categoria_id"), 0) or None
     return v, erros
 
-COLS_COMP = "c.id,c.data,to_char(c.hora,'HH24:MI') hora,c.titulo"
+COLS_COMP = "c.id,c.data,to_char(c.hora,'HH24:MI') hora,c.titulo,c.congregacao_id,cg.nome congregacao"
+FROM_COMP = "agenda_compromissos c LEFT JOIN congregacoes cg ON cg.id=c.congregacao_id"
+SEM_CONG_MSG = "Você não tem acesso à congregação selecionada."
 
-def compromissos_entre(c, de, ate):
-    return c.execute("SELECT " + COLS_COMP + " FROM agenda_compromissos c WHERE c.data BETWEEN %s AND %s ORDER BY c.data, c.hora NULLS FIRST, lower(c.titulo), c.id", (de, ate)).fetchall()
+def _cong_param():
+    """?cong= da requisição. Devolve (valor, resposta_de_erro). valor: None = todas as congregações liberadas ao usuário;
+    0 = compromissos antigos, sem congregação (só administrador); n = a congregação n (se o usuário tiver acesso)."""
+    raw = request.args.get("cong")
+    if raw in (None, ""): return None, None
+    n = _int(raw, None)
+    if n is None or n < 0: return None, (jsonify(erro="Congregação inválida."), 400)
+    if (n == 0 and not g.admin) or (n and not cong_ok(n)): return None, (jsonify(erro=SEM_CONG_MSG), 403)
+    return n, None
+
+def filtro_agenda(coluna, cong, w, p):
+    """Restringe a consulta à congregação escolhida; sem escolha, às congregações liberadas ao usuário (admin: todas)."""
+    if cong is None: filtro_cong(coluna, w, p)
+    elif cong == 0: w.append(f"{coluna} IS NULL")
+    else: w.append(f"{coluna} = %s"); p.append(cong)
+
+def compromissos_entre(c, de, ate, cong=None):
+    w, p = ["c.data BETWEEN %s AND %s"], [de, ate]; filtro_agenda("c.congregacao_id", cong, w, p)
+    return c.execute("SELECT " + COLS_COMP + " FROM " + FROM_COMP + " WHERE " + " AND ".join(w) + " ORDER BY c.data, c.hora NULLS FIRST, lower(c.titulo), c.id", p).fetchall()
+
+def validar_cong_compromisso(c, d, atual=None, tem_atual=False):
+    """Congregação do compromisso (body 'congregacao_id'). Devolve (id|None, erro|None).
+    Novo: obrigatória, ativa e liberada ao usuário. Edição: sem o campo, mantém a atual; compromisso antigo (sem congregação) só
+    volta a ficar sem congregação se já estava assim."""
+    if tem_atual and "congregacao_id" not in d: return atual, None
+    n = _int(d.get("congregacao_id"), None) or None
+    if n is None:
+        return (None, None) if tem_atual and atual is None else (None, "Selecione a congregação.")
+    if not cong_ok(n): return None, SEM_CONG_MSG
+    if not c.execute("SELECT 1 FROM congregacoes WHERE id=%s AND (ativo OR id=%s)", (n, atual or 0)).fetchone(): return None, "Selecione uma congregação ativa."
+    return n, None
+
+COLS_EV = "e.id,e.data_inicio,e.data_fim,e.titulo,e.categoria_id,k.nome categoria,k.cor"
 
 def eventos_desde(c, desde, ate=None):
     """Eventos que ainda não terminaram em 'desde' (e começam até 'ate', se informado)."""
-    w, p = ["COALESCE(data_fim,data_inicio) >= %s"], [desde]
-    if ate: w.append("data_inicio <= %s"); p.append(ate)
-    return c.execute("SELECT id,data_inicio,data_fim,titulo FROM agenda_eventos WHERE " + " AND ".join(w) + " ORDER BY data_inicio, lower(titulo), id", p).fetchall()
+    w, p = ["COALESCE(e.data_fim,e.data_inicio) >= %s"], [desde]
+    if ate: w.append("e.data_inicio <= %s"); p.append(ate)
+    return c.execute("SELECT " + COLS_EV + " FROM agenda_eventos e LEFT JOIN agenda_categorias k ON k.id=e.categoria_id WHERE " + " AND ".join(w) + " ORDER BY e.data_inicio, lower(e.titulo), e.id", p).fetchall()
 
-def aniversariantes_semana(ini):
-    """Aniversariantes de segunda a domingo (respeita as congregações do usuário). Devolve lista com a data do aniversário na semana."""
+def aniversariantes_semana(ini, cong=None):
+    """Aniversariantes de segunda a domingo (respeita as congregações do usuário e a congregação escolhida). Devolve lista com a data do aniversário na semana."""
     fim = ini + timedelta(days=6)
-    rows, erro = consultar_aniversariantes({"de": ini.isoformat(), "ate": fim.isoformat()})
+    a = {"de": ini.isoformat(), "ate": fim.isoformat()}
+    if cong: a["cong"] = cong
+    rows, erro = consultar_aniversariantes(a)
     out = []
     for r in rows or []:
         for i in range(7):
@@ -960,14 +1038,20 @@ def aniversariantes_semana(ini):
     out.sort(key=lambda r: (r["data"], r["nome"].lower()))
     return out
 
-def montar_semana(c, ref):
-    """Agenda de segunda a domingo da semana de ref, com o evento em destaque."""
+def montar_semana(c, ref, cong=None):
+    """Agenda de segunda a domingo da semana de ref (da congregação escolhida ou de todas as liberadas), com o(s) evento(s) em destaque:
+    'destaques' traz um por congregação; 'destaque' é o primeiro (com uma congregação só, é o dela)."""
     ini = segunda_da_semana(ref); fim = ini + timedelta(days=6)
     por_dia = {}
-    for r in compromissos_entre(c, ini, fim): por_dia.setdefault(r["data"], []).append(r)
+    for r in compromissos_entre(c, ini, fim, cong): por_dia.setdefault(r["data"], []).append(r)
     dias = [dict(data=ini + timedelta(days=i), nome=DIAS_SEMANA[i], compromissos=por_dia.get(ini + timedelta(days=i), [])) for i in range(7)]
-    dq = c.execute("SELECT " + COLS_COMP + " FROM agenda_destaques d JOIN agenda_compromissos c ON c.id=d.compromisso_id WHERE d.semana=%s", (ini,)).fetchone()
-    return dict(inicio=ini, fim=fim, anterior=ini - timedelta(days=7), proxima=ini + timedelta(days=7), dias=dias, destaque=dq)
+    w, p = ["d.semana=%s"], [ini]; filtro_agenda("c.congregacao_id", cong, w, p)
+    dqs = c.execute("SELECT " + COLS_COMP + " FROM agenda_destaques d JOIN agenda_compromissos c ON c.id=d.compromisso_id "
+                    "LEFT JOIN congregacoes cg ON cg.id=c.congregacao_id WHERE " + " AND ".join(w) + " ORDER BY cg.nome NULLS FIRST, c.id", p).fetchall()
+    nome = c.execute("SELECT id,nome FROM congregacoes WHERE id=%s", (cong,)).fetchone() if cong else None
+    multi = len({r["congregacao_id"] for rs in por_dia.values() for r in rs} | {r["congregacao_id"] for r in dqs}) > 1
+    return dict(inicio=ini, fim=fim, anterior=ini - timedelta(days=7), proxima=ini + timedelta(days=7), dias=dias,
+                destaque=dqs[0] if dqs else None, destaques=dqs, congregacao=nome, multi=multi)
 
 def _ref():
     """Data de referência da requisição (?data=); sem ela, hoje. Devolve (data, erro_response)."""
@@ -975,18 +1059,95 @@ def _ref():
     d = parse_data(request.args.get("data"))
     return (None, (jsonify(erro="Data inválida."), 400)) if not d else (d, None)
 
+MAX_DUPLICACOES = 60
+
+def datas_duplicacao(ev_inicio, ev_fim, datas):
+    """Para cada nova data inicial, devolve (inicio, fim) mantendo a duração do evento original. Ignora repetidas e a data original."""
+    dur = (ev_fim - ev_inicio).days if ev_fim else 0
+    vistos, out = set(), []
+    for d in datas:
+        if d == ev_inicio or d in vistos: continue
+        vistos.add(d); out.append((d, d + timedelta(days=dur) if dur else None))
+    return sorted(out)
+
+@app.get("/api/agenda/categorias")
+def agenda_categorias():
+    with conn() as c:
+        return jsonify(c.execute("SELECT id,slug,nome,cor,mostra_em_eventos FROM agenda_categorias ORDER BY ordem").fetchall())
+
+@app.get("/api/agenda/anual")
+def agenda_anual():
+    """Tudo que o calendário do ano precisa: eventos que tocam o ano, compromissos do ano e categorias."""
+    ano = _int(request.args.get("ano"), date.today().year)
+    if not 2000 <= ano <= 2100: return jsonify(erro="Ano inválido."), 400
+    cong, e = _cong_param()
+    if e: return e
+    de, ate = date(ano, 1, 1), date(ano, 12, 31)
+    with conn() as c:
+        ev = eventos_desde(c, de, ate)
+        comp = compromissos_entre(c, de, ate, cong)
+        cats = c.execute("SELECT id,slug,nome,cor FROM agenda_categorias ORDER BY ordem").fetchall()
+    return jsonify(ano=ano, eventos=ev, compromissos=comp, categorias=cats)
+
+@app.post("/api/agenda/eventos/<int:id>/duplicar")
+def duplicar_evento(id):
+    """Copia o evento para outras datas (cópias independentes; mantém a duração; datas que já têm o mesmo evento são ignoradas)."""
+    b = request.get_json(silent=True) or {}
+    lista = b.get("datas")
+    if not isinstance(lista, list) or not lista: return jsonify(erros=[dict(msg="Escolha pelo menos uma data.")]), 400
+    datas = [parse_data(x) for x in lista]
+    if not all(datas): return jsonify(erros=[dict(msg="Há uma data inválida na lista.")]), 400
+    with conn() as c:
+        o = c.execute("SELECT data_inicio,data_fim,titulo,categoria_id FROM agenda_eventos WHERE id=%s", (id,)).fetchone()
+        if not o: return jsonify(erro="Evento não encontrado."), 404
+        novas = datas_duplicacao(o["data_inicio"], o["data_fim"], datas)
+        if not novas: return jsonify(erros=[dict(msg="Nenhuma data nova para criar: escolha outras datas.")]), 400
+        if len(novas) > MAX_DUPLICACOES: return jsonify(erros=[dict(msg=f"O máximo por vez é {MAX_DUPLICACOES} datas.")]), 400
+        ja = {r["data_inicio"] for r in c.execute("SELECT data_inicio FROM agenda_eventos WHERE data_inicio=ANY(%s) AND lower(btrim(titulo))=lower(btrim(%s))", ([i for i, _ in novas], o["titulo"])).fetchall()}
+        out = [dict(data=i, data_fim=f, status="ja_existe" if i in ja else "nova") for i, f in novas]
+        sim = b.get("simular") is True
+        if not sim:
+            for i, f in novas:
+                if i in ja: continue
+                c.execute("INSERT INTO agenda_eventos(data_inicio,data_fim,titulo,categoria_id,criado_por) VALUES(%s,%s,%s,%s,%s) ON CONFLICT (data_inicio, lower(btrim(titulo))) DO NOTHING", (i, f, o["titulo"], o["categoria_id"], session["uid"]))
+    n = sum(1 for x in out if x["status"] == "nova")
+    return jsonify(criados=0 if sim else n, ignorados=len(out) - n, datas=out, simulacao=sim)
+
+@app.get("/api/agenda/resumo")
+def agenda_resumo():
+    """Cartão da agenda no Dashboard. ?data= é o 'hoje' do navegador (evita diferença de fuso com o servidor)."""
+    hoje, e = _ref()
+    if e: return e
+    cong, e = _cong_param()
+    if e: return e
+    ini = segunda_da_semana(hoje)
+    with conn() as c:
+        w = montar_semana(c, hoje, cong)
+        hoje_l = next(d["compromissos"] for d in w["dias"] if d["data"] == hoje) if ini <= hoje <= ini + timedelta(days=6) else []
+        wp, pp = ["c.data > %s"], [hoje]; filtro_agenda("c.congregacao_id", cong, wp, pp)
+        prox = c.execute("SELECT " + COLS_COMP + " FROM " + FROM_COMP + " WHERE " + " AND ".join(wp) + " ORDER BY c.data, c.hora NULLS FIRST, lower(c.titulo), c.id LIMIT 5", pp).fetchall()
+        ev = eventos_desde(c, hoje, hoje + timedelta(days=90))[:3]
+    an = aniversariantes_semana(ini, cong)
+    multi = w["multi"] or len({r["congregacao_id"] for r in prox}) > 1
+    return jsonify(hoje=hoje, destaque=w["destaque"], destaques=w["destaques"], multi=multi, compromissos_hoje=hoje_l, proximos=prox, eventos=ev,
+                   aniversariantes_semana=len(an), aniversariantes_hoje=[a["nome"] for a in an if a["data"] == hoje])
+
 @app.get("/api/agenda/semana")
 def agenda_semana():
     ref, e = _ref()
     if e: return e
-    with conn() as c: return jsonify(montar_semana(c, ref))
+    cong, e = _cong_param()
+    if e: return e
+    with conn() as c: return jsonify(montar_semana(c, ref, cong))
 
 @app.get("/api/agenda/aniversariantes")
 def agenda_aniversariantes():
     ref, e = _ref()
     if e: return e
+    cong, e = _cong_param()
+    if e: return e
     ini = segunda_da_semana(ref)
-    return jsonify(inicio=ini, fim=ini + timedelta(days=6), rows=aniversariantes_semana(ini))
+    return jsonify(inicio=ini, fim=ini + timedelta(days=6), rows=aniversariantes_semana(ini, cong))
 
 @app.get("/api/agenda/eventos")
 def agenda_eventos():
@@ -999,10 +1160,12 @@ def agenda_datashow():
     """Tudo que o Datashow precisa em uma chamada: 7 dias, destaque, eventos e aniversariantes."""
     ref, e = _ref()
     if e: return e
+    cong, e = _cong_param()
+    if e: return e
     with conn() as c:
-        w = montar_semana(c, ref)
+        w = montar_semana(c, ref, cong)
         w["eventos"] = eventos_desde(c, w["inicio"], w["inicio"] + timedelta(days=90))
-    w["aniversariantes"] = aniversariantes_semana(w["inicio"])
+    w["aniversariantes"] = aniversariantes_semana(w["inicio"], cong)
     return jsonify(w)
 
 @app.get("/datashow")
@@ -1012,15 +1175,24 @@ def datashow():
 @app.post("/api/agenda/compromissos")
 @app.put("/api/agenda/compromissos/<int:id>")
 def salvar_compromisso(id=None):
-    v, erros = validar_compromisso(request.get_json(silent=True) or {})
+    b = request.get_json(silent=True) or {}
+    v, erros = validar_compromisso(b)
     if erros: return jsonify(erros=[dict(msg=m) for m in erros]), 400
     try:
         with conn() as c:
+            atual, tem = None, False
+            if id:  # só mexe em compromisso de congregação liberada ao usuário (os antigos, sem congregação, só o administrador)
+                o = c.execute("SELECT congregacao_id FROM agenda_compromissos WHERE id=%s FOR UPDATE", (id,)).fetchone()
+                if not o or not cong_ok(o["congregacao_id"]): return jsonify(erro="Compromisso não encontrado."), 404
+                atual, tem = o["congregacao_id"], True
+            v["congregacao_id"], erro = validar_cong_compromisso(c, b, atual, tem)
+            if erro: return jsonify(erros=[dict(msg=erro)]), 403 if erro == SEM_CONG_MSG else 400
             if id:
-                if not c.execute("UPDATE agenda_compromissos SET data=%s,hora=%s,titulo=%s,atualizado_em=now() WHERE id=%s", (v["data"], v["hora"], v["titulo"], id)).rowcount:
-                    return jsonify(erro="Compromisso não encontrado."), 404
+                c.execute("UPDATE agenda_compromissos SET data=%s,hora=%s,titulo=%s,congregacao_id=%s,atualizado_em=now() WHERE id=%s", (v["data"], v["hora"], v["titulo"], v["congregacao_id"], id))
+                if v["congregacao_id"] != atual:  # mudou de congregação: o destaque da semana não acompanha
+                    c.execute("DELETE FROM agenda_destaques WHERE compromisso_id=%s", (id,))
             else:
-                id = c.execute("INSERT INTO agenda_compromissos(data,hora,titulo,criado_por) VALUES(%s,%s,%s,%s) RETURNING id", (v["data"], v["hora"], v["titulo"], session["uid"])).fetchone()["id"]
+                id = c.execute("INSERT INTO agenda_compromissos(data,hora,titulo,congregacao_id,criado_por) VALUES(%s,%s,%s,%s,%s) RETURNING id", (v["data"], v["hora"], v["titulo"], v["congregacao_id"], session["uid"])).fetchone()["id"]
                 return jsonify(id=id), 201
     except psycopg.errors.UniqueViolation:
         return jsonify(erros=[dict(msg="Já existe um compromisso com esta data, horário e descrição.")]), 409
@@ -1029,8 +1201,48 @@ def salvar_compromisso(id=None):
 @app.delete("/api/agenda/compromissos/<int:id>")
 def excluir_compromisso(id):
     with conn() as c:  # o destaque que apontava para ele some junto (ON DELETE CASCADE)
-        if not c.execute("DELETE FROM agenda_compromissos WHERE id=%s", (id,)).rowcount: return jsonify(erro="Compromisso não encontrado."), 404
+        o = c.execute("SELECT congregacao_id FROM agenda_compromissos WHERE id=%s", (id,)).fetchone()
+        if not o or not cong_ok(o["congregacao_id"]): return jsonify(erro="Compromisso não encontrado."), 404
+        c.execute("DELETE FROM agenda_compromissos WHERE id=%s", (id,))
     return jsonify(ok=True)
+
+MAX_REPETICOES = 200
+
+def datas_repeticao(origem, dias, semanas):
+    """Datas (sem a da origem) em que o compromisso será repetido: para cada uma das 'semanas' semanas, a partir da
+    semana da origem, os dias escolhidos (0 = segunda ... 6 = domingo)."""
+    ini = segunda_da_semana(origem)
+    return [d for w in range(semanas) for i in sorted(set(dias)) for d in [ini + timedelta(days=7 * w + i)] if d != origem]
+
+def validar_repeticao(d):
+    erros = []
+    dias = d.get("dias")
+    if not isinstance(dias, list) or not dias or not all(isinstance(x, int) and not isinstance(x, bool) and 0 <= x <= 6 for x in dias): erros.append("Escolha pelo menos um dia da semana."); dias = []
+    semanas = _int(d.get("semanas"), 1)
+    if not 1 <= semanas <= 52: erros.append("O número de semanas deve ser de 1 a 52."); semanas = 1
+    return sorted(set(dias)), semanas, erros
+
+@app.post("/api/agenda/compromissos/<int:id>/repetir")
+def repetir_compromisso(id):
+    """Copia o compromisso para outros dias (cópias independentes: editar ou excluir uma não afeta as outras).
+    Com simular=true só mostra o que seria criado. Datas que já têm o mesmo compromisso (mesmo horário e descrição) são ignoradas."""
+    b = request.get_json(silent=True) or {}
+    dias, semanas, erros = validar_repeticao(b)
+    if erros: return jsonify(erros=[dict(msg=m) for m in erros]), 400
+    with conn() as c:
+        o = c.execute("SELECT data,hora,titulo,congregacao_id FROM agenda_compromissos WHERE id=%s", (id,)).fetchone()
+        if not o or not cong_ok(o["congregacao_id"]): return jsonify(erro="Compromisso não encontrado."), 404
+        datas = datas_repeticao(o["data"], dias, semanas)
+        if not datas: return jsonify(erros=[dict(msg="Nenhuma data nova para criar: escolha outros dias.")]), 400
+        if len(datas) > MAX_REPETICOES: return jsonify(erros=[dict(msg=f"Isso criaria {len(datas)} compromissos; o máximo por vez é {MAX_REPETICOES}.")]), 400
+        ja = {r["data"] for r in c.execute("SELECT data FROM agenda_compromissos WHERE data=ANY(%s) AND COALESCE(hora,'00:00'::time)=COALESCE(%s,'00:00'::time) AND lower(btrim(titulo))=lower(btrim(%s)) AND congregacao_id IS NOT DISTINCT FROM %s", (datas, o["hora"], o["titulo"], o["congregacao_id"])).fetchall()}
+        out = [dict(data=d, nome=DIAS_SEMANA[d.weekday()], status="ja_existe" if d in ja else "nova") for d in datas]
+        novas = [x["data"] for x in out if x["status"] == "nova"]
+        if b.get("simular") is not True:
+            for d in novas:
+                c.execute("INSERT INTO agenda_compromissos(data,hora,titulo,congregacao_id,criado_por) VALUES(%s,%s,%s,%s,%s) "
+                          "ON CONFLICT (COALESCE(congregacao_id,0), data, COALESCE(hora,'00:00'::time), lower(btrim(titulo))) DO NOTHING", (d, o["hora"], o["titulo"], o["congregacao_id"], session["uid"]))
+    return jsonify(criados=0 if b.get("simular") is True else len(novas), ignorados=len(out) - len(novas), datas=out, simulacao=b.get("simular") is True)
 
 @app.post("/api/agenda/eventos")
 @app.put("/api/agenda/eventos/<int:id>")
@@ -1039,11 +1251,14 @@ def salvar_evento(id=None):
     if erros: return jsonify(erros=[dict(msg=m) for m in erros]), 400
     try:
         with conn() as c:
+            if v["categoria_id"] and not c.execute("SELECT 1 FROM agenda_categorias WHERE id=%s", (v["categoria_id"],)).fetchone():
+                return jsonify(erros=[dict(msg="Categoria inválida.")]), 400
             if id:
-                if not c.execute("UPDATE agenda_eventos SET data_inicio=%s,data_fim=%s,titulo=%s WHERE id=%s", (v["data_inicio"], v["data_fim"], v["titulo"], id)).rowcount:
+                if not c.execute("UPDATE agenda_eventos SET data_inicio=%s,data_fim=%s,titulo=%s,categoria_id=CASE WHEN %s THEN %s ELSE categoria_id END WHERE id=%s",
+                                 (v["data_inicio"], v["data_fim"], v["titulo"], v["tem_categoria"], v["categoria_id"], id)).rowcount:
                     return jsonify(erro="Evento não encontrado."), 404
             else:
-                id = c.execute("INSERT INTO agenda_eventos(data_inicio,data_fim,titulo,criado_por) VALUES(%s,%s,%s,%s) RETURNING id", (v["data_inicio"], v["data_fim"], v["titulo"], session["uid"])).fetchone()["id"]
+                id = c.execute("INSERT INTO agenda_eventos(data_inicio,data_fim,titulo,categoria_id,criado_por) VALUES(%s,%s,%s,%s,%s) RETURNING id", (v["data_inicio"], v["data_fim"], v["titulo"], v["categoria_id"], session["uid"])).fetchone()["id"]
                 return jsonify(id=id), 201
     except psycopg.errors.UniqueViolation:
         return jsonify(erros=[dict(msg="Já existe um evento com esta data e descrição.")]), 409
@@ -1062,12 +1277,16 @@ def definir_destaque():
     if not sem: return jsonify(erro="Semana inválida."), 400
     sem = segunda_da_semana(sem); cid = _int(d.get("compromisso_id"), 0)
     with conn() as c:
-        if not cid:  # sem compromisso = remove o destaque da semana
-            c.execute("DELETE FROM agenda_destaques WHERE semana=%s", (sem,)); return jsonify(ok=True)
-        r = c.execute("SELECT data FROM agenda_compromissos WHERE id=%s", (cid,)).fetchone()
-        if not r or segunda_da_semana(r["data"]) != sem: return jsonify(erro="O evento em destaque precisa ser um compromisso desta semana."), 400
-        c.execute("INSERT INTO agenda_destaques(semana,compromisso_id,definido_por) VALUES(%s,%s,%s) "
-                  "ON CONFLICT(semana) DO UPDATE SET compromisso_id=EXCLUDED.compromisso_id,definido_por=EXCLUDED.definido_por,definido_em=now()", (sem, cid, session["uid"]))
+        if not cid:  # sem compromisso = remove o destaque da semana DESSA congregação (informada em congregacao_id; 0/vazio = compromissos antigos, só administrador)
+            cg = _int(d.get("congregacao_id"), 0) or None
+            if "congregacao_id" not in d: return jsonify(erro="Informe a congregação."), 400
+            if not cong_ok(cg): return jsonify(erro=SEM_CONG_MSG), 403
+            c.execute("DELETE FROM agenda_destaques WHERE semana=%s AND congregacao_id IS NOT DISTINCT FROM %s", (sem, cg)); return jsonify(ok=True)
+        r = c.execute("SELECT data,congregacao_id FROM agenda_compromissos WHERE id=%s", (cid,)).fetchone()
+        if not r or not cong_ok(r["congregacao_id"]): return jsonify(erro="Compromisso não encontrado."), 404
+        if segunda_da_semana(r["data"]) != sem: return jsonify(erro="O evento em destaque precisa ser um compromisso desta semana."), 400
+        c.execute("INSERT INTO agenda_destaques(semana,compromisso_id,congregacao_id,definido_por) VALUES(%s,%s,%s,%s) "
+                  "ON CONFLICT(semana, COALESCE(congregacao_id,0)) DO UPDATE SET compromisso_id=EXCLUDED.compromisso_id,definido_por=EXCLUDED.definido_por,definido_em=now()", (sem, cid, r["congregacao_id"], session["uid"]))
     return jsonify(ok=True)
 
 def trocar_senha():
