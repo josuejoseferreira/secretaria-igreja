@@ -33,8 +33,14 @@ def bloqueado(sql, p=()):
         return False
     except psycopg.Error: return True
 mz, ct = cong("Matriz"), cong("Centro")
+BASE = dict(data_nascimento="1990-05-01", sexo="Masculino", estado_civil="Solteiro(a)", sem_cpf=True, cep="28680-000", logradouro="Rua A", numero="1",
+            complemento="Casa", bairro="Centro", cidade="Cachoeiras de Macacu", uf="RJ")   # cadastro completo (campos obrigatórios)
+def F(**k):
+    d = dict(BASE); d.update(k)
+    if d.get("cpf"): d["sem_cpf"] = False
+    return d
 def novo(**k):
-    d = dict(nome="Fulano", status="Ativo", status_membresia="Membro"); d.update(k); return call("/api/membros", d)
+    d = dict(nome="Fulano", status="Ativo", status_membresia="Membro"); d.update(k); return call("/api/membros", F(**d))
 meta = call("/api/meta")[1]["membros"]
 t("meta traz as opções pedidas", meta["status"] == ["Ativo", "Inativo", "Desligado", "Faleceu", "Disciplinado", "Congregado"] and meta["membresia"] == ["Membro", "Congregado"] and meta["cargos"] == ["Obreiro", "Diácono", "Presbítero", "Evangelista", "Pastor"])
 
@@ -207,6 +213,24 @@ t("interface: relatório tem Geral (membros+congregados), Geral (cargos) e escol
 t("CSS é servido sem login", A.app.test_client().get("/static/css/app.css").status_code == 200)
 h = cl.get("/").get_data(as_text=True)
 t("página inicial traz CSS, menu e token CSRF", "/static/css/app.css" in h and 'data-v="mb"' in h and 'data-v="an"' in h and 'name="csrf"' in h)
+
+# 9b) campos obrigatórios, "Não possui CPF" e "Sem número (S/N)"
+def raw(**k): return call("/api/membros", dict(nome="Obrig", status="Ativo", status_membresia="Membro", **k))   # SEM os padrões de F()
+s_, j_ = raw(); campos = {e.get("campo") for e in j_.get("erros", [])}
+t("ficha vazia: 400 e aponta todos os obrigatórios", s_ == 400 and {"data_nascimento", "sexo", "estado_civil", "cpf", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf"} <= campos)
+t("cadastro completo com CPF válido: 201", novo(nome="Com CPF", cpf="529.982.247-25")[0] == 201)
+s_, j_ = novo(nome="Sem CPF marcado", sem_cpf=True); mid = j_.get("id")
+t("'Não possui CPF': salva sem CPF e grava a marca", s_ == 201 and db("SELECT cpf,sem_cpf FROM membros WHERE id=%s", (mid,))[0] == (None, True))
+t("'Não possui CPF' junto de CPF preenchido: 400", novo(nome="Conflito", sem_cpf=True, cpf="529.982.247-25")[0] == 400)
+t("sem a marca e sem CPF: 400 (CPF obrigatório)", novo(nome="Falta CPF", sem_cpf=False, cpf="")[0] == 400)
+s_, j_ = novo(nome="Sem numero", numero="", sem_numero=True)
+t("'Sem número (S/N)': salva e grava S/N", s_ == 201 and db("SELECT numero FROM membros WHERE id=%s", (j_.get("id"),))[0][0] == "S/N")
+t("S/N digitado no campo também vale", db("SELECT numero FROM membros WHERE id=%s", (novo(nome="SN digitado", numero="s/n")[1].get("id"),))[0][0] == "S/N")
+t("'Sem número' junto de número preenchido: 400", novo(nome="Conflito num", numero="12", sem_numero=True)[0] == 400)
+t("número vazio sem a marca: 400", novo(nome="Falta num", numero="")[0] == 400)
+for k in ("complemento", "bairro", "cidade", "uf", "cep", "logradouro", "data_nascimento", "sexo", "estado_civil"):
+    t(f"{k} obrigatório", novo(nome="Falta " + k, **{k: ""})[0] == 400)
+t("CPF inválido continua recusado", novo(nome="CPF ruim", cpf="111.111.111-11")[0] == 400)
 
 # 10) migrations preservam dados
 antes = db("SELECT (SELECT count(*) FROM membros),(SELECT count(*) FROM historico_membro)")[0]; A.init_db()

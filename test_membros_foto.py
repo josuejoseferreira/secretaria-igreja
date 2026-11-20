@@ -34,8 +34,14 @@ def bloqueado(sql, p=()):
     except psycopg.Error: return True
 import base64
 mz, ct = cong("Matriz"), cong("Centro")
+BASE = dict(data_nascimento="1990-05-01", sexo="Masculino", estado_civil="Solteiro(a)", sem_cpf=True, cep="28680-000", logradouro="Rua A", numero="1",
+            complemento="Casa", bairro="Centro", cidade="Cachoeiras de Macacu", uf="RJ")   # cadastro completo (campos obrigatórios)
+def F(**k):
+    d = dict(BASE); d.update(k)
+    if d.get("cpf"): d["sem_cpf"] = False
+    return d
 def novo(**k):
-    d = dict(nome="Fulano", status="Ativo", status_membresia="Membro", congregacao_id=mz); d.update(k); return call("/api/membros", d)
+    d = F(nome="Fulano", status="Ativo", status_membresia="Membro", congregacao_id=mz); d.update(k); return call("/api/membros", F(**d))
 JPG = b"\xff\xd8\xff\xe0" + b"\x00" * 200; PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 80; WEBP = b"RIFF\x20\x00\x00\x00WEBPVP8 " + b"\x00" * 30
 du = lambda mime, b: f"data:{mime};base64," + base64.b64encode(b).decode()
 def foto(id, client=cl): return client.get(f"/api/membros/{id}/foto")
@@ -48,7 +54,7 @@ t("campos novos gravados e normalizados", m["nome_mae"] == "Maria Souza" and m["
 t("sem foto: tem_foto falso e rota de foto 404", m["tem_foto"] is False and m["foto_v"] is None and foto(a).status_code == 404)
 t("mãe acima de 200 caracteres: 400", novo(nome="X", nome_mae="m" * 201)[0] == 400)
 t("observações acima de 2000 caracteres: 400", novo(nome="X", observacoes="o" * 2001)[0] == 400)
-t("editar sem mexer na foto não cria foto", call(f"/api/membros/{a}", dict(nome="Ana Teste", status="Ativo", status_membresia="Membro", congregacao_id=mz), "PUT")[0] == 200 and foto(a).status_code == 404)
+t("editar sem mexer na foto não cria foto", call(f"/api/membros/{a}", F(nome="Ana Teste", status="Ativo", status_membresia="Membro", congregacao_id=mz), "PUT")[0] == 200 and foto(a).status_code == 404)
 t("editar limpando mãe/pai/obs grava vazio", (lambda x: x["nome_mae"] is None and x["observacoes"] is None)(call(f"/api/membros/{a}")[1]))
 
 # ---------- foto
@@ -62,8 +68,8 @@ t("304 quando o navegador já tem a imagem (ETag)", cl.get(f"/api/membros/{b}/fo
 m = call(f"/api/membros/{b}")[1]
 t("ficha traz tem_foto e foto_v (para renovar o cache)", m["tem_foto"] is True and isinstance(m["foto_v"], int))
 t("listagem não carrega bytes da foto", all("imagem" not in x and "foto" not in x for x in call("/api/membros")[1]))
-t("substituir foto por PNG", call(f"/api/membros/{b}", dict(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto=du("image/png", PNG)), "PUT")[0] == 200 and foto(b).data == PNG and foto(b).mimetype == "image/png")
-t("WEBP aceito", call(f"/api/membros/{b}", dict(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto=du("image/webp", WEBP)), "PUT")[0] == 200 and foto(b).mimetype == "image/webp")
+t("substituir foto por PNG", call(f"/api/membros/{b}", F(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto=du("image/png", PNG)), "PUT")[0] == 200 and foto(b).data == PNG and foto(b).mimetype == "image/png")
+t("WEBP aceito", call(f"/api/membros/{b}", F(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto=du("image/webp", WEBP)), "PUT")[0] == 200 and foto(b).mimetype == "image/webp")
 t("há uma única linha de foto por membro", db("SELECT count(*) FROM membro_foto WHERE membro_id=%s", (b,))[0][0] == 1)
 
 # ---------- validações da foto (nada é gravado quando a foto é inválida)
@@ -72,15 +78,15 @@ for rot, val in (("SVG", "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="), ("GIF", 
                  ("tipo declarado diferente do real", du("image/png", JPG)), ("lixo", "abc123"), ("acima de 2 MB", du("image/jpeg", b"\xff\xd8\xff" + b"0" * (2 * 1024 * 1024)))):
     s, j = novo(nome="Invalida " + rot, foto=val)
     t(f"foto inválida ({rot}): 400 e membro NÃO é criado", s in (400, 413) and db("SELECT count(*) FROM membros")[0][0] == antes)
-t("foto inválida na edição não altera a foto atual", call(f"/api/membros/{b}", dict(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto="data:image/gif;base64,R0lG"), "PUT")[0] == 400 and foto(b).mimetype == "image/webp")
-t("foto inválida junto de erro de dados: nada gravado", call(f"/api/membros/{b}", dict(nome="", status="Ativo", status_membresia="Membro", foto=du("image/png", PNG)), "PUT")[0] == 400 and foto(b).mimetype == "image/webp")
+t("foto inválida na edição não altera a foto atual", call(f"/api/membros/{b}", F(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto="data:image/gif;base64,R0lG"), "PUT")[0] == 400 and foto(b).mimetype == "image/webp")
+t("foto inválida junto de erro de dados: nada gravado", call(f"/api/membros/{b}", F(nome="", status="Ativo", status_membresia="Membro", foto=du("image/png", PNG)), "PUT")[0] == 400 and foto(b).mimetype == "image/webp")
 
 # ---------- remover
-t("remover foto", call(f"/api/membros/{b}", dict(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto_remover=True), "PUT")[0] == 200 and foto(b).status_code == 404 and call(f"/api/membros/{b}")[1]["tem_foto"] is False)
-t("remover foto que não existe não dá erro", call(f"/api/membros/{b}", dict(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto_remover=True), "PUT")[0] == 200)
+t("remover foto", call(f"/api/membros/{b}", F(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto_remover=True), "PUT")[0] == 200 and foto(b).status_code == 404 and call(f"/api/membros/{b}")[1]["tem_foto"] is False)
+t("remover foto que não existe não dá erro", call(f"/api/membros/{b}", F(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto_remover=True), "PUT")[0] == 200)
 
 # ---------- histórico continua funcionando junto com a foto
-t("histórico + foto na mesma gravação (transação única)", call(f"/api/membros/{b}", dict(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto=du("image/jpeg", JPG), historico_novo=[dict(data="2026-11-01", descricao="Foto cadastrada")]), "PUT")[0] == 200
+t("histórico + foto na mesma gravação (transação única)", call(f"/api/membros/{b}", F(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto=du("image/jpeg", JPG), historico_novo=[dict(data="2026-11-01", descricao="Foto cadastrada")]), "PUT")[0] == 200
   and len(call(f"/api/membros/{b}")[1]["historico"]) == 1 and foto(b).status_code == 200)
 t("histórico continua imutável no banco", bloqueado("UPDATE historico_membro SET descricao='x'") and bloqueado("DELETE FROM historico_membro"))
 
@@ -92,9 +98,9 @@ s, j = novo(nome="Do Centro", congregacao_id=ct, foto=du("image/jpeg", JPG)); c_
 t("administrador vê a foto de qualquer congregação", foto(c_id).status_code == 200)
 cc2 = A.app.test_client(); entrar(cc2, "centro", "senha-centro-1")
 t("usuário vê a foto da própria congregação", foto(c_id, cc2).status_code == 200)
-t("usuário de outra congregação não pode trocar a foto de membro alheio", call(f"/api/membros/{b}", dict(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto=du("image/png", PNG)), "PUT", client=cc)[0] in (403, 404) and foto(b).mimetype == "image/jpeg")
+t("usuário de outra congregação não pode trocar a foto de membro alheio", call(f"/api/membros/{b}", F(nome="Com Foto", status="Ativo", status_membresia="Membro", congregacao_id=mz, foto=du("image/png", PNG)), "PUT", client=cc)[0] in (403, 404) and foto(b).mimetype == "image/jpeg")
 t("sem sessão: 302/401 na foto", A.app.test_client().get(f"/api/membros/{c_id}/foto").status_code == 401)
-t("sem CSRF: 400 ao enviar foto", cl.open("/api/membros", method="POST", json=dict(nome="Z", status="Ativo", status_membresia="Membro", foto=du("image/jpeg", JPG))).status_code == 400)
+t("sem CSRF: 400 ao enviar foto", cl.open("/api/membros", method="POST", json=F(nome="Z", status="Ativo", status_membresia="Membro", foto=du("image/jpeg", JPG))).status_code == 400)
 
 # ---------- exclusão lógica e migração
 call(f"/api/membros/{c_id}", m="DELETE")

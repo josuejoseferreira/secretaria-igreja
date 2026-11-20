@@ -397,7 +397,7 @@ MEMBROS_META = dict(status=STATUS_MEMBRO, membresia=STATUS_MEMBRESIA, cargos=CAR
 SEM_ANIVERSARIO = ("Faleceu", "Desligado")
 MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 ROT_DATAS = dict(data_nascimento="Data de nascimento", data_conversao="Data de conversão", data_batismo="Data de batismo", data_chegada="Data de chegada", data_recebimento="Data de recebimento", data_saida="Data de saída")
-COLS_MEMBRO = ["nome", "data_nascimento", "sexo", "estado_civil", "cpf", "telefone", "email", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf",
+COLS_MEMBRO = ["nome", "data_nascimento", "sexo", "estado_civil", "cpf", "sem_cpf", "telefone", "email", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf",
                "congregacao_id", "data_conversao", "data_batismo", "data_recebimento", "forma_recebimento", "status", "status_membresia", "cargo",
                "data_chegada", "data_saida", "forma_saida", "nome_mae", "nome_pai", "observacoes"]
 
@@ -420,35 +420,55 @@ def cpf_valido(d):
 def validar_membro(d):
     """Valida e normaliza a ficha. Retorna (valores, lista_de_erros)."""
     erros, v = [], {}
+    campos = v["_campos"] = {}   # mensagem -> campo do formulário (a página usa para destacar o campo certo)
     def s(k):
         x = d.get(k)
         return x.strip() if isinstance(x, str) else ""
+    def erro(k, msg):
+        erros.append(msg); campos[msg] = k
+    def obr(k, rot): erro(k, f"{rot}: campo obrigatório.")
     v["nome"] = " ".join(s("nome").split())
-    if not v["nome"]: erros.append("Informe o nome completo.")
+    if not v["nome"]: obr("nome", "Nome completo")
     elif len(v["nome"]) > 200: erros.append("Nome muito longo (máximo de 200 caracteres).")
     for k, rot in ROT_DATAS.items():
         dt = parse_data(s(k))
         if dt is False or (dt and dt.year < 1900): erros.append(f"{rot} inválida."); dt = None
         elif dt and k in ("data_nascimento", "data_chegada", "data_saida") and dt > date.today(): erros.append(f"A {ROT_DATAS[k][0].lower() + ROT_DATAS[k][1:]} não pode ser futura."); dt = None
         v[k] = dt
+    if not s("data_nascimento"): obr("data_nascimento", "Data de nascimento")
     for k, lista, rot in (("sexo", SEXOS, "Sexo"), ("estado_civil", ESTADOS_CIVIS, "Estado civil")):
         v[k] = s(k) or None
-        if v[k] and v[k] not in lista: erros.append(f"{rot} inválido."); v[k] = None
+        if not v[k]: obr(k, rot)
+        elif v[k] not in lista: erros.append(f"{rot} inválido."); v[k] = None
     cpf = re.sub(r"\D", "", s("cpf")); v["cpf"] = None
-    if cpf and not cpf_valido(cpf): erros.append("CPF inválido.")
-    elif cpf: v["cpf"] = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+    v["sem_cpf"] = d.get("sem_cpf") is True   # "Não possui CPF": o CPF deixa de ser obrigatório (e não pode vir preenchido)
+    if v["sem_cpf"]:
+        if s("cpf"): erro("cpf", "Desmarque “Não possui CPF” ou apague o CPF informado.")
+    elif not cpf: obr("cpf", "CPF")
+    elif not cpf_valido(cpf): erros.append("CPF inválido.")
+    else: v["cpf"] = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
     v["telefone"] = s("telefone") or None
     if v["telefone"] and not 8 <= len(re.sub(r"\D", "", v["telefone"])) <= 13: erros.append("Telefone inválido."); v["telefone"] = None
     v["email"] = s("email").lower() or None
     if v["email"] and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", v["email"]): erros.append("E-mail inválido."); v["email"] = None
     cep = re.sub(r"\D", "", s("cep")); v["cep"] = None  # mesma regra da aba Ocorrências
-    if s("cep") and len(cep) != 8: erros.append("CEP inválido (use 8 dígitos).")
-    elif cep: v["cep"] = cep[:5] + "-" + cep[5:]
+    if not s("cep"): obr("cep", "CEP")
+    elif len(cep) != 8: erros.append("CEP inválido (use 8 dígitos).")
+    else: v["cep"] = cep[:5] + "-" + cep[5:]
     v["uf"] = s("uf").upper() or None
-    if v["uf"] and not re.fullmatch(r"[A-Z]{2}", v["uf"]): erros.append("UF inválida (2 letras)."); v["uf"] = None
+    if not v["uf"]: obr("uf", "Estado (UF)")
+    elif not re.fullmatch(r"[A-Z]{2}", v["uf"]): erros.append("UF inválida (2 letras)."); v["uf"] = None
     for k in ("logradouro", "numero", "complemento", "bairro", "cidade", "forma_recebimento", "forma_saida", "nome_mae", "nome_pai"):
         v[k] = " ".join(s(k).split()) or None
         if v[k] and len(v[k]) > 200: erros.append(f"Campo muito longo: {k.replace('_', ' ')}."); v[k] = None
+    for k, rot in (("logradouro", "Rua / Logradouro"), ("complemento", "Complemento"), ("bairro", "Bairro"), ("cidade", "Cidade")):
+        if not v[k] and not any(m.startswith(f"Campo muito longo: {k}") for m in erros): obr(k, rot)
+    # Número: obrigatório, salvo "Sem número (S/N)" (gravado como 'S/N' no próprio campo, sem coluna nova)
+    sn = d.get("sem_numero") is True or (v["numero"] or "").upper().replace(" ", "") in ("S/N", "SN", "S.N.")
+    if sn:
+        if v["numero"] and v["numero"].upper().replace(" ", "") not in ("S/N", "SN", "S.N."): erro("numero", "Desmarque “Sem número (S/N)” ou apague o número informado.")
+        else: v["numero"] = "S/N"
+    elif not v["numero"] and not any(m.startswith("Campo muito longo: numero") for m in erros): obr("numero", "Número")
     v["observacoes"] = s("observacoes") or None
     if v["observacoes"] and len(v["observacoes"]) > 2000: erros.append("Campo muito longo: observacoes."); v["observacoes"] = None
     cg = d.get("congregacao_id"); v["congregacao_id"] = None
@@ -458,7 +478,7 @@ def validar_membro(d):
     v["status"] = s("status")
     if v["status"] not in STATUS_MEMBRO: erros.append("Selecione o Status."); v["status"] = None
     v["status_membresia"] = s("status_membresia")
-    if v["status_membresia"] not in STATUS_MEMBRESIA: erros.append("Selecione o Status da Membresia."); v["status_membresia"] = None
+    if v["status_membresia"] not in STATUS_MEMBRESIA: erro("status_membresia", "Selecione o Status da Membresia."); v["status_membresia"] = None
     cargo = s("cargo"); v["cargo"] = None
     if v["status_membresia"] == "Membro":  # congregado não tem cargo
         if cargo and cargo not in CARGOS: erros.append("Cargo eclesiástico inválido.")
@@ -553,7 +573,7 @@ def salvar_membro(id=None):
     if d.get("foto"):  # foto nova ou substituta (a página manda a imagem já recortada e reduzida)
         foto = validar_foto(d["foto"])
         if foto[2]: erros.append(foto[2])
-    if erros: return jsonify(erros=[dict(msg=m) for m in erros]), 400
+    if erros: return jsonify(erros=[dict(msg=m, campo=v["_campos"].get(m)) for m in erros]), 400
     try:
         with conn() as c:  # uma transação: ficha + novos registros do histórico, ou nada
             atual = None

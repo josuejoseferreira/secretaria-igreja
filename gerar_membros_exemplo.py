@@ -60,11 +60,12 @@ def gerar(n, hoje, congs):
             cargo = random.choices(list(CARGO_CADEIA), [8, 5, 3, 2, 2])[0]
         cong_id, cong_nome = random.choices(congs, [dict((a, w) for a, _, w in CONGS).get(nm_, 1) for _, nm_ in congs])[0]
         e = random.choice(ENDS)
+        tem_cpf = idade >= 16 or random.random() < .5
         ficha = dict(nome=nm, data_nascimento=nasc.isoformat(), sexo="Masculino" if g == "M" else "Feminino",
                      estado_civil=random.choice(["Solteiro(a)", "Casado(a)", "Casado(a)", "Viúvo(a)", "Divorciado(a)", "União estável"]) if idade >= 18 else "Solteiro(a)",
-                     cpf=cpf_novo(usados) if idade >= 16 or random.random() < .5 else "", telefone=f"(21) 9{random.randint(6000, 9999)}-{random.randint(1000, 9999)}" if random.random() < .9 else "",
+                     cpf=cpf_novo(usados) if tem_cpf else "", sem_cpf=not tem_cpf, telefone=f"(21) 9{random.randint(6000, 9999)}-{random.randint(1000, 9999)}" if random.random() < .9 else "",
                      email=f"{ascii_(nm)[:26]}{random.randint(1, 99)}{MARCA}", cep=e[0], logradouro=e[1], numero=str(random.randint(1, 900)),
-                     complemento=random.choice(["", "", "Apto 102", "Fundos", "Casa 2"]), bairro=e[2], cidade=e[3], uf=e[4], congregacao_id=cong_id,
+                     complemento=random.choice(["Casa", "Casa", "Apto 102", "Fundos", "Casa 2"]), bairro=e[2], cidade=e[3], uf=e[4], congregacao_id=cong_id,
                      status=status, status_membresia="Membro" if membro else "Congregado", cargo=cargo or "")
         hist = []
         if membro:

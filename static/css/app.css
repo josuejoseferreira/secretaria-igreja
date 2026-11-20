@@ -667,3 +667,15 @@ th small{display:block;text-transform:none;letter-spacing:0;font-weight:400;colo
 .ag-hg{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s4)}@media(max-width:900px){.ag-hg{grid-template-columns:1fr}}
 .ag-hg .sub{margin:var(--s3) 0 6px}.ag-home .ag-it{border-left-color:var(--blue)}.ag-home .hint{margin:var(--s3) 0 0}
 .ac-m{min-width:0}.ac-g{grid-template-columns:repeat(7,minmax(0,1fr))}.ac-d{min-height:0}
+
+/* Cadastro de membro: obrigatórios, "Não possui CPF" e "Sem número (S/N)" */
+.mf-pane .f,.mf-pane .end{align-items:start}
+.mf-cw,.mf-nw{display:flex;flex-direction:column;gap:6px;min-width:0}
+.mf-chk{flex-direction:row;align-items:center;gap:10px;min-height:40px;font-weight:500;font-size:.875rem;color:var(--navy);cursor:pointer;width:fit-content;max-width:100%}
+.mf-chk input[type=checkbox]{width:20px;height:20px;min-height:0;padding:0;margin:0;accent-color:var(--blue);cursor:pointer;flex:none}
+.mf-pane label .ferr{margin-top:-2px}
+.mf-pane input:disabled{background:#EEF3FC;color:var(--mut);cursor:not-allowed}
+.mf-pane label{scroll-margin:110px 0 170px}
+#mf.digitando .mf-bar{position:static;box-shadow:none}
+@media(max-width:600px){.mf-chk{min-height:44px}}
+.mf-pane input:disabled{border-color:var(--line-2)}
