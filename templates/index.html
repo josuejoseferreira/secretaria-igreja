@@ -168,22 +168,24 @@
     <button type="button" role="tab" id="mft4" data-mt="4" aria-selected="false" aria-controls="mfp4" tabindex="-1"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg><span>Histórico</span></button>
     <button type="button" role="tab" id="mft5" data-mt="5" aria-selected="false" aria-controls="mfp5" tabindex="-1"><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg><span>Observações</span></button></div>
   <div class="mf-grid">
-    <aside class="card mf-foto" id="mffoto" aria-label="Fotografia do membro">
+    <div class="mf-main">
+      <div class="card mf-pane" id="mfp1" role="tabpanel" aria-labelledby="mft1">
+        <div class="mf-p1">
+    <div class="mf-foto" id="mffoto" role="group" aria-label="Fotografia do membro">
       <div class="mf-avw"><div class="mf-av" id="mfav"><img id="mfimg" alt="Foto do membro" hidden><svg class="mf-sil" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="42" r="22" fill="currentColor"/><path d="M16 114c0-27 20-44 44-44s44 17 44 44z" fill="currentColor"/></svg></div>
         <button type="button" class="mf-cam" id="mfcam" aria-label="Escolher ou tirar foto"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg></button></div>
       <div class="mf-ft"><b>Foto do membro</b><p class="hint" id="mfft" aria-live="polite">Adicione uma foto para identificar o membro no sistema.</p>
         <div class="mf-fb"><button type="button" class="p" id="mftk"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg>Tirar foto</button><button type="button" id="mfch"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg>Escolher imagem</button><button type="button" id="mfrm"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>Remover foto</button></div>
         <p class="alert" id="mffe" role="alert"></p>
         <p class="mf-info">Formatos: JPG, PNG ou WEBP · até 10 MB. A foto é recortada e reduzida automaticamente.</p></div>
-      <input type="file" id="mffile" accept="image/jpeg,image/png,image/webp" hidden><input type="file" id="mfcap" accept="image/*" capture="user" hidden></aside>
-    <div class="mf-main">
-      <div class="card mf-pane" id="mfp1" role="tabpanel" aria-labelledby="mft1"><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>Informações pessoais</h2>
+      <input type="file" id="mffile" accept="image/jpeg,image/png,image/webp" hidden><input type="file" id="mfcap" accept="image/*" capture="user" hidden></div>
+        <div class="mf-p1b"><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>Informações pessoais</h2>
         <p class="hint">Os campos marcados com <span class="req" aria-hidden="true">*</span> são obrigatórios.</p>
         <div class="f"><label class="w2"><span>Nome completo<span class="req" aria-hidden="true">*</span></span><input data-k="nome" maxlength="200" aria-required="true" autocomplete="off" placeholder="Digite o nome completo"></label>
           <label>Data de nascimento<input type="date" data-k="data_nascimento"></label><label>Sexo<select data-k="sexo"></select></label><label>Estado civil<select data-k="estado_civil"></select></label>
           <label>CPF<input data-k="cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></label><label>Telefone / WhatsApp<input data-k="telefone" inputmode="tel" placeholder="(00) 00000-0000"></label>
           <label>E-mail<input data-k="email" type="email" inputmode="email" placeholder="exemplo@email.com"></label>
-          <label class="w2">Nome da mãe<input data-k="nome_mae" maxlength="200" autocomplete="off" placeholder="Digite o nome da mãe"></label><label class="w2">Nome do pai<input data-k="nome_pai" maxlength="200" autocomplete="off" placeholder="Digite o nome do pai"></label></div></div>
+          <label class="w2">Nome da mãe<input data-k="nome_mae" maxlength="200" autocomplete="off" placeholder="Digite o nome da mãe"></label><label class="w2">Nome do pai<input data-k="nome_pai" maxlength="200" autocomplete="off" placeholder="Digite o nome do pai"></label></div></div></div></div>
       <div class="card mf-pane" id="mfp2" role="tabpanel" aria-labelledby="mft2" hidden><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg>Endereço</h2>
         <div class="end"><b>Informe o CEP para preencher automaticamente</b>
           <label class="a-cep">CEP<input data-k="cep" inputmode="numeric" maxlength="9" placeholder="00000-000"></label><label class="a-logradouro">Rua / Logradouro<input data-k="logradouro"></label><label class="a-numero">Número<input data-k="numero"></label>
@@ -561,7 +563,13 @@ let MF={id:null,o:null,pend:[],foto:null,fotoRem:false,dirty:false,tab:1,built:f
 const ehMovel=()=>/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.platform=='MacIntel'&&navigator.maxTouchPoints>1)||matchMedia('(pointer:coarse)').matches;
 const MFTIPOS=['image/jpeg','image/png','image/webp'],MFMAX=10*1024*1024;
 const mfK=k=>$(`#mf [data-k=${k}]`);
-function mfTab(n,foc){MF.tab=n;[1,2,3,4,5].forEach(i=>{const t=$('#mft'+i),on=i==n;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;$('#mfp'+i).hidden=!on});if(foc)$('#mft'+n).focus()}
+function mfTabVis(n,suave){const c=document.querySelector('.mf-tabs'),t=$('#mft'+n);if(!c||!t||c.scrollWidth<=c.clientWidth+1)return;const cr=c.getBoundingClientRect(),tr=t.getBoundingClientRect();const alvo=c.scrollLeft+(tr.left-cr.left)-(c.clientWidth-t.offsetWidth)/2;c.scrollTo({left:Math.max(0,alvo),behavior:suave?'smooth':'auto'})}
+function mfTab(n,foc){MF.tab=n;[1,2,3,4,5].forEach(i=>{const t=$('#mft'+i),on=i==n;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;$('#mfp'+i).hidden=!on});if(foc)$('#mft'+n).focus({preventScroll:true});mfTabVis(n,!!MF.built)}
+function mfTabsArrastar(){const c=document.querySelector('.mf-tabs');if(!c||c._arr)return;c._arr=1;let x0=0,s0=0,mov=false,down=false;
+ c.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'||e.button!==0)return;down=true;mov=false;x0=e.clientX;s0=c.scrollLeft});
+ addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-x0;if(!mov&&Math.abs(dx)>5){mov=true;c.classList.add('arrastando')}if(mov)c.scrollLeft=s0-dx});
+ addEventListener('pointerup',()=>{if(!down)return;down=false;c.classList.remove('arrastando')});
+ c.addEventListener('click',e=>{if(mov){e.preventDefault();e.stopPropagation();mov=false}},true)}
 function mfMarcaErros(){[1,2,3,4,5].forEach(i=>$('#mft'+i).classList.toggle('err',!!$('#mfp'+i).querySelector('label.invalid')))}
 function markMF(er){er.forEach(m=>{let k=null;const lg=m.match(/^Campo muito longo: (\w+)\./);if(lg)k=lg[1];else{const x=MAPM.find(([re])=>re.test(m));if(x)k=x[1]}if(k)fieldErr(mfK(k),m)});mfMarcaErros();
  const f=document.querySelector('#mf label.invalid input,#mf label.invalid select,#mf label.invalid textarea');if(f){mfTab(+f.closest('.mf-pane').id.slice(3));f.scrollIntoView({block:'center',behavior:'smooth'});foco(f)}}
@@ -572,6 +580,7 @@ function mfBuild(){if(MF.built)return;MF.built=true;const K=M.membros,opt=(arr,v
  mfK('status_membresia').onchange=()=>{if(mfK('status_membresia').value!='Membro')mfK('cargo').value='';mfVisib()};
  mfK('status').onchange=()=>{if(!['Desligado','Faleceu'].includes(mfK('status').value)){mfK('data_saida').value='';mfK('forma_saida').value=''}mfVisib()};
  document.querySelectorAll('.mf-tabs [data-mt]').forEach(b=>{b.onclick=()=>mfTab(+b.dataset.mt);b.onkeydown=e=>{const d={ArrowRight:1,ArrowLeft:-1}[e.key];if(d)mfTab((+b.dataset.mt-1+d+5)%5+1,true)}});
+ mfTabsArrastar();
  const sujo=()=>{MF.dirty=true};$('#mf').addEventListener('input',e=>{sujo();if(e.target.id=='mfobs')mfObsN()});$('#mf').addEventListener('change',sujo);
  $('#mf').addEventListener('input',e=>cepInput(e.target));$('#mf').addEventListener('input',e=>cpfMask(e.target));
  $('#mfvolta').onclick=$('#mfcanc').onclick=()=>show('mb');
