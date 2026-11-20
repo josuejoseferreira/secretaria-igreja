@@ -108,3 +108,14 @@ Como funciona a segurança:
 - A migration `006_usuarios_permissoes.sql` converte perfis antigos (ex.: `secretario`) em usuário comum **sem congregação liberada**: depois de atualizar, entre como administrador e libere as congregações de cada um.
 - Teste automático: `python test_usuarios.py` (usa o banco `_test`).
 - **Produção (Render/Neon):** o deploy **não** roda migrations sozinho. Depois de publicar uma versão nova, rode `python app.py migrate` apontando para o banco do Neon (use `DATABASE_URL_DIRECT` com a conexão direta). Sem isso, telas novas dão "Erro interno" ou "banco desatualizado".
+
+## 15. Portal do Membro (atualização cadastral pelo próprio membro)
+
+- **Quem libera:** somente o **Administrador**. No cadastro do membro (Editar), o cartão *Acesso ao Portal do Membro* mostra a situação (**Acesso não liberado / Acesso ativo / Acesso revogado**) e as ações **Liberar acesso ao membro**, **Gerar nova senha temporária** e **Revogar acesso**. Usuário comum não vê o cartão e o servidor responde 403.
+- **Credenciais:** login (ex.: `maria.souza482`) e senha inicial aleatória de 12 caracteres são mostrados **uma única vez**, com botão *Copiar credenciais*. No banco fica só o hash.
+- **Primeiro acesso:** o membro entra em `/login`, cai em `/portal` e é obrigado a criar a própria senha antes de ver o formulário.
+- **O que o membro faz:** vê e altera apenas o próprio cadastro (Dados pessoais, Endereço e Dados eclesiásticos: datas de conversão e batismo). Status da membresia, cargo, congregação e datas oficiais são somente leitura. Ajuste a lista em `PORTAL_EDITAVEIS` (app.py) se quiser liberar outros campos.
+- **Registro:** cada envio com mudança grava um registro permanente (antes/depois, CPF mascarado) e uma linha no Histórico do membro ("... (membro, via portal)"). Liberações, novas senhas, trocas e revogações ficam em `membro_acesso_log` (permanente).
+- **Revogar:** bloqueia novos logins e derruba as sessões abertas; cadastro, conta e histórico são mantidos. Liberar de novo gera novas credenciais (mesmo login).
+- **Segurança:** conta de membro só alcança as rotas do portal (lista fechada no `auth()`); o vínculo conta→cadastro vem do banco, nunca do navegador; CSRF em todas as gravações; 5 senhas erradas = 15 min de bloqueio (só contas de membro).
+- **Instalação:** `python app.py migrate` (aplica `013_portal_membro.sql`; só adiciona colunas/tabelas) e reinicie. Testes: `TEST_DATABASE_URL=... python test_portal_membro.py`.

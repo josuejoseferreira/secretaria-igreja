@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="theme-color" content="#0A2463">
+<meta name="csrf" content="{{csrf}}">
+<meta name="robots" content="noindex,nofollow">
+<title>Portal do Membro — Secretaria Geral</title>
+<script>try{var f=localStorage.getItem("sec_fonte");if(f==="pequena"||f==="grande")document.documentElement.dataset.fonte=f}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<style>
+/* Portal do Membro: usa o mesmo visual do sistema; aqui ficam só os ajustes da tela (sem menu lateral e sem painel). */
+main.pt{margin-left:0;padding:0 var(--s5) calc(var(--s6) + env(safe-area-inset-bottom));max-width:1100px;margin-inline:auto}
+main.pt::after{display:none}
+.pt-top{display:flex;align-items:center;gap:12px;min-height:72px;padding-top:calc(6px + env(safe-area-inset-top));max-width:1100px;margin:0 auto;padding-inline:var(--s5);position:relative;z-index:2}
+.pt-brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--navy);font-size:1.0625rem}
+.pt-brand svg{width:32px;height:32px;color:var(--blue)}
+.pt-top .sp{flex:1}
+.pt-out{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:var(--r);border:1px solid var(--line-2);background:#fff;color:var(--navy);font-weight:600;text-decoration:none}
+.pt-out:hover{background:#F4F8FF;border-color:#9DB6E6}
+.pt-hero{display:flex;align-items:center;gap:18px;margin:6px 0 var(--s5)}
+.pt-hero .ph-ico{width:76px;height:76px}.pt-hero .ph-ico .ic{width:2.3rem;height:2.3rem}
+.pt-hero h1{margin:0;font-size:clamp(1.45rem,4.6vw,2rem);font-weight:700;letter-spacing:-.4px;color:var(--navy)}
+.pt-hero p{margin:4px 0 0;color:var(--mut);max-width:62ch}
+.pt-card-sm{max-width:520px;margin-inline:auto}
+.pt-ro{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--s3) var(--s4);margin-top:var(--s3)}
+.pt-ro>div{background:#F6F9FF;border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;min-width:0}
+.pt-ro small{display:block;font-size:.75rem;font-weight:600;color:var(--mut)}
+.pt-ro b{display:block;color:var(--navy);font-weight:600;overflow-wrap:anywhere}
+.pt-nota{display:flex;gap:10px;align-items:flex-start;background:var(--blue-l);border:1px solid var(--blue-b);color:var(--navy);border-radius:var(--r);padding:10px 14px;font-size:.84rem;margin-top:var(--s4)}
+.pt-nota .ic{color:var(--blue);margin-top:2px}
+#pt .mf-tabs button{position:relative}
+.pt-bar{margin:var(--s4) 0 0;padding:var(--s3) var(--s4);position:sticky;bottom:0;z-index:5;box-shadow:0 -6px 20px rgba(10,36,99,.08);padding-bottom:calc(var(--s3) + env(safe-area-inset-bottom))}
+.pt-bar .alert{margin-bottom:var(--s3)}
+.pt-bt{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap}.pt-bt .sp{flex:1}
+#pt.digitando .pt-bar{position:static;box-shadow:none}
+.pt-ok{text-align:center;padding:clamp(28px,6vw,56px) var(--s5)}
+.pt-ok .big{width:84px;height:84px;border-radius:50%;margin:0 auto var(--s4);display:grid;place-items:center;background:var(--ok-bg);color:var(--ok)}
+.pt-ok .big .ic{width:2.6rem;height:2.6rem;stroke-width:2.2}
+.pt-ok h2{margin:0 0 8px;font-size:clamp(1.4rem,5vw,1.8rem);color:var(--navy)}
+.pt-ok p{margin:4px auto;color:var(--ink);max-width:46ch}
+.pt-ok .acts{display:flex;gap:var(--s3);justify-content:center;flex-wrap:wrap;margin-top:var(--s5)}
+.pt-ok .acts button{min-width:200px;min-height:48px}
+.pt-chk{flex-direction:row;align-items:center;gap:10px;font-weight:500;color:var(--navy);width:fit-content;min-height:44px;cursor:pointer}
+.pt-chk input{width:20px;height:20px;min-height:0;padding:0;margin:0;accent-color:var(--blue)}
+.mf-pane{margin-bottom:0}
+@media(max-width:600px){
+ main.pt{padding-inline:var(--s3)}.pt-top{padding-inline:var(--s3)}
+ .pt-hero{align-items:flex-start;gap:12px}.pt-hero .ph-ico{width:56px;height:56px}.pt-hero .ph-ico .ic{width:1.7rem;height:1.7rem}
+ .pt-out span{display:none}.pt-out{padding:0 12px}
+ .pt-bt .sp,.pt-bt #ptsairb{display:none}.pt-bt button{flex:1 1 100%;min-height:50px}
+ .pt-bar{margin-left:calc(-1*var(--s3));margin-right:calc(-1*var(--s3));border-radius:16px 16px 0 0}
+ .pt-ok .acts button{width:100%}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#conteudo">Ir para o conteúdo</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ch" viewBox="0 0 64 64"><path fill="currentColor" fill-rule="evenodd" d="M29.5 2h5v5H39v4.5h-4.5V18l17 12v6h6.5v24H6V36h6.5v-6l17-12V11.5H25V7h4.5zM32 30a6 6 0 0 0-6 6v24h12V36a6 6 0 0 0-6-6zm0 4.5a2 2 0 0 1 2 2V54h-4V36.5a2 2 0 0 1 2-2z"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+<symbol id="i-church" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M12 5V2M10.5 3.5h3"/><path d="M10 21v-5a2 2 0 0 1 4 0v5"/></symbol>
+<symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+<symbol id="i-arrow-l" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+<symbol id="i-chev-r" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+</defs></svg>
+
+<header class="pt-top">
+  <span class="pt-brand"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="#ch"/></svg>Secretaria Geral</span>
+  <span class="sp"></span>
+  <a class="pt-out" href="/logout"><svg class="ic" aria-hidden="true"><use href="#i-out"/></svg><span>Sair do sistema</span></a>
+</header>
+
+<main class="pt" id="conteudo">
+{% if trocar %}
+<!-- ===== Primeiro acesso: troca obrigatória da senha inicial ===== -->
+<section id="pt-senha" aria-labelledby="h-senha">
+  <div class="pt-hero"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-shield"/></svg></span>
+    <div><h1 id="h-senha">Olá, {{ primeiro_nome }}!</h1><p>Por segurança, crie agora a sua senha pessoal. A senha que a secretaria entregou serve só para o primeiro acesso.</p></div></div>
+  <div class="card pt-card-sm">
+    <h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>Criar nova senha</h2>
+    <div class="f" style="grid-template-columns:1fr">
+      <label><span>Senha recebida da secretaria</span><input type="password" id="sa" autocomplete="current-password" autocapitalize="none" spellcheck="false" data-s="atual" maxlength="128"></label>
+      <label><span>Nova senha</span><input type="password" id="sn" autocomplete="new-password" autocapitalize="none" spellcheck="false" data-s="nova" maxlength="128"></label>
+      <label><span>Repita a nova senha</span><input type="password" id="sc" autocomplete="new-password" autocapitalize="none" spellcheck="false" data-s="confirmacao" maxlength="128"></label>
+    </div>
+    <p class="hint" style="margin:10px 0 0">Use no mínimo 8 caracteres, com letras e números. Não use o seu login como senha.</p>
+    <label class="pt-chk" style="margin-top:6px"><input type="checkbox" id="smostra"><span>Mostrar as senhas</span></label>
+    <div id="pse" class="alert" role="alert" style="margin-top:12px"></div>
+    <div class="pt-bt" style="margin-top:12px"><a class="pt-out" href="/logout">Sair</a><span class="sp"></span><button type="button" class="p" id="ssalva">Salvar nova senha<svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></button></div>
+  </div>
+</section>
+{% else %}
+<!-- ===== Atualização cadastral ===== -->
+<div id="pt">
+<section id="ptform" aria-labelledby="h-pt">
+  <div class="pt-hero"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-user"/></svg></span>
+    <div><h1 id="h-pt">Olá, {{ primeiro_nome }}!</h1>
+      <p>Este é o seu espaço para manter o cadastro da igreja atualizado. Confira seus dados, corrija o que for preciso nas três seções abaixo e toque em <b>Enviar atualização</b>.</p></div></div>
+
+  <div class="mf-tabs" role="tablist" aria-label="Seções do cadastro">
+    <button type="button" role="tab" id="ptt1" data-t="1" aria-selected="true" aria-controls="ptp1"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg><span>Dados Pessoais</span></button>
+    <button type="button" role="tab" id="ptt2" data-t="2" aria-selected="false" aria-controls="ptp2" tabindex="-1"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg><span>Endereço</span></button>
+    <button type="button" role="tab" id="ptt3" data-t="3" aria-selected="false" aria-controls="ptp3" tabindex="-1"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg><span>Dados Eclesiásticos</span></button>
+  </div>
+
+  <div class="card mf-pane" id="ptp1" role="tabpanel" aria-labelledby="ptt1">
+    <div class="mf-p1">
+      <div class="mf-foto" id="ptfoto" role="group" aria-label="Sua fotografia">
+        <div class="mf-avw"><div class="mf-av"><img id="ptimg" alt="Sua foto" hidden><svg class="mf-sil" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="42" r="22" fill="currentColor"/><path d="M16 114c0-27 20-44 44-44s44 17 44 44z" fill="currentColor"/></svg></div>
+          <button type="button" class="mf-cam" id="ptcam" aria-label="Escolher ou tirar foto"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg></button></div>
+        <div class="mf-ft"><b>Sua foto</b><p class="hint" id="ptft" aria-live="polite">Adicione uma foto para identificar você no cadastro.</p>
+          <div class="mf-fb"><button type="button" class="p" id="pttk" hidden><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg>Tirar foto</button><button type="button" id="ptch"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg>Escolher imagem</button><button type="button" id="ptrm"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>Remover foto</button></div>
+          <p class="alert" id="ptfe" role="alert"></p>
+          <p class="mf-info">Formatos: JPG, PNG ou WEBP · até 10 MB. A foto é recortada e reduzida automaticamente.</p></div>
+        <input type="file" id="ptfile" accept="image/jpeg,image/png,image/webp" hidden><input type="file" id="ptcap" accept="image/*" capture="user" hidden></div>
+      <div class="mf-p1b"><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>Dados pessoais</h2>
+        <p class="hint">Os campos marcados com <span class="req" aria-hidden="true">*</span> são obrigatórios.</p>
+        <div class="f">
+          <label class="w2"><span>Nome completo<span class="req" aria-hidden="true">*</span></span><input data-k="nome" maxlength="200" aria-required="true" autocomplete="name" placeholder="Digite o nome completo"></label>
+          <label><span>Data de nascimento<span class="req" aria-hidden="true">*</span></span><input type="date" data-k="data_nascimento" aria-required="true" autocomplete="bday"></label>
+          <label><span>Sexo<span class="req" aria-hidden="true">*</span></span><select data-k="sexo" aria-required="true"><option value="">Selecione...</option>{% for x in sexos %}<option value="{{x}}">{{x}}</option>{% endfor %}</select></label>
+          <label><span>Estado civil<span class="req" aria-hidden="true">*</span></span><select data-k="estado_civil" aria-required="true"><option value="">Selecione...</option>{% for x in estados_civis %}<option value="{{x}}">{{x}}</option>{% endfor %}</select></label>
+          <div class="mf-cw"><label><span>CPF<span class="req" aria-hidden="true">*</span></span><input data-k="cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" aria-required="true" autocomplete="off"></label><label class="mf-chk"><input type="checkbox" id="ptsemcpf"><span>Não possui CPF</span></label></div>
+        </div></div></div></div>
+
+  <div class="card mf-pane" id="ptp2" role="tabpanel" aria-labelledby="ptt2" hidden><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg>Endereço</h2>
+    <div class="end"><b>Informe o CEP para preencher automaticamente</b>
+      <label class="a-cep"><span>CEP<span class="req" aria-hidden="true">*</span></span><input data-k="cep" inputmode="numeric" maxlength="9" placeholder="00000-000" aria-required="true" autocomplete="postal-code"></label><label class="a-logradouro"><span>Rua / Logradouro<span class="req" aria-hidden="true">*</span></span><input data-k="logradouro" aria-required="true" autocomplete="address-line1"></label><div class="a-numero mf-nw"><label><span>Número<span class="req" aria-hidden="true">*</span></span><input data-k="numero" aria-required="true" autocomplete="off"></label><label class="mf-chk"><input type="checkbox" id="ptsemnum"><span>Sem número (S/N)</span></label></div>
+      <label class="a-complemento"><span>Complemento<span class="req" aria-hidden="true">*</span></span><input data-k="complemento" aria-required="true" autocomplete="address-line2"></label><label class="a-bairro"><span>Bairro<span class="req" aria-hidden="true">*</span></span><input data-k="bairro" aria-required="true"></label><label class="a-cidade"><span>Cidade<span class="req" aria-hidden="true">*</span></span><input data-k="cidade" aria-required="true" autocomplete="address-level2"></label><label class="a-uf"><span>Estado (UF)<span class="req" aria-hidden="true">*</span></span><input data-k="uf" maxlength="2" aria-required="true" autocapitalize="characters" autocomplete="address-level1"></label><small class="cm"></small></div></div>
+
+  <div class="card mf-pane" id="ptp3" role="tabpanel" aria-labelledby="ptt3" hidden><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg>Dados eclesiásticos</h2>
+    <p class="hint">Informe as datas que você conhece. Se não tiver certeza, deixe em branco.</p>
+    <div class="f"><label><span>Data de conversão</span><input type="date" data-k="data_conversao"></label><label><span>Data de batismo</span><input type="date" data-k="data_batismo"></label></div>
+    <h3 class="sub" style="margin:var(--s5) 0 0;font-size:.9375rem;color:var(--navy)">Situação na igreja</h3>
+    <div class="pt-ro" id="ptro" aria-label="Situação na igreja (somente leitura)"></div>
+    <div class="pt-nota"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg><span>O <b>Status da membresia</b> e as demais informações oficiais são mantidos pela secretaria e não podem ser alterados aqui. Se algo estiver incorreto, procure a secretaria.</span></div></div>
+
+  <div class="card pt-bar"><div id="pte" class="alert" role="alert"></div>
+    <div class="pt-bt"><button type="button" id="ptsairb" onclick="location='/logout'"><svg class="ic" aria-hidden="true"><use href="#i-out"/></svg>Sair do sistema</button><span class="sp"></span><button type="button" class="p" id="ptenviar"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Enviar atualização</button></div></div>
+</section>
+
+<!-- ===== Confirmação (só aparece depois que o servidor confirma o salvamento) ===== -->
+<section id="ptok" hidden aria-labelledby="h-ok"><div class="card pt-ok" role="status">
+  <div class="big"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></div>
+  <h2 id="h-ok" tabindex="-1">Cadastro enviado com sucesso!</h2>
+  <p>Seus dados foram atualizados e registrados no sistema da Secretaria Geral.</p>
+  <p><b>Obrigado por ajudar a manter o cadastro da igreja atualizado!</b></p>
+  <div class="acts"><button type="button" class="p" id="ptnovo"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>Novo preenchimento</button><button type="button" id="ptsair"><svg class="ic" aria-hidden="true"><use href="#i-out"/></svg>Sair do sistema</button></div></div></section>
+</div>
+{% endif %}
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div class="ov" id="ov"><div class="md" id="md" role="dialog" aria-modal="true" tabindex="-1"></div></div>
+
+<script>
+const $=s=>document.querySelector(s),H=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CSRF=document.querySelector('meta[name=csrf]').content;
+const api=async(u,o)=>{const r=await fetch(u,o&&{method:o.m,headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF},body:JSON.stringify(o.b)});
+ if(r.status==401){location='/login';return{ok:false,j:{}}}
+ let j={};try{j=await r.json()}catch(_){}
+ if(r.status==403&&j.trocar_senha){location.reload()}
+ return{ok:r.ok,j}};
+const ico=n=>`<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-${n}"/></svg>`;
+let tmr;const toast=(m,k)=>{const t=$('#toast');t.className=k||'';t.innerHTML=ico(k=='err'?'alert':'check')+'<span>'+H(m)+'</span>';t.style.display='flex';clearTimeout(tmr);tmr=setTimeout(()=>t.style.display='none',k=='err'?4500:2800)};
+const foco=el=>{if(el&&!matchMedia('(pointer:coarse)').matches)el.focus()};
+function clearErr(sc){sc.querySelectorAll('label.invalid').forEach(l=>{l.classList.remove('invalid');const i=l.querySelector('input,select,textarea');if(i)i.removeAttribute('aria-invalid')});sc.querySelectorAll('.ferr').forEach(e=>e.remove())}
+function fieldErr(el,msg){if(!el)return false;const l=el.closest('label');if(!l)return false;l.classList.add('invalid');el.setAttribute('aria-invalid','true');if(!l.querySelector('.ferr')){const s=document.createElement('span');s.className='ferr';s.setAttribute('role','alert');s.textContent=msg;l.appendChild(s)}return true}
+
+/* ---------- modal simples (recorte de foto) ---------- */
+let opener=null;
+function open_(h,cls){opener=document.activeElement;const m=$('#md');m.className='md'+(cls?' '+cls:'');m.innerHTML=h;
+ const kids=[...m.children],h2=kids.find(k=>k.tagName=='H2'),last=kids[kids.length-1],foot=last&&last.classList.contains('row')?last:null;
+ const mh=document.createElement('div');mh.className='mh';if(h2){h2.id='mtit';mh.appendChild(h2)}
+ mh.insertAdjacentHTML('beforeend',`<button type="button" class="x" id="xc" aria-label="Fechar">${ico('x')}</button>`);
+ const mb=document.createElement('div');mb.className='mb';kids.forEach(k=>{if(k!==h2&&k!==foot)mb.appendChild(k)});
+ m.append(mh,mb);if(foot){const mf=document.createElement('div');mf.className='mf';mf.appendChild(foot);m.appendChild(mf)}
+ $('#xc').onclick=close_;m.setAttribute('aria-labelledby','mtit');$('#ov').style.display='flex';document.body.classList.add('lock');m.focus({preventScroll:true})}
+function close_(){$('#ov').style.display='none';document.body.classList.remove('lock');if(opener&&opener.focus)opener.focus()}
+document.addEventListener('keydown',e=>{if(e.key=='Escape'&&$('#ov').style.display=='flex')close_()});
+
+{% if trocar %}
+/* ================= Primeiro acesso: trocar a senha inicial ================= */
+$('#smostra').onchange=e=>document.querySelectorAll('#pt-senha input[data-s]').forEach(i=>i.type=e.target.checked?'text':'password');
+async function trocaSenha(){clearErr($('#pt-senha'));$('#pse').textContent='';
+ const b=Object.fromEntries([...document.querySelectorAll('#pt-senha [data-s]')].map(i=>[i.dataset.s,i.value]));
+ if(!b.atual||!b.nova||!b.confirmacao){$('#pse').textContent='Preencha os três campos.';[...document.querySelectorAll('#pt-senha [data-s]')].filter(i=>!i.value).forEach(i=>fieldErr(i,'Este campo é obrigatório'));return}
+ if(b.nova!==b.confirmacao){fieldErr($('#sc'),'A confirmação não é igual à nova senha.');return}
+ const btn=$('#ssalva');btn.disabled=true;btn.classList.add('busy');
+ const r=await api('/api/portal/senha',{m:'POST',b});btn.disabled=false;btn.classList.remove('busy');
+ if(r.ok){location.reload();return}
+ const er=r.j.erros||[{msg:r.j.erro||'Não foi possível trocar a senha.'}];
+ er.forEach(x=>{const i=x.campo&&document.querySelector(`#pt-senha [data-s=${x.campo}]`);if(!i||!fieldErr(i,x.msg))$('#pse').textContent=x.msg});
+ const f=document.querySelector('#pt-senha label.invalid input');if(f)f.focus()}
+$('#ssalva').onclick=trocaSenha;
+document.querySelectorAll('#pt-senha input[data-s]').forEach(i=>i.addEventListener('keydown',e=>{if(e.key=='Enter')trocaSenha()}));
+{% else %}
+/* ================= Atualização cadastral ================= */
+const P={foto:null,fotoRem:false,temFoto:false,fotoV:null,dirty:false,tab:1,carregou:false};
+const K=k=>$(`#pt [data-k=${k}]`);
+const ehMovel=()=>/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.platform=='MacIntel'&&navigator.maxTouchPoints>1)||matchMedia('(pointer:coarse)').matches;
+const fd=d=>d?d.slice(0,10).split('-').reverse().join('/'):'';
+
+/* abas */
+function tab(n,foc){P.tab=n;[1,2,3].forEach(i=>{const t=$('#ptt'+i),on=i==n;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;$('#ptp'+i).hidden=!on});if(foc)$('#ptt'+n).focus({preventScroll:true});
+ const c=document.querySelector('.mf-tabs'),t=$('#ptt'+n);if(c&&c.scrollWidth>c.clientWidth+1){const cr=c.getBoundingClientRect(),tr=t.getBoundingClientRect();c.scrollTo({left:Math.max(0,c.scrollLeft+(tr.left-cr.left)-(c.clientWidth-t.offsetWidth)/2),behavior:'smooth'})}}
+document.querySelectorAll('.mf-tabs [data-t]').forEach(b=>{b.onclick=()=>tab(+b.dataset.t);b.onkeydown=e=>{const d={ArrowRight:1,ArrowLeft:-1}[e.key];if(d)tab((+b.dataset.t-1+d+3)%3+1,true)}});
+const marcaAbas=()=>[1,2,3].forEach(i=>$('#ptt'+i).classList.toggle('err',!!$('#ptp'+i).querySelector('label.invalid')));
+function limpaCampo(el){const l=el&&el.closest&&el.closest('label');if(!l||!l.classList.contains('invalid'))return;l.classList.remove('invalid');el.removeAttribute('aria-invalid');l.querySelectorAll('.ferr').forEach(e=>e.remove());marcaAbas();if(!document.querySelector('#pt label.invalid'))$('#pte').textContent=''}
+
+/* CPF / número: opções "Não possui CPF" e "Sem número (S/N)" */
+function semCpf(on,u){const c=K('cpf'),k=$('#ptsemcpf');k.checked=on;c.disabled=on;if(on){c.value='';limpaCampo(c)}c.closest('label').classList.toggle('off',on);if(u&&!on)foco(c)}
+function semNum(on,u){const c=K('numero'),k=$('#ptsemnum');k.checked=on;c.disabled=on;if(on){c.value='';limpaCampo(c)}c.closest('label').classList.toggle('off',on);if(u&&!on)foco(c)}
+$('#ptsemcpf').onchange=e=>semCpf(e.target.checked,true);$('#ptsemnum').onchange=e=>semNum(e.target.checked,true);
+const cpfMask=i=>{if(i.dataset.k!='cpf')return;const d=i.value.replace(/\D/g,'').slice(0,11);i.value=d.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')};
+/* preenchimento automático do CEP (mesmo da aba Ocorrências do sistema) */
+async function cepInput(i){if(i.dataset.k!='cep')return;const d=i.value.replace(/\D/g,'').slice(0,8);i.value=d.length>5?d.slice(0,5)+'-'+d.slice(5):d;const b=i.closest('.end'),cm=b.querySelector('.cm');cm.textContent='';if(d.length<8)return;cm.textContent='Buscando CEP...';
+ try{const j=await(await fetch(`https://viacep.com.br/ws/${d}/json/`)).json();if(j.erro){cm.textContent='CEP não encontrado. Preencha o endereço manualmente.';return}
+  const set=(k,v)=>{b.querySelector(`[data-k=${k}]`).value=v||''};set('logradouro',j.logradouro);set('bairro',j.bairro);set('cidade',j.localidade);set('uf',j.uf);cm.textContent='';b.querySelector('[data-k=numero]').focus()}catch(_){cm.textContent='Não foi possível consultar o CEP agora. Preencha manualmente.'}}
+const pt=$('#pt');
+pt.addEventListener('input',e=>{P.dirty=true;cepInput(e.target);cpfMask(e.target);if(e.target.dataset&&e.target.dataset.k)limpaCampo(e.target)});
+pt.addEventListener('change',e=>{P.dirty=true;if(e.target.dataset&&e.target.dataset.k)limpaCampo(e.target)});
+/* celular: o campo em edição fica visível acima do teclado e a barra de botões deixa de ficar fixa enquanto digita */
+const ehCampo=t=>t&&t.matches&&t.matches('#pt input:not([type=checkbox]):not([type=file]),#pt select,#pt textarea');
+pt.addEventListener('focusin',e=>{if(!matchMedia('(pointer:coarse)').matches||!ehCampo(e.target))return;pt.classList.add('digitando');const t=e.target;setTimeout(()=>{if(document.activeElement===t)t.scrollIntoView({block:'center',behavior:'smooth'})},320)});
+pt.addEventListener('focusout',()=>setTimeout(()=>{if(!ehCampo(document.activeElement))pt.classList.remove('digitando')},150));
+addEventListener('beforeunload',e=>{if(P.dirty&&!$('#ptform').hidden){e.preventDefault();e.returnValue=''}});
+
+/* carregar o MEU cadastro (o servidor decide qual: o vinculado à conta) */
+function preenche(o){document.querySelectorAll('#pt [data-k]').forEach(i=>{const x=o?o[i.dataset.k]:null;i.value=x==null?'':(i.type=='date'?String(x).slice(0,10):x)});
+ semCpf(!!(o&&o.sem_cpf));semNum(!!o&&String(o.numero||'').trim().toUpperCase()=='S/N');clearErr(pt);marcaAbas();$('#pte').textContent=''}
+function leitura(l){const it=(t,v)=>`<div><small>${t}</small><b>${H(v||'–')}</b></div>`;
+ $('#ptro').innerHTML=it('Congregação',l.congregacao)+it('Status da membresia',l.status_membresia)+it('Cargo eclesiástico',l.cargo)+it('Data de chegada à igreja',fd(l.data_chegada))+it('Data de recebimento',fd(l.data_recebimento))}
+async function carrega(){const r=await api('/api/portal/meu-cadastro');
+ if(!r.ok){$('#pte').textContent=r.j.erro||'Não foi possível carregar o seu cadastro. Tente novamente em instantes.';return}
+ P.temFoto=!!r.j.tem_foto;P.fotoV=r.j.foto_v;preenche(r.j);leitura(r.j.leitura||{});fotoVer();P.dirty=false;P.carregou=true}
+
+/* foto */
+const FTIPOS=['image/jpeg','image/png','image/webp'],FMAX=10*1024*1024;
+const fotoMsg=m=>{$('#ptfe').textContent=m||''};
+function fotoVer(){const img=$('#ptimg'),sil=img.nextElementSibling;let src=null;
+ if(P.foto)src=P.foto.url;else if(!P.fotoRem&&P.temFoto)src='/api/portal/foto?v='+(P.fotoV||'');
+ if(src){img.src=src;img.hidden=false;sil.style.display='none'}else{img.removeAttribute('src');img.hidden=true;sil.style.display=''}
+ $('#ptrm').disabled=!src;
+ $('#ptft').textContent=P.foto?'Nova foto selecionada. Ela será gravada quando você enviar a atualização.':P.fotoRem?'A foto será removida quando você enviar a atualização.':src?'Foto cadastrada. Para trocar, escolha outra imagem ou tire uma nova.':'Adicione uma foto para identificar você no cadastro.'}
+$('#ptimg').onerror=()=>{$('#ptimg').hidden=true;$('#ptimg').nextElementSibling.style.display=''};
+if(ehMovel())$('#pttk').hidden=false;
+$('#ptch').onclick=()=>$('#ptfile').click();
+$('#ptcam').onclick=()=>(ehMovel()?$('#ptcap'):$('#ptfile')).click();
+$('#pttk').onclick=()=>$('#ptcap').click();
+$('#ptfile').onchange=$('#ptcap').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)escolhe(f)};
+$('#ptrm').onclick=()=>{if(P.foto){URL.revokeObjectURL(P.foto.url);P.foto=null}else P.fotoRem=true;P.dirty=true;fotoMsg('');fotoVer()};
+async function escolhe(f){fotoMsg('');
+ if(!FTIPOS.includes(f.type)){fotoMsg(/heic|heif/i.test(f.type+f.name)?'Fotos em formato HEIC não são aceitas. Use JPG, PNG ou WEBP (no iPhone, escolha “Mais compatível” nos ajustes da câmera).':'Arquivo inválido. Envie uma imagem JPG, PNG ou WEBP.');return}
+ if(f.size>FMAX){fotoMsg('A imagem é grande demais (máximo de 10 MB). Escolha uma foto menor.');return}
+ const url=URL.createObjectURL(f),img=new Image();img.src=url;
+ try{await img.decode()}catch(_){URL.revokeObjectURL(url);fotoMsg('Não foi possível ler esta imagem. O arquivo pode estar corrompido.');return}
+ if(img.naturalWidth<64||img.naturalHeight<64){URL.revokeObjectURL(url);fotoMsg('A imagem é muito pequena. Use uma foto com pelo menos 64 × 64 pixels.');return}
+ recorte(img,url)}
+function recorte(img,url){const S=Math.max(200,Math.min(300,innerWidth-96));
+ open_(`<h2>Recortar foto</h2><p class="hint" style="margin-bottom:12px">Arraste a imagem para posicionar o rosto e use o zoom para ajustar.</p>
+ <div class="cr"><div class="cr-v" style="width:${S}px;height:${S}px"><canvas id="crc" width="${S}" height="${S}" aria-label="Área de recorte da foto"></canvas><span class="cr-m" aria-hidden="true"></span></div>
+ <div class="cr-s"><span>Pré-visualização</span><canvas id="crp" width="96" height="96" class="cr-p" aria-hidden="true"></canvas></div></div>
+ <label class="cr-z">Zoom<input type="range" id="crz" min="1" max="4" step="0.01" value="1"></label>
+ <div class="row"><button type="button" id="crn">Cancelar</button><button type="button" class="p" id="crok">Confirmar recorte</button></div>`,'sm');
+ const c=$('#crc'),x=c.getContext('2d'),p=$('#crp').getContext('2d'),w=img.naturalWidth,h=img.naturalHeight,k0=Math.max(S/w,S/h);let z=1,cx=w/2,cy=h/2;
+ const clamp=()=>{const q=S/2/(k0*z);cx=Math.min(Math.max(cx,q),w-q);cy=Math.min(Math.max(cy,q),h-q)},
+  desenha=(ctx,t)=>{const q=S/(k0*z);ctx.fillStyle='#fff';ctx.fillRect(0,0,t,t);ctx.drawImage(img,cx-q/2,cy-q/2,q,q,0,0,t,t)},
+  draw=()=>{clamp();desenha(x,S);p.drawImage(c,0,0,S,S,0,0,96,96);$('#crz').value=z};
+ const Pm=new Map();let d0=0;
+ c.onpointerdown=e=>{c.setPointerCapture(e.pointerId);Pm.set(e.pointerId,[e.clientX,e.clientY]);d0=0};
+ c.onpointermove=e=>{if(!Pm.has(e.pointerId))return;const a=Pm.get(e.pointerId);Pm.set(e.pointerId,[e.clientX,e.clientY]);
+  if(Pm.size==1){const k=k0*z;cx-=(e.clientX-a[0])/k;cy-=(e.clientY-a[1])/k}
+  else if(Pm.size==2){const [u,v]=[...Pm.values()],d=Math.hypot(u[0]-v[0],u[1]-v[1]);if(d0)z=Math.min(4,Math.max(1,z*d/d0));d0=d}draw()};
+ c.onpointerup=c.onpointercancel=e=>{Pm.delete(e.pointerId);d0=0};
+ c.onwheel=e=>{e.preventDefault();z=Math.min(4,Math.max(1,z*(e.deltaY<0?1.08:.93)));draw()};
+ $('#crz').oninput=e=>{z=+e.target.value;draw()};draw();
+ const fim=()=>URL.revokeObjectURL(url);$('#crn').onclick=()=>{fim();close_()};
+ $('#crok').onclick=()=>{const o=document.createElement('canvas');o.width=o.height=480;desenha(o.getContext('2d'),480);
+  o.toBlob(b=>{if(!b){fotoMsg('Não foi possível processar a imagem neste navegador.');fim();close_();return}
+   const fr=new FileReader();fr.onload=()=>{if(P.foto)URL.revokeObjectURL(P.foto.url);P.foto={url:URL.createObjectURL(b),dataUrl:fr.result};P.fotoRem=false;P.dirty=true;fim();close_();fotoVer()};fr.readAsDataURL(b)},'image/jpeg',.86)}}
+
+/* enviar */
+const OBR=['nome','data_nascimento','sexo','estado_civil','cpf','cep','logradouro','numero','complemento','bairro','cidade','uf'];
+const faltam=()=>OBR.filter(k=>{if(k=='cpf'&&$('#ptsemcpf').checked)return false;if(k=='numero'&&$('#ptsemnum').checked)return false;return !String(K(k).value||'').trim()});
+function marca(lista){lista.forEach(([k,msg])=>fieldErr(K(k),msg));marcaAbas();
+ const f=document.querySelector('#pt label.invalid input,#pt label.invalid select');if(f){tab(+f.closest('.mf-pane').id.slice(3));requestAnimationFrame(()=>{f.scrollIntoView({block:'center',behavior:'smooth'});foco(f)})}}
+async function enviar(){clearErr(pt);$('#pte').textContent='';marcaAbas();
+ const fl=faltam();
+ if(fl.length){const ab=[...new Set(fl.map(k=>+K(k).closest('.mf-pane').id.slice(3)))].map(i=>$('#ptt'+i+' span').textContent);
+  $('#pte').textContent=`Faltam ${fl.length} campo${fl.length>1?'s':''} obrigatório${fl.length>1?'s':''} (${ab.join(', ')}). Eles estão destacados.`;marca(fl.map(k=>[k,'Este campo é obrigatório']));return}
+ const d=Object.fromEntries([...document.querySelectorAll('#pt [data-k]')].map(i=>[i.dataset.k,i.value]));d.sem_cpf=$('#ptsemcpf').checked;d.sem_numero=$('#ptsemnum').checked;if(d.sem_numero)d.numero='S/N';
+ if(P.foto)d.foto=P.foto.dataUrl;else if(P.fotoRem&&P.temFoto)d.foto_remover=true;
+ const b=$('#ptenviar');b.disabled=true;b.classList.add('busy');
+ const r=await api('/api/portal/meu-cadastro',{m:'PUT',b:d});
+ b.disabled=false;b.classList.remove('busy');
+ if(r.ok){sucesso();return}   /* só depois da confirmação do servidor os campos são limpos */
+ const er=r.j.erros||[{msg:r.j.erro||'Não foi possível enviar agora. Seus dados continuam na tela; tente novamente.'}];
+ $('#pte').innerHTML=er.map(x=>H(x.msg)).join('<br>');marca(er.filter(x=>x.campo&&K(x.campo)).map(x=>[x.campo,x.msg]))}
+$('#ptenviar').onclick=enviar;
+function sucesso(){if(P.foto){URL.revokeObjectURL(P.foto.url)}P.foto=null;P.fotoRem=false;P.temFoto=false;P.dirty=false;preenche(null);fotoVer();fotoMsg('');tab(1);
+ $('#ptform').hidden=true;$('#ptok').hidden=false;scrollTo(0,0);$('#h-ok').focus({preventScroll:true})}
+$('#ptnovo').onclick=()=>{$('#ptok').hidden=true;$('#ptform').hidden=false;tab(1);scrollTo(0,0);foco(K('nome'))};   /* mesmo membro: o servidor usa sempre a conta autenticada */
+$('#ptsair').onclick=()=>{location='/logout'};
+carrega();
+{% endif %}
+</script>
+</body>
+</html>

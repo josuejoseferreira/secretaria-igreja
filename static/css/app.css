@@ -679,3 +679,20 @@ th small{display:block;text-transform:none;letter-spacing:0;font-weight:400;colo
 #mf.digitando .mf-bar{position:static;box-shadow:none}
 @media(max-width:600px){.mf-chk{min-height:44px}}
 .mf-pane input:disabled{border-color:var(--line-2)}
+
+/* Portal do Membro: cartão de acesso no cadastro do membro (administrador) */
+.pa-h{flex-wrap:wrap}
+.pa-b{display:inline-flex;align-items:center;border-radius:999px;padding:3px 12px;font-size:.78rem;font-weight:700}
+.pa-b.nao{background:#EEF2FA;color:#5F6F95}.pa-b.ativo{background:var(--ok-bg);color:var(--ok)}.pa-b.rev{background:var(--bad-bg);color:var(--bad)}
+.pa-dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 16px;margin:12px 0 4px}
+.pa-dl>div{background:#F6F9FF;border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;min-width:0}
+.pa-dl small{display:block;font-size:.72rem;font-weight:600;color:var(--mut)}.pa-dl b{display:block;color:var(--navy);font-weight:600;overflow-wrap:anywhere}
+.pa-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.pa-s{margin:var(--s4) 0 6px;font-size:.9375rem;color:var(--navy)}
+.pa-it{border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;margin-top:8px;background:#fff;font-size:.84rem}
+.pa-it summary{cursor:pointer;min-height:32px;display:flex;align-items:center}.pa-it ul{margin:8px 0 2px;padding-left:18px}.pa-it li{margin:3px 0;overflow-wrap:anywhere}
+.pa-cred{background:#F6F9FF;border:1px dashed var(--blue-b);border-radius:var(--r);padding:6px 14px;margin:12px 0}
+.pa-cred>div{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:10px 0;flex-wrap:wrap}.pa-cred>div+div{border-top:1px solid var(--line)}
+.pa-cred span{color:var(--mut);font-size:.82rem;font-weight:600}
+.pa-cred code{font:600 1.2rem/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--navy);letter-spacing:.5px;overflow-wrap:anywhere;user-select:all}
+@media(max-width:600px){.pa-acts button{flex:1 1 100%}}

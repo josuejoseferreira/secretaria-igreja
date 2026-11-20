@@ -14,6 +14,8 @@
 <body>
 <a class="skip" href="#conteudo">Ir para o conteúdo</a>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+<symbol id="i-key" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></symbol>
 <symbol id="ch" viewBox="0 0 64 64"><path fill="currentColor" fill-rule="evenodd" d="M29.5 2h5v5H39v4.5h-4.5V18l17 12v6h6.5v24H6V36h6.5v-6l17-12V11.5H25V7h4.5zM32 30a6 6 0 0 0-6 6v24h12V36a6 6 0 0 0-6-6zm0 4.5a2 2 0 0 1 2 2V54h-4V36.5a2 2 0 0 1 2-2z"/></symbol>
 <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
 <symbol id="i-clip" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6M9 16h6"/></symbol>
@@ -206,7 +208,8 @@
       <div class="card mf-pane" id="mfp5" role="tabpanel" aria-labelledby="mft5" hidden><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg>Observações</h2>
         <label>Informações complementares<textarea data-k="observacoes" id="mfobs" rows="7" maxlength="2000" placeholder="Informações complementares sobre o membro..."></textarea></label><p class="hint" id="mfobsn" style="margin-top:6px;text-align:right"></p></div>
     </div></div>
-  <div class="card mf-bar"><div id="mfe" class="alert" role="alert"></div>
+{% if admin %}  <div class="card" id="mfacesso" hidden aria-live="polite"></div>
+{% endif %}  <div class="card mf-bar"><div id="mfe" class="alert" role="alert"></div>
     <div class="mf-bt"><button type="button" id="mflimpar"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>Limpar formulário</button><span class="sp"></span><button type="button" id="mfcanc">Cancelar</button><button type="button" id="mfsc">Salvar e continuar<svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></button><button type="button" class="p" id="mfsv"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Salvar cadastro</button></div></div>
 </section>
 
@@ -619,8 +622,46 @@ const mfHist=()=>{$('#mfhist').innerHTML=histTab(MF.o?MF.o.historico:[],MF.pend,
 async function mfOpen(id,tab){let o=null;if(id){const r=await api('/api/membros/'+id);if(!r.ok){toast(r.j.erro||'Não foi possível abrir o membro','err');return}o=r.j}
  mfBuild();MF.id=id||null;MF.o=o;MF.pend=[];MF.foto=null;MF.fotoRem=false;MF.dirty=false;mfCarrega(o);mfHist();mfFotoMsg('');mfFotoVer();
  $('#h-mf').textContent=o?'Editar membro':'Cadastro de Membro';$('#mf-sub').textContent=o?o.nome:'Mantenha o cadastro dos membros da igreja sempre atualizado';$('#mflimpar').style.display=o?'none':'';
- MF.go=true;show('mf');MF.go=false;$('#bc').innerHTML=`<a href="#" data-v="home">${NOMES.home}</a>${ico('chev-r')}<a href="#" data-v="mb">Membros</a>${ico('chev-r')}<span>${o?'Editar':'Novo cadastro'}</span>`;mfTab(tab||1);foco(mfK('nome'))}
+ MF.go=true;show('mf');MF.go=false;$('#bc').innerHTML=`<a href="#" data-v="home">${NOMES.home}</a>${ico('chev-r')}<a href="#" data-v="mb">Membros</a>${ico('chev-r')}<span>${o?'Editar':'Novo cadastro'}</span>`;mfTab(tab||1);foco(mfK('nome'));if(ADMIN)acessoVer(MF.id)}
 const ficha=id=>mfOpen(id);
+
+/* ===== Acesso ao Portal do Membro (SOMENTE administrador; o servidor também bloqueia qualquer outro usuário) ===== */
+const ACROT={nome:'Nome completo',data_nascimento:'Data de nascimento',sexo:'Sexo',estado_civil:'Estado civil',cpf:'CPF',sem_cpf:'Não possui CPF',cep:'CEP',logradouro:'Logradouro',numero:'Número',complemento:'Complemento',bairro:'Bairro',cidade:'Cidade',uf:'UF',data_conversao:'Data de conversão',data_batismo:'Data de batismo',foto:'Foto'};
+const ACLOG={liberou:'Acesso liberado',nova_senha:'Nova senha temporária gerada',revogou:'Acesso revogado',troca_senha_inicial:'Senha inicial trocada pelo membro',troca_senha:'Senha alterada pelo membro'};
+const fdh=d=>{if(!d)return '–';const x=new Date(d);return x.toLocaleDateString('pt-BR')+' '+x.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})};
+const acV=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v))?fd(v):v;
+let AC={id:null};
+async function acessoVer(id){const box=$('#mfacesso');if(!box)return;AC.id=id||null;
+ if(!id){box.hidden=true;box.innerHTML='';return}
+ const r=await api('/api/membros/'+id+'/acesso');if(!r.ok||AC.id!==id){box.hidden=true;return}
+ const sit=r.j.situacao,a=r.j.acesso||{},rot={nao_liberado:['Acesso não liberado','nao'],ativo:['Acesso ativo','ativo'],revogado:['Acesso revogado','rev']}[sit];
+ const it=(t,v)=>`<div><small>${t}</small><b>${H(v||'–')}</b></div>`;
+ let info='',acts='';
+ if(sit=='nao_liberado')info='<p class="hint" style="margin:10px 0 0">Este membro ainda não tem acesso ao portal.</p>';
+ else{info=`<div class="pa-dl">${it('Login',a.login)}${it('Liberado em',fdh(a.liberado_em)+' · por '+a.liberado_por_nome)}${sit=='revogado'?it('Revogado em',fdh(a.revogado_em)+' · por '+a.revogado_por_nome):it('Último acesso',fdh(a.ultimo_acesso_em))}${sit=='ativo'?it('Senha inicial',a.trocar_senha?'Ainda não trocada pelo membro':'Já trocada pelo membro'):''}</div>`}
+ if(sit=='ativo')acts=`<button type="button" data-ac="senha">${ico('key')}Gerar nova senha temporária</button><button type="button" class="d" data-ac="revogar">${ico('user-x')}Revogar acesso</button>`;
+ else acts=`<button type="button" class="p" data-ac="liberar">${ico('user-plus')}Liberar acesso ao membro</button>`;
+ const alt=(r.j.alteracoes||[]).map(x=>{const ks=Object.keys(x.campos||{});return `<details class="pa-it"><summary><b>${fdh(x.created_at)}</b> · ${H(x.usuario_nome)} · ${ks.length} campo${ks.length>1?'s':''}</summary><ul>${ks.map(k=>`<li><b>${H(ACROT[k]||k)}</b>: ${H(acV(x.campos[k].antes)||'(vazio)')} → ${H(acV(x.campos[k].depois)||'(vazio)')}</li>`).join('')}</ul></details>`}).join('');
+ const lg=(r.j.log||[]).map(x=>`<li>${fdh(x.created_at)} · ${H(ACLOG[x.acao]||x.acao)} · ${H(x.por_nome)}</li>`).join('');
+ box.innerHTML=`<h2 class="mf-h pa-h">${ico('shield')}Acesso ao Portal do Membro <span class="pa-b ${rot[1]}">${rot[0]}</span></h2>
+  <p class="hint" style="margin:0">O membro entra com login e senha individuais, vê somente o próprio cadastro e não altera o Status da membresia. Esta situação é independente da situação da membresia. Somente o administrador libera ou revoga.</p>
+  ${info}<div class="pa-acts">${acts}</div>
+  ${alt?`<h3 class="pa-s">Alterações feitas pelo próprio membro</h3>${alt}`:''}
+  ${lg?`<details class="pa-it"><summary><b>Registro de liberações e senhas</b></summary><ul>${lg}</ul></details>`:''}`;
+ box.hidden=false}
+function acessoCred(r,titulo){const txt=`Acesso ao sistema da Secretaria Geral\nEndereço: ${location.origin}/login\nLogin: ${r.login}\nSenha provisória: ${r.senha}\nNo primeiro acesso você criará a sua senha pessoal.`;
+ open_(`<h2>${H(titulo)}</h2><p class="hint">Entregue estas credenciais a <b>${H(r.nome)}</b>. <b>A senha aparece somente agora</b>: depois de fechar esta janela ela não poderá ser consultada novamente (se esquecer, gere uma nova senha temporária).</p>
+  <div class="pa-cred"><div><span>Login</span><code>${H(r.login)}</code></div><div><span>Senha provisória</span><code>${H(r.senha)}</code></div></div>
+  <p class="hint">O membro será obrigado a criar uma nova senha no primeiro acesso.</p><div id="me"></div>
+  <div class="row"><button type="button" id="cpf_">Fechar</button><button type="button" class="p" id="cpc">${ico('copy')}Copiar credenciais</button></div>`,'sm');
+ const fim=()=>{close();acessoVer(AC.id)};$('#cpf_').onclick=fim;$('#xc').onclick=fim;
+ $('#cpc').onclick=async()=>{let ok=false;try{await navigator.clipboard.writeText(txt);ok=true}catch(_){try{const t=document.createElement('textarea');t.value=txt;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();ok=document.execCommand('copy');t.remove()}catch(__){}}
+  if(ok){toast('Credenciais copiadas')}else{toast('Não foi possível copiar automaticamente. Selecione e copie o texto manualmente.','err')}}}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#mfacesso [data-ac]');if(!b||!ADMIN||!AC.id)return;const id=AC.id,nome=MF.o?MF.o.nome:'o membro',q=b.dataset.ac;
+ const chama=async(url,titulo)=>{const r=await api('/api/membros/'+id+'/acesso/'+url,{m:'POST',b:{}});if(!r.ok){toast(r.j.erro||'Não foi possível concluir a ação.','err');acessoVer(id);return}setTimeout(()=>acessoCred(r.j,titulo),60)};
+ if(q=='liberar')ask('Liberar acesso ao membro',`Será criado um login e uma senha inicial aleatória para <b>${H(nome)}</b>. A senha aparece somente uma vez, para você entregar ao membro, e ele terá de trocá-la no primeiro acesso.`,'Sim, liberar acesso',()=>chama('liberar','Acesso liberado'),false);
+ else if(q=='senha')ask('Gerar nova senha temporária',`A senha atual de <b>${H(nome)}</b> deixará de valer imediatamente e as sessões abertas dele serão encerradas. Uma nova senha temporária será gerada e ele terá de trocá-la no próximo acesso.`,'Sim, gerar nova senha',()=>chama('nova-senha','Nova senha temporária'),false);
+ else if(q=='revogar')ask('Revogar acesso',`<b>${H(nome)}</b> não conseguirá mais entrar e as sessões abertas serão encerradas agora. O cadastro e todo o histórico são mantidos, e a situação da membresia não muda. Você poderá liberar o acesso novamente depois.`,'Sim, revogar acesso',async()=>{const r=await api('/api/membros/'+id+'/acesso/revogar',{m:'POST',b:{}});if(r.ok)toast('Acesso revogado');else toast(r.j.erro||'Não foi possível revogar.','err');acessoVer(id)})});
 async function mfSalvar(continuar){clearErr($('#mf'));$('#mfe').textContent='';mfMarcaErros();
  const dd=$('#mfhd').value,tt=$('#mfhx').value.trim();let extra=[];
  if(dd||tt){if(!dd||!tt){$('#mfe').textContent='Complete a data e a descrição do histórico (ou limpe os campos) antes de salvar.';mfTab(4);return}extra=[{data:dd,descricao:tt}]}
