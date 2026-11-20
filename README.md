@@ -119,3 +119,15 @@ Como funciona a segurança:
 - **Revogar:** bloqueia novos logins e derruba as sessões abertas; cadastro, conta e histórico são mantidos. Liberar de novo gera novas credenciais (mesmo login).
 - **Segurança:** conta de membro só alcança as rotas do portal (lista fechada no `auth()`); o vínculo conta→cadastro vem do banco, nunca do navegador; CSRF em todas as gravações; 5 senhas erradas = 15 min de bloqueio (só contas de membro).
 - **Instalação:** `python app.py migrate` (aplica `013_portal_membro.sql`; só adiciona colunas/tabelas) e reinicie. Testes: `TEST_DATABASE_URL=... python test_portal_membro.py`.
+
+## 16. Portal do Membro com chave geral e senha única (Configuração > Portal do Membro)
+- **Onde:** menu **Configuração → Portal do Membro** (somente **Administrador**; o servidor responde 403 para qualquer outro usuário).
+- **Chave geral:** o administrador **ativa/desativa** o portal. O portal nasce **desativado**. Ativado, a tela mostra **“Portal ativado”** e uma **senha aleatória de 8 dígitos**, a mesma para todos os membros enquanto estiver ativa. Há botões para copiar a mensagem pronta (endereço + senha), copiar a senha, copiar o endereço e **gerar nova senha**.
+- **Desativado:** quem abrir o endereço `/membro` vê **“O acesso está temporariamente indisponível, fale com o secretário!”**. A senha é apagada e as sessões abertas caem na próxima ação do membro. Ativar de novo gera uma senha nova.
+- **Ativado:** o membro abre `/membro` e informa a **senha do portal + nome completo + data de nascimento** (sem diferenciar maiúsculas/acentos). O servidor localiza o cadastro e só ele fica acessível na sessão: **Dados Pessoais, Endereço e Dados Eclesiásticos**. Nenhuma outra tela ou rota do sistema funciona para ele (lista fechada no `auth()`). Se houver dois cadastros com o mesmo nome e nascimento, ninguém entra por eles: a secretaria corrige.
+- **Nova senha ou desativação:** derrubam na hora as sessões abertas (a cada requisição o servidor compara a “versão” da senha gravada no banco).
+- **Tentativa e erro:** 20 tentativas erradas em 15 minutos travam a entrada de todos por alguns minutos (tabela `portal_falhas`, sem dado pessoal).
+- **Registro:** cada envio com mudança grava um registro permanente (antes/depois, CPF mascarado) e uma linha no Histórico do membro (“… (membro, via portal)”). Quem ativou, desativou ou trocou a senha fica em `portal_config_log` (permanente; a senha não é gravada ali).
+- **Contas individuais (seção 15):** continuam existindo, mas também obedecem à chave geral: com o portal desativado elas veem a mesma mensagem.
+- **Atenção:** a senha única fica gravada em texto no banco (o administrador precisa vê-la); trate o banco como já deve tratar. Quem sabe a senha, o nome e a data de nascimento de um membro consegue abrir o cadastro dele; por isso toda alteração é registrada. Troque a senha quando quiser (por exemplo, a cada campanha de atualização).
+- **Instalação:** `python app.py migrate` (aplica `014_portal_chave_geral.sql`; só adiciona tabelas e permite “sem usuário” nos registros de alteração) e reinicie. Testes: `TEST_DATABASE_URL=... python test_portal_codigo.py`.

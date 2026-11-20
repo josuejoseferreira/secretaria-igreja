@@ -15,6 +15,8 @@ import app as A
 with psycopg.connect(url) as c:
     c.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public")
 A.init_db()
+with psycopg.connect(url) as c:   # chave geral do portal (migration 014): contas individuais só entram com o portal ATIVADO
+    c.execute("UPDATE portal_config SET ativo=true,codigo='12345678',versao=1")
 
 PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 res = []

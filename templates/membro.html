@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A2463">
+<title>Portal do Membro — Secretaria Geral</title>
+<meta name="robots" content="noindex,nofollow">
+<script>try{var d=document.documentElement,f=localStorage.getItem("sec_fonte");if(f==="pequena"||f==="grande")d.dataset.fonte=f}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap">
+<style>
+:root{--navy:#0A2463;--blue:#1D5BFF;--blue-2:#3B82F6;--ink:#0F1F4B;--mut:#5A6B94;--line:#C9D7F2;--font:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+html{font-size:100%;-webkit-text-size-adjust:100%}
+html[data-fonte=pequena]{font-size:90%}html[data-fonte=grande]{font-size:115%}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font:1rem/1.5 var(--font);color:var(--ink);background:#EAF2FF;-webkit-font-smoothing:antialiased}
+.ic{width:1.15rem;height:1.15rem;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.lx{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+
+/* painel azul (marca) */
+.lx-brand{position:relative;overflow:hidden;color:#fff;display:flex;flex-direction:column;justify-content:center;gap:2rem;padding:3rem clamp(1.5rem,6vw,5.5rem) 3rem;
+  background:radial-gradient(900px 500px at 15% 0,rgba(59,130,246,.45),transparent 60%),linear-gradient(160deg,#0B3AA8 0,#082467 55%,#051642 100%)}
+.lx-brand::before{content:"";position:absolute;inset:auto -10% -18% -10%;height:55%;background:radial-gradient(60% 80% at 50% 100%,rgba(96,165,250,.35),transparent 70%);pointer-events:none}
+.lx-brand>*{position:relative;z-index:1}
+.lx-mark{position:absolute!important;z-index:0!important;right:-4%;bottom:6%;width:min(58%,420px);opacity:.16;color:#9CC1FF;pointer-events:none}
+.lx-logo{display:flex;align-items:center;gap:1rem}
+.lx-logo svg{width:3.4rem;height:3.4rem;color:#3B82F6;filter:drop-shadow(0 4px 12px rgba(0,0,0,.25))}
+.lx-logo b{display:block;font-size:clamp(1.6rem,2.6vw,2.2rem);line-height:1.1;font-weight:700;letter-spacing:-.3px}
+.lx-logo span{display:block;font-size:clamp(1rem,1.5vw,1.25rem);color:#C9DBFF;margin-top:.15rem}
+.lx-rule{width:min(16rem,60%);height:3px;border-radius:3px;background:linear-gradient(90deg,#3B82F6,transparent)}
+.lx-tag{font-size:clamp(1.6rem,3vw,2.6rem);line-height:1.2;font-style:italic;font-weight:500;margin:0;max-width:16ch;letter-spacing:-.3px}
+.lx-tag em{display:inline-block;color:#4DA3FF;font-weight:600;border-bottom:3px solid #3B82F6;border-radius:0 0 60% 40%/0 0 80% 60%;padding-bottom:.1em}
+.lx-txt{margin:0;color:#D5E2FF;font-size:clamp(1rem,1.4vw,1.2rem);max-width:34ch}
+.lx-feat{display:flex;gap:0;margin-top:.5rem}
+.lx-feat div{display:flex;flex-direction:column;align-items:center;text-align:center;gap:.35rem;padding:0 1.4rem;font-size:.85rem;line-height:1.25;color:#CFE0FF}
+.lx-feat div+div{border-left:1px solid rgba(255,255,255,.22)}
+.lx-feat div:first-child{padding-left:0}
+.lx-feat svg{width:2rem;height:2rem;color:#4DA3FF;stroke-width:1.8}
+.lx-feat b{display:block;color:#fff;font-weight:600}
+
+/* painel do formulário */
+.lx-main{position:relative;display:grid;place-items:center;padding:2rem clamp(1rem,4vw,3rem);
+  background:radial-gradient(500px 300px at 100% 100%,#CFE0FF,transparent 70%),linear-gradient(180deg,#F8FBFF,#EAF2FF);
+  margin-left:-5vw;border-radius:50% 0 0 50%/100% 0 0 100%;padding-left:calc(5vw + 1.5rem)}
+.lx-card{width:min(26rem,100%);background:#fff;border-radius:1.6rem;padding:2rem 2rem 1.6rem;box-shadow:0 20px 50px -12px rgba(10,36,99,.25),0 2px 6px rgba(10,36,99,.06)}
+.lx-ico{width:5.4rem;height:5.4rem;border-radius:50%;margin:-.2rem auto .8rem;background:radial-gradient(circle at 30% 25%,#E3EDFF,#C4D8FF);display:grid;place-items:center}
+.lx-ico svg{width:3rem;height:3rem;color:var(--blue)}
+.lx-card h1{margin:0;text-align:center;font-size:1.9rem;font-weight:700;color:var(--navy);letter-spacing:-.3px}
+.lx-card .s{margin:.2rem 0 1.4rem;text-align:center;color:var(--mut)}
+.lx-err{display:flex;gap:.5rem;align-items:flex-start;background:#FEF2F2;color:#991B1B;border:1px solid #FECACA;border-radius:.8rem;padding:.65rem .85rem;font-size:.92rem;margin-bottom:1rem}
+form{display:flex;flex-direction:column;gap:1rem}
+label{display:flex;flex-direction:column;gap:.4rem;font-weight:600;color:var(--navy);font-size:.95rem}
+label>span{display:flex;align-items:center;gap:.5rem}
+label>span .ic{color:var(--navy);fill:var(--navy);stroke:none;width:1.1rem;height:1.1rem}
+.lx-in{position:relative}
+.lx-off{font-size:1.05rem;padding:1rem;margin-top:1.2rem}input[aria-invalid=true]{border-color:#DC2626}#codigo{letter-spacing:.35em;font-weight:600;text-align:center;font-size:1.3rem}
+input{font:inherit;font-size:1rem;width:100%;min-height:3.1rem;padding:.6rem 1rem;border:1.5px solid var(--line);border-radius:.9rem;background:#fff;color:var(--ink);font-weight:400;transition:border-color .15s,box-shadow .15s}
+input::placeholder{color:#8A9BC2}
+input:focus{outline:0;border-color:var(--blue);box-shadow:0 0 0 4px rgba(29,91,255,.15)}
+.lx-in input{padding-right:3.4rem}
+.lx-eye{position:absolute;right:.35rem;top:50%;transform:translateY(-50%);width:2.6rem;height:2.6rem;border:0;border-radius:.7rem;background:transparent;color:var(--mut);display:grid;place-items:center;cursor:pointer}
+.lx-eye:hover{background:#EEF3FF;color:var(--blue)}
+.lx-eye:focus-visible{outline:3px solid rgba(29,91,255,.4)}
+.lx-eye .ic{width:1.3rem;height:1.3rem}
+.lx-eye .off{display:none}.lx-eye[aria-pressed=true] .on{display:none}.lx-eye[aria-pressed=true] .off{display:block}
+.lx-go{display:flex;align-items:center;justify-content:center;gap:.6rem;min-height:3.3rem;margin-top:.4rem;border:0;border-radius:.9rem;font:inherit;font-size:1.1rem;font-weight:600;color:#fff;cursor:pointer;background:linear-gradient(90deg,#0B4BE0,#3B82F6);box-shadow:0 8px 20px -6px rgba(29,91,255,.6);transition:transform .1s,filter .15s}
+.lx-go:hover{filter:brightness(1.07)}.lx-go:active{transform:translateY(1px)}
+.lx-go:focus-visible{outline:3px solid rgba(29,91,255,.45);outline-offset:2px}
+.lx-go[disabled]{opacity:.75;cursor:wait}
+.lx-ou{display:flex;align-items:center;gap:.8rem;margin:1.1rem 0 .7rem;color:var(--mut);font-size:.9rem}
+.lx-ou::before,.lx-ou::after{content:"";flex:1;height:1px;background:var(--line)}
+.lx-ver{margin:0;text-align:center;color:var(--mut);font-size:.9rem}
+.lx-ver i{display:block;color:#3F5189;font-size:.95rem}
+
+/* tablet */
+@media (max-width:960px){
+  .lx{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .lx-brand{padding:2rem 2rem 4.5rem;gap:1rem;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between}
+  .lx-rule,.lx-txt,.lx-feat{display:none}
+  .lx-tag{font-size:1.5rem;max-width:none;flex:1 1 16rem}
+  .lx-mark{width:min(40%,260px);right:2%;bottom:-8%}
+  .lx-main{margin:-2.5rem 0 0;border-radius:2rem 2rem 0 0;padding:2rem 1.25rem 2.5rem;align-items:center}
+  .lx-card{margin-top:0}
+}
+/* celular */
+@media (max-width:520px){
+  .lx-brand{padding:1.4rem 1.25rem 4rem}
+  .lx-logo svg{width:2.6rem;height:2.6rem}
+  .lx-logo b{font-size:1.35rem}.lx-logo span{font-size:.9rem}
+  .lx-tag{display:none}
+  .lx-main{margin-top:-2.2rem;padding:0 .9rem calc(1.5rem + env(safe-area-inset-bottom))}
+  .lx-card{padding:1.5rem 1.2rem 1.3rem;border-radius:1.4rem;margin-top:0}
+  .lx-ico{width:4.4rem;height:4.4rem}.lx-ico svg{width:2.4rem;height:2.4rem}
+  .lx-card h1{font-size:1.6rem}
+}
+@media (max-height:560px) and (min-width:961px){.lx-feat{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ch" viewBox="0 0 64 64"><path fill="currentColor" d="M29.5 2h5v5H39v4.5h-4.5V18l17 12v6h6.5v24H6V36h6.5v-6l17-12V11.5H25V7h4.5zM32 30a6 6 0 0 0-6 6v24h12V36a6 6 0 0 0-6-6zm0 4.5a2 2 0 0 1 2 2V54h-4V36.5a2 2 0 0 1 2-2z" fill-rule="evenodd"/></symbol>
+</defs></svg>
+<div class="lx">
+  <section class="lx-brand" aria-label="Secretaria Geral">
+    <svg class="lx-mark" aria-hidden="true" viewBox="0 0 64 64"><use href="#ch"/></svg>
+    <div class="lx-logo"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="#ch"/></svg><div><b>Secretaria Geral</b><span>Sistema de gestão</span></div></div>
+    <div class="lx-rule"></div>
+    <p class="lx-tag">Organização, fé e tecnologia caminhando <em>juntas!</em></p>
+    <p class="lx-txt">Gerencie ocorrências, membros, congregações e muito mais, de forma simples e eficiente.</p>
+    <div class="lx-feat">
+      <div><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.4 9.2-8 11-4.6-1.8-8-6-8-11V5z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span><b>Seguro</b>e confiável</span></div>
+      <div><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg><span><b>Rápido</b>e intuitivo</span></div>
+      <div><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span><b>Sempre</b>com você</span></div>
+    </div>
+  </section>
+  <main class="lx-main"><div class="lx-card">
+    <div class="lx-ico"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="#ch"/></svg></div>
+    {% if indisponivel %}
+    <h1>Portal do Membro</h1>
+    <div class="lx-err lx-off" role="alert"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>{{ msg }}</span></div>
+    {% else %}
+    <h1>Portal do Membro</h1><p class="s">Atualize o seu cadastro na igreja</p>
+    {% if msg %}<div class="lx-err" role="alert"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>{{ msg }}</span></div>{% endif %}
+    <form method="post" id="f" novalidate>
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label>
+        <span>Senha do portal (8 dígitos)</span>
+        <input name="codigo" id="codigo" inputmode="numeric" pattern="[0-9]*" maxlength="9" placeholder="00000000" autocomplete="off" autocapitalize="none" spellcheck="false" {% if campo == 'codigo' %}aria-invalid="true" autofocus{% endif %} required>
+      </label>
+      <label>
+        <span>Nome completo</span>
+        <input name="nome" id="nome" maxlength="200" value="{{ f.nome or '' }}" placeholder="Como está no seu cadastro" autocomplete="name" {% if campo == 'nome' %}aria-invalid="true" autofocus{% endif %} required>
+      </label>
+      <label>
+        <span>Data de nascimento</span>
+        <input name="nascimento" id="nasc" type="date" value="{{ f.nascimento or '' }}" autocomplete="bday" {% if campo == 'nascimento' %}aria-invalid="true" autofocus{% endif %} required>
+      </label>
+      <button type="submit" class="lx-go" id="go">Entrar</button>
+    </form>
+    <p class="lx-ver" style="margin-top:1rem">Sem a senha do portal? Peça ao secretário da sua igreja.</p>
+    {% endif %}
+  </div></main>
+</div>
+<script>
+(function(){
+  var f=document.getElementById('f'),g=document.getElementById('go');
+  if(!f)return;
+  f.addEventListener('submit',function(){ if(g.disabled)return; setTimeout(function(){g.disabled=true},0); });
+  window.addEventListener('pageshow',function(){g.disabled=false});
+  var c=document.getElementById('codigo');
+  if(c)c.addEventListener('input',function(){c.value=c.value.replace(/[^0-9]/g,'').slice(0,8)});
+})();
+</script>
+</body></html>

@@ -323,7 +323,7 @@
 <section id="cf" hidden aria-labelledby="h-cf">
   <div class="ph-page"><div class="ph-t"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-gear"/></svg></span><div><h1 id="h-cf">Configuração</h1><p class="s">Ajustes gerais do sistema</p></div></div></div>
   <div class="cfg">
-  <div class="tabs" role="tablist" aria-label="Seções da configuração"><button type="button" class="tab" role="tab" id="tab-fx" aria-selected="true" aria-controls="cf-fx"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>Faixa etária</button><button type="button" class="tab" role="tab" id="tab-fonte" aria-selected="false" aria-controls="cf-fonte"><svg class="ic" aria-hidden="true"><use href="#i-type"/></svg>Fonte</button></div>
+  <div class="tabs" role="tablist" aria-label="Seções da configuração"><button type="button" class="tab" role="tab" id="tab-fx" aria-selected="true" aria-controls="cf-fx"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>Faixa etária</button><button type="button" class="tab" role="tab" id="tab-fonte" aria-selected="false" aria-controls="cf-fonte"><svg class="ic" aria-hidden="true"><use href="#i-type"/></svg>Fonte</button><button type="button" class="tab" role="tab" id="tab-pm" aria-selected="false" aria-controls="cf-pm"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>Portal do Membro</button></div>
   <div>
   <div class="card" id="cf-fx" role="tabpanel" aria-labelledby="tab-fx">
     <h2 class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>Faixa etária</h2>
@@ -346,6 +346,21 @@
       <button type="button" class="opt" role="radio" aria-checked="false" data-fonte-op="padrao"><span class="aa" style="font-size:22px">Aa</span><b>Padrão</b><span class="d">Tamanho atual do sistema.</span></button>
       <button type="button" class="opt" role="radio" aria-checked="false" data-fonte-op="grande"><span class="aa" style="font-size:28px">Aa</span><b>Grande</b><span class="d">Letras maiores, leitura mais fácil.</span></button>
     </div>
+  </div>
+  <div class="card" id="cf-pm" role="tabpanel" aria-labelledby="tab-pm" hidden>
+    <h2 class="card-h pa-h"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>Portal do Membro <span class="pa-b nao" id="pm-b">Carregando…</span></h2>
+    <p class="s" style="margin-bottom:0">Os próprios membros ajudam a manter o cadastro atualizado. Com o portal ativado, o membro entra com a <b>senha do portal</b>, o <b>nome completo</b> e a <b>data de nascimento</b> e vê somente as 3 primeiras seções do próprio cadastro (Dados Pessoais, Endereço e Dados Eclesiásticos). Ele não acessa mais nada do sistema.</p>
+    <div class="pm-sw"><button type="button" class="sw" role="switch" id="pm-sw" aria-checked="false" aria-labelledby="pm-swl" disabled><span class="sw-k" aria-hidden="true"></span></button><span id="pm-swl" class="pm-swl">Portal desativado</span></div>
+    <div id="pm-off" class="pm-box" hidden><p style="margin:0">Enquanto estiver desativado, quem tentar entrar vê a mensagem: <b>“O acesso está temporariamente indisponível, fale com o secretário!”</b></p></div>
+    <div id="pm-on" hidden>
+      <div class="pm-cod" aria-live="polite"><span>Senha do portal (vale para todos os membros)</span><code id="pm-cod" aria-label="Senha do portal">––––––––</code></div>
+      <div class="pm-end"><span>Endereço para os membros</span><code id="pm-url"></code></div>
+      <div class="pa-acts"><button type="button" class="p" id="pm-cm">Copiar mensagem para enviar</button><button type="button" id="pm-cs">Copiar senha</button><button type="button" id="pm-cl">Copiar endereço</button><button type="button" id="pm-ns">Gerar nova senha</button></div>
+      <p class="hint" style="margin:10px 0 0">A senha fica a mesma enquanto o portal estiver ativado. Ao desativar, ela é apagada; ao ativar de novo, uma nova senha aleatória é gerada. Gerar uma nova senha encerra na hora as sessões abertas.</p>
+    </div>
+    <div id="pm-er" class="alert" role="alert"></div>
+    <p class="hint" id="pm-ult" style="margin:var(--s4) 0 0"></p>
+    <details class="pa-it" id="pm-lg" hidden><summary>Histórico do portal</summary><ul id="pm-lgl"></ul></details>
   </div>
   </div></div>
 </section>
@@ -743,8 +758,8 @@ const PREF=(k,v)=>{try{if(v!==undefined)localStorage.setItem(k,v);return localSt
 function marcaPref(){const f=PREF('sec_fonte')||'padrao';document.querySelectorAll('[data-fonte-op]').forEach(b=>b.setAttribute('aria-checked',b.dataset.fonteOp==f))}
 function aplicaPref(v){PREF('sec_fonte',v);v=='padrao'?document.documentElement.removeAttribute('data-fonte'):document.documentElement.setAttribute('data-fonte',v);marcaPref()}
 document.querySelectorAll('[data-fonte-op]').forEach(b=>b.onclick=()=>aplicaPref(b.dataset.fonteOp));
-const CFTABS=['fx','fonte'];
-CFTABS.forEach(k=>$('#tab-'+k).onclick=()=>CFTABS.forEach(o=>{$('#tab-'+o).setAttribute('aria-selected',o==k);$('#cf-'+o).hidden=o!=k}));
+const CFTABS=['fx','fonte','pm'];
+CFTABS.forEach(k=>$('#tab-'+k).onclick=()=>{CFTABS.forEach(o=>{$('#tab-'+o).setAttribute('aria-selected',o==k);$('#cf-'+o).hidden=o!=k});if(k=='pm')pmCarrega()});
 marcaPref();
 const FXS=['crianca','adolescente','jovem','adulto'];let FXPAD={crianca:11,adolescente:17,jovem:29,adulto:59};
 function fxRange(){let de=0;FXS.forEach(k=>{$('#fxde-'+k).textContent=de;const v=$('#fx-'+k).value;de=v!==''&&!isNaN(+v)?+v+1:'?'});$('#fxde-idoso').textContent=de}
@@ -758,6 +773,27 @@ $('#fxs').onclick=async()=>{clearErr($('#cf-fx'));$('#fxer').textContent='';cons
  if(r.ok){toast('Faixas etárias salvas com sucesso');FXS.forEach(k=>$('#fx-'+k).value=r.j.faixas.find(f=>f.slug==k).ate);fxRange();return}
  const er=r.j.erros||[{msg:r.j.erro}];$('#fxer').innerHTML=er.map(x=>H(x.msg)).join('<br>');
  er.forEach(x=>{const i=x.campo&&$('#fx-'+x.campo);if(i){i.closest('label').classList.add('invalid');i.setAttribute('aria-invalid','true')}});const f=$('#cf-fx label.invalid input');if(f)foco(f)};
+/* ===== Configuração > Portal do Membro (chave geral + senha única de 8 dígitos; somente administrador) ===== */
+const PMA={rotulo:{on:'Portal ativado',off:'Portal desativado'},LG:{ativou:'Portal ativado',desativou:'Portal desativado',nova_senha:'Nova senha gerada'}};let PM=null;
+function pmTela(j){PM=j;const on=!!j.ativo,b=$('#pm-b'),sw=$('#pm-sw');
+ b.textContent=on?PMA.rotulo.on:PMA.rotulo.off;b.className='pa-b '+(on?'ativo':'rev');
+ sw.setAttribute('aria-checked',on);sw.disabled=false;$('#pm-swl').textContent=on?PMA.rotulo.on:PMA.rotulo.off;
+ $('#pm-on').hidden=!on;$('#pm-off').hidden=on;$('#pm-cod').textContent=on?j.codigo:'––––––––';$('#pm-url').textContent=location.origin+'/membro';
+ $('#pm-ult').textContent=j.alterado_em?'Última alteração: '+fdh(j.alterado_em)+(j.alterado_por?' · por '+j.alterado_por:''):'';
+ $('#pm-lg').hidden=!(j.log&&j.log.length);$('#pm-lgl').innerHTML=(j.log||[]).map(l=>`<li>${H(PMA.LG[l.acao]||l.acao)} · ${H(fdh(l.created_at))} · ${H(l.por_nome)}</li>`).join('')}
+async function pmCarrega(){$('#pm-er').textContent='';const r=await api('/api/config/portal-membro');
+ if(!r.ok){$('#pm-b').textContent='Indisponível';$('#pm-er').textContent=r.j.erro||'Não foi possível carregar. Se o sistema acabou de ser atualizado, rode "python app.py migrate".';return}
+ pmTela(r.j)}
+async function pmLiga(ativo){$('#pm-er').textContent='';const sw=$('#pm-sw');sw.disabled=true;const r=await api('/api/config/portal-membro',{m:'PUT',b:{ativo}});
+ if(!r.ok){sw.disabled=false;$('#pm-er').textContent=r.j.erro||'Não foi possível alterar agora.';return}
+ pmTela(r.j);toast(ativo?'Portal ativado. Copie a senha e envie aos membros.':'Portal desativado. Os membros não conseguem mais entrar.')}
+$('#pm-sw').onclick=()=>{if(!PM)return;if(PM.ativo)ask('Desativar o Portal do Membro','Os membros que estiverem com o portal aberto serão desconectados agora e quem tentar entrar verá que o acesso está temporariamente indisponível. A senha atual será apagada.','Sim, desativar',()=>pmLiga(false));else pmLiga(true)};
+$('#pm-ns').onclick=()=>ask('Gerar nova senha','A senha atual deixará de valer agora e os membros que estiverem com o portal aberto serão desconectados. Você precisará enviar a nova senha aos membros.','Sim, gerar nova senha',async()=>{$('#pm-er').textContent='';const r=await api('/api/config/portal-membro/nova-senha',{m:'POST',b:{}});if(!r.ok){$('#pm-er').textContent=r.j.erro||'Não foi possível gerar a senha.';return}pmTela(r.j);toast('Nova senha gerada')},false);
+async function pmCopia(t,ok){let c=false;try{await navigator.clipboard.writeText(t);c=true}catch(_){try{const x=document.createElement('textarea');x.value=t;x.style.position='fixed';x.style.opacity='0';document.body.appendChild(x);x.select();c=document.execCommand('copy');x.remove()}catch(__){}}
+ if(c)toast(ok);else toast('Não foi possível copiar automaticamente. Selecione e copie o texto manualmente.','err')}
+$('#pm-cs').onclick=()=>PM&&PM.codigo&&pmCopia(PM.codigo,'Senha copiada');
+$('#pm-cl').onclick=()=>pmCopia(location.origin+'/membro','Endereço copiado');
+$('#pm-cm').onclick=()=>PM&&PM.codigo&&pmCopia(`Atualize o seu cadastro na igreja:\n${location.origin}/membro\nSenha do portal: ${PM.codigo}\nInforme também o seu nome completo e a data de nascimento.`,'Mensagem copiada');
 /* ===== Relatórios: comparativo (período atual x anterior) ===== */
 let RQ='',REL_INI=false;const rlMark=()=>document.querySelectorAll('[data-rd]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.rd==$('#rld').value));
 document.querySelectorAll('[data-rd]').forEach(b=>b.onclick=()=>{$('#rld').value=b.dataset.rd;relatorio()});

@@ -85,7 +85,8 @@ def auth():
     if DEV and "uid" not in session:
         with conn() as c: u = c.execute("SELECT id,nome,senha_hash FROM usuarios WHERE perfil='admin' AND ativo ORDER BY id LIMIT 1").fetchone()
         if u: session.update(uid=u["id"], nome=u["nome"], sv=_sv(u["senha_hash"]))
-    if request.endpoint == "login": return
+    if request.endpoint in ("login", "membro_entrada", "membro_sair"): return
+    if "uid" not in session and "pm" in session: return _auth_codigo()   # membro que entrou pela senha única do portal
     if "uid" not in session: return _nao_autenticado()
     # Permissões vêm SEMPRE do banco (nunca do cookie): desativar, trocar o perfil ou as congregações
     # de alguém vale já na próxima requisição dele.
@@ -100,6 +101,8 @@ def auth():
             congs = [r["congregacao_id"] for r in c.execute("SELECT congregacao_id FROM usuario_congregacoes WHERE usuario_id=%s", (u["id"],))]
     if not u or not u["ativo"] or session.get("sv") != _sv(u["senha_hash"]) or (u["perfil"] == "membro" and not membro_ok):
         session.clear(); return _nao_autenticado()
+    if u["perfil"] == "membro" and not _portal_ativo():   # chave geral desligada: vale também para contas individuais já criadas
+        session.clear(); return _portal_indisponivel()
     g.admin = u["perfil"] == "admin"
     g.congs = None if g.admin else congs   # None = todas; lista = somente essas congregações
     g.membro_id = u["membro_id"] if u["perfil"] == "membro" else None   # vem do BANCO, nunca do navegador
@@ -110,6 +113,33 @@ def auth():
         ep = request.endpoint
         if ep not in PORTAL_ROTAS: return _negado_membro()
         if g.trocar_senha and ep not in PORTAL_ROTAS_TROCA: return _negado_membro(trocar=True)
+
+PORTAL_INDISPONIVEL = "O acesso está temporariamente indisponível, fale com o secretário!"
+
+def _portal_ativo():
+    with conn() as c: return bool(c.execute("SELECT ativo FROM portal_config WHERE id=1").fetchone()["ativo"])
+
+def _portal_indisponivel():
+    if request.path.startswith("/api"): return jsonify(erro=PORTAL_INDISPONIVEL, portal_indisponivel=True), 401
+    return redirect("/membro")
+
+# Rotas que quem entrou pela SENHA ÚNICA pode usar (as mesmas telas do portal, sem troca de senha). Todo o resto é negado.
+PORTAL_ROTAS_CODIGO = {"portal", "portal_ver", "portal_salvar", "portal_foto", "membro_sair"}
+
+def _auth_codigo():
+    """Sessão de membro aberta com a senha única. Tudo é conferido no BANCO a cada requisição: se o portal for desativado
+    ou a senha trocada pelo administrador, a sessão cai na hora. O membro vem da sessão assinada, nunca do navegador."""
+    pm = session.get("pm") or {}
+    with conn() as c:
+        cf = c.execute("SELECT ativo,versao FROM portal_config WHERE id=1").fetchone()
+        ok = bool(cf["ativo"]) and cf["versao"] == pm.get("v") and bool(
+            c.execute("SELECT 1 FROM membros WHERE id=%s AND excluido_em IS NULL", (pm.get("m"),)).fetchone())
+    if not ok:
+        off = not cf["ativo"]; session.clear()
+        if off: return _portal_indisponivel()
+        return (jsonify(erro="Sua sessão terminou. Entre novamente com a senha do portal.", sessao_expirada=True), 401) if request.path.startswith("/api") else redirect("/membro")
+    g.admin, g.congs, g.membro_id, g.trocar_senha, g.codigo = False, [], pm["m"], False, True
+    if request.endpoint not in PORTAL_ROTAS_CODIGO: return _negado_membro()
 
 # Únicas rotas que uma conta de membro pode usar. Todo o resto do sistema responde 403/redireciona.
 PORTAL_ROTAS = {"portal", "portal_ver", "portal_salvar", "portal_foto", "portal_senha", "logout"}
@@ -123,7 +153,7 @@ def _negado_membro(trocar=False):
 @app.after_request
 def _sem_cache(resp):
     # Dados pessoais e credenciais nunca ficam guardados no cache do navegador.
-    if request.path == "/portal" or request.path.startswith("/api/portal") or (request.path.startswith("/api/membros/") and "/acesso" in request.path):
+    if request.path in ("/portal", "/membro") or request.path.startswith(("/api/portal", "/api/config/portal-membro")) or (request.path.startswith("/api/membros/") and "/acesso" in request.path):
         resp.headers["Cache-Control"] = "no-store"
     return resp
 
@@ -147,12 +177,14 @@ def filtro_cong(coluna, w, p):
 def login():
     msg = ""
     if request.method == "POST":
-        bloq = False
+        bloq = desligado = False
         with conn() as c:
             u = c.execute("SELECT * FROM usuarios WHERE login=%s AND ativo", (request.form["login"],)).fetchone()
             membro = bool(u) and u["perfil"] == "membro"
             if membro: bloq = bool(c.execute("SELECT coalesce(bloqueado_ate > now(), false) b FROM usuarios WHERE id=%s", (u["id"],)).fetchone()["b"])
             ok = bool(u) and not bloq and check_password_hash(u["senha_hash"], request.form["senha"])
+            desligado = membro and ok and not bool(c.execute("SELECT ativo FROM portal_config WHERE id=1").fetchone()["ativo"])
+            if desligado: ok = False
             if membro and ok:   # só entra quem tem o acesso ATIVO e cadastro não excluído
                 ok = bool(c.execute("SELECT 1 FROM membro_acesso a JOIN membros m ON m.id=a.membro_id WHERE a.usuario_id=%s AND a.situacao='ativo' AND m.excluido_em IS NULL", (u["id"],)).fetchone())
             if membro and not bloq:   # 5 erros seguidos = 15 min de bloqueio (vale só para contas de membro)
@@ -165,7 +197,7 @@ def login():
         if ok:
             session.clear(); session.permanent = True; session.update(uid=u["id"], nome=u["nome"], sv=_sv(u["senha_hash"]))
             return redirect("/portal" if membro else "/")
-        msg = "Muitas tentativas. Aguarde alguns minutos e tente novamente." if bloq else "Login ou senha inválidos."
+        msg = PORTAL_INDISPONIVEL if desligado else "Muitas tentativas. Aguarde alguns minutos e tente novamente." if bloq else "Login ou senha inválidos."
     return render_template("login.html", csrf=csrf(), msg=msg)
 
 @app.route("/")
@@ -1168,7 +1200,9 @@ def _ver_valor(k, x):
 def portal():
     with conn() as c:
         m = c.execute("SELECT nome FROM membros WHERE id=%s", (g.membro_id,)).fetchone()
-    return render_template("portal.html", csrf=csrf(), nome=m["nome"], primeiro_nome=m["nome"].split()[0], trocar=g.trocar_senha, sexos=SEXOS, estados_civis=ESTADOS_CIVIS)
+    cod = getattr(g, "codigo", False)
+    return render_template("portal.html", csrf=csrf(), nome=m["nome"], primeiro_nome=m["nome"].split()[0], trocar=g.trocar_senha, sexos=SEXOS, estados_civis=ESTADOS_CIVIS,
+                           sair="/membro/sair" if cod else "/logout", entrada="/membro" if cod else "/login")
 
 @app.get("/api/portal/meu-cadastro")
 @so_membro
@@ -1214,7 +1248,7 @@ def portal_salvar():
             if dif:
                 c.execute("UPDATE membros SET " + ",".join(k + "=%s" for k in PORTAL_EDITAVEIS) + ",nome_busca=f_unaccent(%s),updated_at=now() WHERE id=%s",
                           [v[k] for k in PORTAL_EDITAVEIS] + [v["nome"], g.membro_id])
-                if "nome" in dif: c.execute("UPDATE usuarios SET nome=%s,updated_at=now() WHERE id=%s", (v["nome"], session["uid"]))
+                if "nome" in dif and session.get("uid"): c.execute("UPDATE usuarios SET nome=%s,updated_at=now() WHERE id=%s", (v["nome"], session["uid"]))
             if foto:
                 c.execute("INSERT INTO membro_foto(membro_id,imagem,tipo,tamanho) VALUES(%s,%s,%s,%s) ON CONFLICT(membro_id) DO UPDATE SET imagem=EXCLUDED.imagem,tipo=EXCLUDED.tipo,tamanho=EXCLUDED.tamanho,atualizado_em=now()",
                           (g.membro_id, foto[0], foto[1], len(foto[0])))
@@ -1222,10 +1256,10 @@ def portal_salvar():
             elif d.get("foto_remover") is True and c.execute("DELETE FROM membro_foto WHERE membro_id=%s", (g.membro_id,)).rowcount:
                 dif["foto"] = dict(antes="Com foto", depois="Foto removida")
             if dif:   # registro permanente: aparece no Histórico do membro e no detalhe (antes/depois) para a secretaria
-                c.execute("INSERT INTO membro_alteracoes(membro_id,usuario_id,usuario_nome,campos) VALUES(%s,%s,%s,%s)", (g.membro_id, session["uid"], v["nome"], Jsonb(dif)))
+                c.execute("INSERT INTO membro_alteracoes(membro_id,usuario_id,usuario_nome,campos) VALUES(%s,%s,%s,%s)", (g.membro_id, session.get("uid"), v["nome"], Jsonb(dif)))   # sem conta (senha única): usuario_id fica nulo, o nome do membro é gravado
                 desc = "Atualização cadastral feita pelo próprio membro no Portal do Membro. Campos alterados: " + ", ".join(PORTAL_ROTULOS[k] for k in dif) + "."
                 c.execute("INSERT INTO historico_membro(membro_id,data,secretario_id,secretario_nome,descricao) VALUES(%s,%s,%s,%s,%s)",
-                          (g.membro_id, date.today(), session["uid"], v["nome"] + " (membro, via portal)", desc))
+                          (g.membro_id, date.today(), session.get("uid"), v["nome"] + " (membro, via portal)", desc))
     except psycopg.errors.UniqueViolation:
         return jsonify(erros=[dict(msg="Este CPF já está cadastrado para outra pessoa. Procure a secretaria.", campo="cpf")]), 400
     return jsonify(ok=True, alterados=len(dif))
@@ -1250,6 +1284,86 @@ def portal_senha():
         _log_acesso(c, g.membro_id, "troca_senha_inicial" if g.trocar_senha else "troca_senha")
     session["sv"] = _sv(novo)   # a sessão atual continua valida; qualquer outra sessão aberta com a senha antiga cai
     return jsonify(ok=True)
+
+# ----- CHAVE GERAL + SENHA ÚNICA (Configuração > Portal do Membro)
+# Administrador: liga/desliga o portal. Ligar gera uma senha aleatória de 8 dígitos, única para todos os membros enquanto
+# estiver ativa. Desligar apaga a senha e derruba as sessões abertas. O membro informa a senha + nome + data de nascimento;
+# o servidor localiza o cadastro e só esse cadastro fica acessível na sessão (as 3 primeiras seções, nada mais).
+def gerar_codigo_portal(anterior=None):
+    while True:
+        cod = "".join(secrets.choice("0123456789") for _ in range(8))
+        if len(set(cod)) > 1 and cod != anterior: return cod   # evita 00000000, 11111111...
+
+def _estado_portal(c):
+    cf = c.execute("SELECT ativo,codigo,alterado_em,alterado_por_nome FROM portal_config WHERE id=1").fetchone()
+    log = c.execute("SELECT acao,por_nome,created_at FROM portal_config_log ORDER BY id DESC LIMIT 10").fetchall()
+    return dict(ativo=cf["ativo"], codigo=cf["codigo"] if cf["ativo"] else None, alterado_em=cf["alterado_em"], alterado_por=cf["alterado_por_nome"], log=log)
+
+@app.get("/api/config/portal-membro")
+@so_admin
+def ver_portal_config():
+    with conn() as c: return jsonify(_estado_portal(c))
+
+@app.put("/api/config/portal-membro")
+@so_admin
+def salvar_portal_config():
+    d = request.get_json(silent=True)
+    if not isinstance(d, dict) or not isinstance(d.get("ativo"), bool): return jsonify(erro="Informe se o portal deve ficar ativado ou desativado."), 400
+    with conn() as c:
+        atual = c.execute("SELECT ativo FROM portal_config WHERE id=1 FOR UPDATE").fetchone()["ativo"]
+        if d["ativo"] != atual:   # repetir o mesmo estado não troca a senha nem registra nada
+            if d["ativo"]:
+                c.execute("UPDATE portal_config SET ativo=true,codigo=%s,versao=versao+1,alterado_em=now(),alterado_por_nome=%s WHERE id=1", (gerar_codigo_portal(), session["nome"]))
+            else:   # apaga a senha e sobe a versão: as sessões de membros abertas caem na próxima requisição
+                c.execute("UPDATE portal_config SET ativo=false,codigo=NULL,versao=versao+1,alterado_em=now(),alterado_por_nome=%s WHERE id=1", (session["nome"],))
+            c.execute("INSERT INTO portal_config_log(acao,por_id,por_nome) VALUES(%s,%s,%s)", ("ativou" if d["ativo"] else "desativou", session["uid"], session["nome"]))
+        return jsonify(_estado_portal(c))
+
+@app.post("/api/config/portal-membro/nova-senha")
+@so_admin
+def nova_senha_portal():
+    with conn() as c:
+        cf = c.execute("SELECT ativo,codigo FROM portal_config WHERE id=1 FOR UPDATE").fetchone()
+        if not cf["ativo"]: return jsonify(erro="Ative o portal para gerar uma senha."), 409
+        c.execute("UPDATE portal_config SET codigo=%s,versao=versao+1,alterado_em=now(),alterado_por_nome=%s WHERE id=1", (gerar_codigo_portal(cf["codigo"]), session["nome"]))
+        c.execute("INSERT INTO portal_config_log(acao,por_id,por_nome) VALUES('nova_senha',%s,%s)", (session["uid"], session["nome"]))
+        return jsonify(_estado_portal(c))
+
+# ----- entrada do membro (pública: só mostra o formulário ou o aviso; nada do cadastro antes de conferir tudo)
+FALHAS_MAX, FALHAS_JANELA = 20, "15 minutes"   # tentativa e erro: 20 falhas em 15 min travam a entrada de todos por alguns minutos
+
+@app.route("/membro", methods=["GET", "POST"])
+def membro_entrada():
+    ctx = dict(csrf=csrf(), msg="", indisponivel=False, campo=None, f={})
+    status = 200
+    with conn() as c:
+        cf = c.execute("SELECT ativo,codigo,versao FROM portal_config WHERE id=1").fetchone()
+        if not cf["ativo"]:
+            ctx["indisponivel"] = True; ctx["msg"] = PORTAL_INDISPONIVEL
+            status = 503 if request.method == "POST" else 200
+        elif request.method == "POST":
+            f = request.form; cod = re.sub(r"\s", "", f.get("codigo", "")); nome = " ".join((f.get("nome") or "").split())[:200]; nasc = parse_data(f.get("nascimento"))
+            ctx["f"] = dict(nome=nome, nascimento=f.get("nascimento", ""))
+            if c.execute("SELECT count(*) n FROM portal_falhas WHERE created_at > now() - %s::interval", (FALHAS_JANELA,)).fetchone()["n"] >= FALHAS_MAX:
+                ctx["msg"] = "Muitas tentativas erradas. Aguarde alguns minutos e tente novamente, ou fale com o secretário."; status = 429
+            elif not re.fullmatch(r"\d{8}", cod) or not secrets.compare_digest(cod, cf["codigo"]):
+                c.execute("INSERT INTO portal_falhas DEFAULT VALUES"); ctx["msg"] = "Senha do portal incorreta. Confira os 8 dígitos."; ctx["campo"] = "codigo"; status = 400
+            elif not nome or not nasc or nasc is False:
+                ctx["msg"] = "Informe o nome completo e a data de nascimento."; ctx["campo"] = "nome" if not nome else "nascimento"; status = 400
+            else:
+                ids = [r["id"] for r in c.execute("SELECT id FROM membros WHERE excluido_em IS NULL AND data_nascimento=%s AND regexp_replace(nome_busca,'\\s+',' ','g')=f_unaccent(%s) LIMIT 2", (nasc, nome))]
+                if len(ids) == 1:
+                    session.clear(); session["pm"] = dict(m=ids[0], v=cf["versao"]); csrf()
+                    return redirect("/portal")
+                if not ids: c.execute("INSERT INTO portal_falhas DEFAULT VALUES")
+                ctx["msg"] = ("Há mais de um cadastro com esses dados. Fale com o secretário para atualizar o seu." if ids else
+                              "Não encontramos um cadastro com esse nome e data de nascimento. Confira como está escrito no seu cadastro ou fale com o secretário.")
+                ctx["campo"] = "nome"; status = 400
+    return render_template("membro.html", **ctx), status
+
+@app.get("/membro/sair")
+def membro_sair():
+    session.clear(); return redirect("/membro")
 
 # ---------------------------------------------------------------- AGENDA (semana, eventos, aniversariantes, Datashow)
 DIAS_SEMANA = ["SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA", "SÁBADO", "DOMINGO"]
