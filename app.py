@@ -132,13 +132,13 @@ def _auth_codigo():
     pm = session.get("pm") or {}
     with conn() as c:
         cf = c.execute("SELECT ativo,versao FROM portal_config WHERE id=1").fetchone()
-        ok = bool(cf["ativo"]) and cf["versao"] == pm.get("v") and bool(
-            c.execute("SELECT 1 FROM membros WHERE id=%s AND excluido_em IS NULL", (pm.get("m"),)).fetchone())
+        ok = bool(cf["ativo"]) and cf["versao"] == pm.get("v") and (pm.get("m") is None or bool(
+            c.execute("SELECT 1 FROM membros WHERE id=%s AND excluido_em IS NULL", (pm.get("m"),)).fetchone()))
     if not ok:
         off = not cf["ativo"]; session.clear()
         if off: return _portal_indisponivel()
         return (jsonify(erro="Sua sessão terminou. Entre novamente com a senha do portal.", sessao_expirada=True), 401) if request.path.startswith("/api") else redirect("/membro")
-    g.admin, g.congs, g.membro_id, g.trocar_senha, g.codigo = False, [], pm["m"], False, True
+    g.admin, g.congs, g.membro_id, g.trocar_senha, g.codigo, g.novo = False, [], pm.get("m"), False, True, pm.get("m") is None   # novo = ainda vai criar o próprio cadastro
     if request.endpoint not in PORTAL_ROTAS_CODIGO: return _negado_membro()
 
 # Únicas rotas que uma conta de membro pode usar. Todo o resto do sistema responde 403/redireciona.
@@ -1053,7 +1053,7 @@ def gerar_login(c, nome):
 def so_membro(f):
     @wraps(f)
     def w(*a, **k):
-        if not g.membro_id:
+        if not g.membro_id and not getattr(g, "novo", False):
             return (jsonify(erro="Recurso exclusivo do portal do membro."), 403) if request.path.startswith("/api") else redirect("/")
         return f(*a, **k)
     return w
@@ -1198,15 +1198,19 @@ def _ver_valor(k, x):
 @app.get("/portal")
 @so_membro
 def portal():
+    novo = getattr(g, "novo", False)
     with conn() as c:
-        m = c.execute("SELECT nome FROM membros WHERE id=%s", (g.membro_id,)).fetchone()
+        m = {"nome": ""} if novo else c.execute("SELECT nome FROM membros WHERE id=%s", (g.membro_id,)).fetchone()
     cod = getattr(g, "codigo", False)
-    return render_template("portal.html", csrf=csrf(), nome=m["nome"], primeiro_nome=m["nome"].split()[0], trocar=g.trocar_senha, sexos=SEXOS, estados_civis=ESTADOS_CIVIS,
+    return render_template("portal.html", csrf=csrf(), nome=m["nome"], primeiro_nome=(m["nome"].split() or [""])[0], novo=novo, trocar=g.trocar_senha, sexos=SEXOS, estados_civis=ESTADOS_CIVIS,
                            sair="/membro/sair" if cod else "/logout", entrada="/membro" if cod else "/login")
 
 @app.get("/api/portal/meu-cadastro")
 @so_membro
 def portal_ver():
+    if getattr(g, "novo", False):   # cadastro novo: formulário em branco
+        out = {k: None for k in PORTAL_EDITAVEIS}; out["sem_cpf"] = False; out["leitura"] = {}; out["tem_foto"], out["foto_v"] = False, None
+        return jsonify(out)
     with conn() as c:
         m = c.execute("SELECT m.*,cg.nome congregacao FROM membros m LEFT JOIN congregacoes cg ON cg.id=m.congregacao_id WHERE m.id=%s AND m.excluido_em IS NULL", (g.membro_id,)).fetchone()
         if not m: return jsonify(erro="Cadastro não encontrado."), 404
@@ -1220,12 +1224,36 @@ def portal_ver():
 @app.get("/api/portal/foto")
 @so_membro
 def portal_foto():
+    if getattr(g, "novo", False): return jsonify(erro="Foto não encontrada."), 404
     with conn() as c:
         r = c.execute("SELECT imagem,tipo,EXTRACT(EPOCH FROM atualizado_em)::bigint v FROM membro_foto WHERE membro_id=%s", (g.membro_id,)).fetchone()
     if not r: return jsonify(erro="Foto não encontrada."), 404
     resp = Response(bytes(r["imagem"]), mimetype=r["tipo"])
     resp.headers["X-Content-Type-Options"] = "nosniff"; resp.headers["Content-Disposition"] = "inline"
     return resp
+
+NOVOS_MAX = 30   # no máximo 30 cadastros novos por hora pelo portal (evita encher o sistema de cadastros falsos)
+
+def _portal_criar(v, foto):
+    """Membro entrou com a senha do portal e escolheu fazer o PRÓPRIO cadastro. Nasce como 'Congregado', sem congregação e sem cargo:
+    quem confirma a situação oficial é a secretaria. Depois de criado, a sessão passa a ser desse cadastro (só ele)."""
+    try:
+        with conn() as c:
+            if c.execute("SELECT count(*) n FROM historico_membro WHERE secretario_id IS NULL AND descricao LIKE 'Cadastro criado pelo próprio membro%' AND created_at > now() - interval '1 hour'").fetchone()["n"] >= NOVOS_MAX:
+                return jsonify(erros=[dict(msg="Muitos cadastros foram enviados agora. Tente novamente em alguns minutos ou fale com o secretário.")]), 429
+            mid = c.execute("INSERT INTO membros(" + ",".join(PORTAL_EDITAVEIS) + ",nome_busca,status,status_membresia) VALUES(" + ",".join(["%s"] * len(PORTAL_EDITAVEIS)) + ",f_unaccent(%s),'Ativo','Congregado') RETURNING id",
+                            [v[k] for k in PORTAL_EDITAVEIS] + [v["nome"]]).fetchone()["id"]
+            dif = {k: dict(antes=None, depois=_ver_valor(k, v[k])) for k in PORTAL_EDITAVEIS if v[k] not in (None, "", False)}
+            if foto:
+                c.execute("INSERT INTO membro_foto(membro_id,imagem,tipo,tamanho) VALUES(%s,%s,%s,%s)", (mid, foto[0], foto[1], len(foto[0])))
+                dif["foto"] = dict(antes=None, depois="Nova foto enviada")
+            c.execute("INSERT INTO membro_alteracoes(membro_id,usuario_id,usuario_nome,campos) VALUES(%s,NULL,%s,%s)", (mid, v["nome"], Jsonb(dif)))
+            c.execute("INSERT INTO historico_membro(membro_id,data,secretario_id,secretario_nome,descricao) VALUES(%s,%s,NULL,%s,%s)",
+                      (mid, date.today(), v["nome"] + " (membro, via portal)", "Cadastro criado pelo próprio membro no Portal do Membro. Confira situação, congregação e cargo."))
+    except psycopg.errors.UniqueViolation:
+        return jsonify(erros=[dict(msg="Este CPF já está cadastrado. Volte ao início e use “Atualizar meu cadastro” com o seu CPF, ou fale com o secretário.", campo="cpf")]), 400
+    session["pm"] = dict(m=mid, v=session["pm"]["v"])   # a partir daqui a sessão é só deste cadastro
+    return jsonify(ok=True, alterados=len(dif), novo=True)
 
 @app.put("/api/portal/meu-cadastro")
 @so_membro
@@ -1239,6 +1267,7 @@ def portal_salvar():
         foto = validar_foto(d["foto"])
         if foto[2]: erros.append(foto[2])
     if erros: return jsonify(erros=[dict(msg=m, campo=v["_campos"].get(m)) for m in erros]), 400
+    if getattr(g, "novo", False): return _portal_criar(v, foto)
     try:
         with conn() as c:   # uma transação: cadastro + foto + registro das alterações, ou nada
             a = c.execute("SELECT * FROM membros WHERE id=%s AND excluido_em IS NULL FOR UPDATE", (g.membro_id,)).fetchone()
@@ -1287,8 +1316,8 @@ def portal_senha():
 
 # ----- CHAVE GERAL + SENHA ÚNICA (Configuração > Portal do Membro)
 # Administrador: liga/desliga o portal. Ligar gera uma senha aleatória de 8 dígitos, única para todos os membros enquanto
-# estiver ativa. Desligar apaga a senha e derruba as sessões abertas. O membro informa a senha + nome + data de nascimento;
-# o servidor localiza o cadastro e só esse cadastro fica acessível na sessão (as 3 primeiras seções, nada mais).
+# estiver ativa. Desligar apaga a senha e derruba as sessões abertas. O membro informa a senha e (a) o CPF, para atualizar o
+# cadastro que já existe, ou (b) escolhe fazer o PRÓPRIO cadastro novo. Só esse cadastro fica acessível na sessão (as 3 primeiras seções, nada mais).
 def gerar_codigo_portal(anterior=None):
     while True:
         cod = "".join(secrets.choice("0123456789") for _ in range(8))
@@ -1342,23 +1371,24 @@ def membro_entrada():
             ctx["indisponivel"] = True; ctx["msg"] = PORTAL_INDISPONIVEL
             status = 503 if request.method == "POST" else 200
         elif request.method == "POST":
-            f = request.form; cod = re.sub(r"\s", "", f.get("codigo", "")); nome = " ".join((f.get("nome") or "").split())[:200]; nasc = parse_data(f.get("nascimento"))
-            ctx["f"] = dict(nome=nome, nascimento=f.get("nascimento", ""))
+            f = request.form; cod = re.sub(r"\s", "", f.get("codigo", "")); cpfd = re.sub(r"\D", "", f.get("cpf", "")); novo = f.get("acao") == "novo"
+            ctx["f"] = dict(cpf=f.get("cpf", "")[:20])
             if c.execute("SELECT count(*) n FROM portal_falhas WHERE created_at > now() - %s::interval", (FALHAS_JANELA,)).fetchone()["n"] >= FALHAS_MAX:
                 ctx["msg"] = "Muitas tentativas erradas. Aguarde alguns minutos e tente novamente, ou fale com o secretário."; status = 429
             elif not re.fullmatch(r"\d{8}", cod) or not secrets.compare_digest(cod, cf["codigo"]):
                 c.execute("INSERT INTO portal_falhas DEFAULT VALUES"); ctx["msg"] = "Senha do portal incorreta. Confira os 8 dígitos."; ctx["campo"] = "codigo"; status = 400
-            elif not nome or not nasc or nasc is False:
-                ctx["msg"] = "Informe o nome completo e a data de nascimento."; ctx["campo"] = "nome" if not nome else "nascimento"; status = 400
+            elif novo:   # senha certa + "quero me cadastrar": abre o formulário em branco (nada é gravado até ele enviar)
+                session.clear(); session["pm"] = dict(m=None, v=cf["versao"]); csrf()
+                return redirect("/portal")
+            elif not cpf_valido(cpfd):
+                ctx["msg"] = "Informe um CPF válido (11 dígitos)."; ctx["campo"] = "cpf"; status = 400
             else:
-                ids = [r["id"] for r in c.execute("SELECT id FROM membros WHERE excluido_em IS NULL AND data_nascimento=%s AND regexp_replace(nome_busca,'\\s+',' ','g')=f_unaccent(%s) LIMIT 2", (nasc, nome))]
-                if len(ids) == 1:
-                    session.clear(); session["pm"] = dict(m=ids[0], v=cf["versao"]); csrf()
+                m = c.execute("SELECT id FROM membros WHERE excluido_em IS NULL AND cpf=%s", (f"{cpfd[:3]}.{cpfd[3:6]}.{cpfd[6:9]}-{cpfd[9:]}",)).fetchone()
+                if m:
+                    session.clear(); session["pm"] = dict(m=m["id"], v=cf["versao"]); csrf()
                     return redirect("/portal")
-                if not ids: c.execute("INSERT INTO portal_falhas DEFAULT VALUES")
-                ctx["msg"] = ("Há mais de um cadastro com esses dados. Fale com o secretário para atualizar o seu." if ids else
-                              "Não encontramos um cadastro com esse nome e data de nascimento. Confira como está escrito no seu cadastro ou fale com o secretário.")
-                ctx["campo"] = "nome"; status = 400
+                c.execute("INSERT INTO portal_falhas DEFAULT VALUES")
+                ctx["msg"] = "Não encontramos esse CPF no cadastro. Confira o número. Se você ainda não tem cadastro, use “Quero fazer o meu cadastro”; se não tem CPF, fale com o secretário."; ctx["campo"] = "cpf"; status = 400
     return render_template("membro.html", **ctx), status
 
 @app.get("/membro/sair")

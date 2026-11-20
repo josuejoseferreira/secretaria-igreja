@@ -110,8 +110,8 @@ main.pt::after{display:none}
 <div id="pt">
 <section id="ptform" aria-labelledby="h-pt">
   <div class="pt-hero"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-user"/></svg></span>
-    <div><h1 id="h-pt">Olá, {{ primeiro_nome }}!</h1>
-      <p>Este é o seu espaço para manter o cadastro da igreja atualizado. Confira seus dados, corrija o que for preciso nas três seções abaixo e toque em <b>Enviar atualização</b>.</p></div></div>
+    <div><h1 id="h-pt">{% if novo %}Faça o seu cadastro{% else %}Olá, {{ primeiro_nome }}!{% endif %}</h1>
+      <p>{% if novo %}Preencha os seus dados nas três seções abaixo e toque em <b>Enviar atualização</b>. A secretaria vai conferir as informações.{% else %}Este é o seu espaço para manter o cadastro da igreja atualizado. Confira seus dados, corrija o que for preciso nas três seções abaixo e toque em <b>Enviar atualização</b>.{% endif %}</p></div></div>
 
   <div class="mf-tabs" role="tablist" aria-label="Seções do cadastro">
     <button type="button" role="tab" id="ptt1" data-t="1" aria-selected="true" aria-controls="ptp1"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg><span>Dados Pessoais</span></button>

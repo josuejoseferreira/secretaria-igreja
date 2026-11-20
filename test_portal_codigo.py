@@ -28,10 +28,10 @@ def call(client, path, body=None, m=None, csrf=True):
     return r.status_code, (r.get_json(silent=True) or {}) if r.is_json else {}
 def entrar(login, senha):
     c = A.app.test_client(); c.get("/login"); c.post("/login", data={"login": login, "senha": senha, "csrf": tok(c)}); c.get("/"); return c
-def membro_tenta(codigo, nome, nasc, client=None):
-    """Navegador do membro: abre /membro (gera o token) e envia o formulário."""
+def membro_tenta(codigo, cpfv, client=None, acao="atualizar"):
+    """Navegador do membro: abre /membro (gera o token) e envia o formulário (senha do portal + CPF, ou 'quero me cadastrar')."""
     c = client or A.app.test_client(); c.get("/membro")
-    r = c.post("/membro", data={"codigo": codigo, "nome": nome, "nascimento": nasc, "csrf": tok(c)})
+    r = c.post("/membro", data={"codigo": codigo, "cpf": cpfv, "acao": acao, "csrf": tok(c)})
     return c, r
 def cpf(n9):
     d = [int(x) for x in n9]
@@ -68,8 +68,8 @@ t("gerar senha com portal desativado: 409", call(adm, "/api/config/portal-membro
 # ---------- 2. DESATIVADO: mensagem para o membro
 c = A.app.test_client(); r = c.get("/membro")
 t("desativado: /membro mostra a mensagem e NÃO mostra formulário", r.status_code == 200 and MSG in r.get_data(as_text=True) and 'name="codigo"' not in r.get_data(as_text=True))
-c, r = membro_tenta("12345678", "Maria das Dores Souza", "1985-03-20", c)
-t("desativado: não entra nem com dados certos (503 + mensagem)", r.status_code == 503 and MSG in r.get_data(as_text=True) and c.get("/portal").status_code == 302)
+c, r = membro_tenta("12345678", fmt(cpf("111444777")), c)
+t("desativado: não entra nem com os dados certos (503 + mensagem)", r.status_code == 503 and MSG in r.get_data(as_text=True) and c.get("/portal").status_code == 302)
 t("desativado: API do portal sem sessão devolve 401", call(c, "/api/portal/meu-cadastro", csrf=False)[0] == 401)
 
 # ---------- 3. admin ATIVA: senha aleatória de 8 dígitos
@@ -82,24 +82,24 @@ t("ativar de novo NÃO troca a senha (única enquanto ativa)", call(adm, "/api/c
 t("registro permanente de quem ativou", db("SELECT acao,por_nome FROM portal_config_log ORDER BY id") == [("ativou", "Administrador")])
 t("a senha não vai para o registro de ações", cod not in str(db("SELECT row_to_json(l)::text FROM portal_config_log l")))
 r = A.app.test_client().get("/membro"); h = r.get_data(as_text=True)
-t("ativado: /membro mostra o formulário (senha, nome, nascimento) e não a mensagem", 'name="codigo"' in h and 'name="nome"' in h and 'name="nascimento"' in h and MSG not in h)
+t("ativado: /membro mostra o formulário (senha, CPF, 'quero me cadastrar') e não a mensagem", 'name="codigo"' in h and 'name="cpf"' in h and 'value="novo"' in h and MSG not in h)
 resp = adm.get("/api/config/portal-membro"); t("resposta com senha não fica em cache", "no-store" in resp.headers.get("Cache-Control", ""))
 
-# ---------- 4. entrada do membro: confere senha, nome e nascimento
-c, r = membro_tenta("00000001" if cod != "00000001" else "00000002", "Maria das Dores Souza", "1985-03-20")
+# ---------- 4. entrada do membro: senha do portal + CPF
+c, r = membro_tenta("00000001" if cod != "00000001" else "00000002", fmt(cpf("111444777")))
 t("senha errada: não entra, mensagem clara", r.status_code == 400 and "Senha do portal incorreta" in r.get_data(as_text=True) and c.get("/portal").status_code == 302)
-c, r = membro_tenta(cod, "Maria das Dores Souza", "1985-03-21")
-t("senha certa + nascimento errado: não entra e não revela cadastro", r.status_code == 400 and "Não encontramos" in r.get_data(as_text=True) and c.get("/portal").status_code == 302)
-c, r = membro_tenta(cod, "Maria Souza", "1985-03-20")
-t("senha certa + nome incompleto: não entra", r.status_code == 400 and c.get("/portal").status_code == 302)
-c, r = membro_tenta(cod, "", "")
-t("campos vazios: 400", r.status_code == 400)
-t("tentativas erradas ficam registradas (sem dado pessoal)", db("SELECT count(*) FROM portal_falhas")[0][0] >= 3)
+c, r = membro_tenta(cod, fmt(cpf("123456789")))
+t("senha certa + CPF que não existe: não entra e não revela cadastro", r.status_code == 400 and "Não encontramos esse CPF" in r.get_data(as_text=True) and c.get("/portal").status_code == 302)
+c, r = membro_tenta(cod, "111.444.777-36")
+t("senha certa + CPF inválido: não entra", r.status_code == 400 and c.get("/portal").status_code == 302)
+c, r = membro_tenta(cod, "")
+t("CPF vazio: 400", r.status_code == 400)
+t("tentativas erradas ficam registradas (sem dado pessoal)", db("SELECT count(*) FROM portal_falhas")[0][0] >= 2)
 c = A.app.test_client(); c.get("/membro")
-t("sem token CSRF: recusado (400)", c.post("/membro", data={"codigo": cod, "nome": "Maria das Dores Souza", "nascimento": "1985-03-20"}).status_code == 400)
+t("sem token CSRF: recusado (400)", c.post("/membro", data={"codigo": cod, "cpf": fmt(cpf("111444777"))}).status_code == 400)
 
-m1c, r = membro_tenta(f" {cod[:4]} {cod[4:]} ", "  MARIA   das dorés souza ", "1985-03-20")
-t("senha certa + nome + nascimento: entra e vai para /portal (ignora acento, maiúscula e espaços)", r.status_code == 302 and r.headers["Location"].endswith("/portal"))
+m1c, r = membro_tenta(f" {cod[:4]} {cod[4:]} ", cpf("111444777"))
+t("senha certa + CPF (com ou sem pontuação): entra e vai para /portal", r.status_code == 302 and r.headers["Location"].endswith("/portal"))
 h = m1c.get("/portal").get_data(as_text=True)
 t("tela do portal abre com o nome do próprio membro e sem 'trocar senha'", "Olá, Maria!" in h and 'id="pt-senha"' not in h and "/membro/sair" in h)
 t("o portal mostra as 3 seções do cadastro (Dados Pessoais, Endereço, Dados Eclesiásticos)", all(x in h for x in ("Dados Pessoais", "Endereço", "Dados Eclesiásticos")) and "Histórico" not in h and "Observações" not in h)
@@ -138,23 +138,47 @@ s, r = call(m1c, "/api/portal/meu-cadastro", dict(corpo, nome="Maria Souza Nova"
 t("membro que troca o próprio nome continua na sessão (sem conta de usuário a atualizar)", s == 200 and call(m1c, "/api/portal/meu-cadastro")[1]["nome"] == "Maria Souza Nova")
 call(m1c, "/api/portal/meu-cadastro", dict(corpo, nome="Maria das Dores Souza"), "PUT")
 
-# ---------- 7. homônimos e cadastro excluído
-dup = mem("João Pereira Lima", "390533447", nasc="1990-07-01")[1]["id"]
-c, r = membro_tenta(cod, "joao pereira lima", "1990-07-01")
-t("dois cadastros com mesmo nome e nascimento: NÃO entra (pede a secretaria)", r.status_code == 400 and "mais de um cadastro" in r.get_data(as_text=True) and c.get("/portal").status_code == 302)
-call(adm, f"/api/membros/{dup}", None, "DELETE")
-c, r = membro_tenta(cod, "joao pereira lima", "1990-07-01")
-t("depois de excluir o duplicado, o outro entra", r.status_code == 302)
+# ---------- 7. quem não tem CPF, e cadastro excluído
+sc = mem("Pedro Sem Cpf", "000000000", cpf="", sem_cpf=True, nasc="1970-01-01")
+t("(preparo) membro sem CPF cadastrado", sc[0] == 201)
+c, r = membro_tenta(cod, ""); t("quem não tem CPF não consegue atualizar por aqui (vai à secretaria)", r.status_code == 400 and c.get("/portal").status_code == 302)
+c, r = membro_tenta(cod, fmt(cpf("529982247"))); t("outro membro entra com o próprio CPF", r.status_code == 302 and call(c, "/api/portal/meu-cadastro")[1]["nome"] == "João Pereira Lima")
 call(adm, f"/api/membros/{m2}", None, "DELETE")
 t("cadastro excluído com sessão aberta: sessão cai", call(c, "/api/portal/meu-cadastro")[0] == 401)
-c, r = membro_tenta(cod, "joao pereira lima", "1990-07-01"); t("cadastro excluído não entra mais", r.status_code == 400)
+c, r = membro_tenta(cod, fmt(cpf("529982247"))); t("cadastro excluído não entra mais", r.status_code == 400)
+
+# ---------- 7b. 'Quero fazer o meu cadastro': membro novo cria o PRÓPRIO cadastro com a senha do portal
+membros0 = db("SELECT count(*) FROM membros")[0][0]
+c, r = membro_tenta("00000001" if cod != "00000001" else "00000002", "", acao="novo")
+t("cadastro novo com senha ERRADA: não abre o formulário", r.status_code == 400 and c.get("/portal").status_code == 302)
+nc, r = membro_tenta(cod, "", acao="novo"); t("cadastro novo com a senha certa: abre o portal (sem pedir CPF)", r.status_code == 302 and r.headers["Location"].endswith("/portal"))
+t("abrir o formulário não grava nada", db("SELECT count(*) FROM membros")[0][0] == membros0)
+h = nc.get("/portal").get_data(as_text=True); t("tela mostra 'Faça o seu cadastro' com as 3 seções", "Faça o seu cadastro" in h and "Dados Eclesiásticos" in h and "Histórico" not in h)
+s, vz = call(nc, "/api/portal/meu-cadastro"); t("formulário vem em branco", s == 200 and vz["nome"] is None and vz["cpf"] is None)
+t("cadastro novo também não acessa mais nada", all(call(nc, u)[0] in (401, 403, 404) for u in ("/api/membros", "/api/meta", "/api/usuarios", "/api/config/portal-membro")))
+novo = dict(nome="Lucas Almeida Rocha", data_nascimento="2001-09-09", sexo="Masculino", estado_civil="Solteiro(a)", cpf=fmt(cpf("123456789")), sem_cpf=False, cep="23890-000", logradouro="Rua B", numero="5",
+            complemento="Ap 2", bairro="Centro", cidade="Seropédica", uf="RJ", data_conversao="2020-02-02", data_batismo="", id=1, status_membresia="Membro", cargo="Pastor", congregacao_id=ca)
+s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, nome=""), "PUT"); t("novo cadastro com campo obrigatório vazio: 400 e nada gravado", s == 400 and db("SELECT count(*) FROM membros")[0][0] == membros0)
+s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, cpf=fmt(cpf("111444777"))), "PUT"); t("novo cadastro com CPF que já existe: 400 com orientação", s == 400 and "já está cadastrado" in str(r))
+s, r = call(nc, "/api/portal/meu-cadastro", novo, "PUT"); t("novo cadastro enviado (200)", s == 200 and r.get("novo") is True)
+nm = db("SELECT id,nome,status,status_membresia,cargo,congregacao_id,cpf FROM membros WHERE cpf=%s", (fmt(cpf("123456789")),))
+t("cadastro criado como Congregado, sem cargo e sem congregação (a secretaria confirma depois)", len(nm) == 1 and nm[0][2:6] == ("Ativo", "Congregado", None, None))
+t("ignorou cargo/status/congregação/id enviados", nm[0][4] is None and nm[0][5] is None and nm[0][0] != 1)
+h2 = db("SELECT secretario_id,secretario_nome,descricao FROM historico_membro WHERE membro_id=%s", (nm[0][0],))
+t("Histórico registra 'Cadastro criado pelo próprio membro', sem usuário", len(h2) == 1 and h2[0][0] is None and "criado pelo próprio membro" in h2[0][2] and "via portal" in h2[0][1])
+al = db("SELECT usuario_id,campos FROM membro_alteracoes WHERE membro_id=%s", (nm[0][0],))
+t("registro permanente criado e o CPF fica mascarado", len(al) == 1 and al[0][0] is None and fmt(cpf("123456789")) not in str(al[0][1]))
+s, eu = call(nc, "/api/portal/meu-cadastro"); t("depois de criar, a sessão passa a ser SÓ desse cadastro", s == 200 and eu["nome"] == "Lucas Almeida Rocha")
+s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, logradouro="Rua C"), "PUT")
+t("novo envio na mesma sessão ATUALIZA o cadastro dele (não cria outro)", s == 200 and db("SELECT count(*) FROM membros")[0][0] == membros0 + 1 and db("SELECT logradouro FROM membros WHERE id=%s", (nm[0][0],))[0][0] == "Rua C")
+c, r = membro_tenta(cod, fmt(cpf("123456789"))); t("o novo membro entra depois pelo CPF", r.status_code == 302 and call(c, "/api/portal/meu-cadastro")[1]["nome"] == "Lucas Almeida Rocha")
 
 # ---------- 8. NOVA SENHA derruba sessões abertas
 s, j = call(adm, "/api/config/portal-membro/nova-senha", {}); cod2 = j["codigo"]
 t("nova senha: 8 dígitos e diferente da anterior", s == 200 and re.fullmatch(r"\d{8}", cod2) and cod2 != cod)
 t("sessão aberta com a senha antiga cai na hora", call(m1c, "/api/portal/meu-cadastro")[0] == 401 and m1c.get("/portal").status_code == 302)
-c, r = membro_tenta(cod, "Maria das Dores Souza", "1985-03-20"); t("senha antiga não funciona mais", r.status_code == 400 and "incorreta" in r.get_data(as_text=True))
-m1c, r = membro_tenta(cod2, "Maria das Dores Souza", "1985-03-20"); t("senha nova funciona", r.status_code == 302 and call(m1c, "/api/portal/meu-cadastro")[0] == 200)
+c, r = membro_tenta(cod, cpf("111444777")); t("senha antiga não funciona mais", r.status_code == 400 and "incorreta" in r.get_data(as_text=True))
+m1c, r = membro_tenta(cod2, cpf("111444777")); t("senha nova funciona", r.status_code == 302 and call(m1c, "/api/portal/meu-cadastro")[0] == 200)
 
 # ---------- 9. conta individual antiga obedece a chave geral
 s, ac = call(adm, f"/api/membros/{m1}/acesso/liberar", {}); t("(legado) admin libera conta individual", s == 200)
@@ -177,17 +201,17 @@ t("usuário comum continua entrando normalmente com o portal desativado", call(s
 t("log permanente: ativou → nova_senha → desativou", [x[0] for x in db("SELECT acao FROM portal_config_log ORDER BY id")] == ["ativou", "nova_senha", "desativou"])
 s, j = call(adm, "/api/config/portal-membro", {"ativo": True}, "PUT"); cod3 = j["codigo"]
 t("reativar gera uma senha nova de 8 dígitos", s == 200 and re.fullmatch(r"\d{8}", cod3))
-t("senha anterior (de antes de desativar) não vale mais", membro_tenta(cod2, "Maria das Dores Souza", "1985-03-20")[1].status_code == 400 if cod2 != cod3 else True)
+t("senha anterior (de antes de desativar) não vale mais", membro_tenta(cod2, cpf("111444777"))[1].status_code == 400 if cod2 != cod3 else True)
 t("(legado) conta individual volta a entrar com a chave ligada", (lambda c_: (c_.get("/login"), c_.post("/login", data={"login": ac["login"], "senha": ac["senha"], "csrf": tok(c_)}).status_code)[1])(A.app.test_client()) == 302)
 
 # ---------- 11. trava de tentativa e erro
 with psycopg.connect(url) as cn: cn.execute("DELETE FROM portal_falhas")
-errados = [membro_tenta("99999999" if cod3 != "99999999" else "88888888", "Fulano", "1980-01-01")[1].status_code for _ in range(A.FALHAS_MAX)]
+errados = [membro_tenta("99999999" if cod3 != "99999999" else "88888888", cpf("111444777"))[1].status_code for _ in range(A.FALHAS_MAX)]
 t(f"{A.FALHAS_MAX} tentativas erradas seguidas são recusadas (400)", all(x == 400 for x in errados))
-c, r = membro_tenta(cod3, "Maria das Dores Souza", "1985-03-20")
+c, r = membro_tenta(cod3, cpf("111444777"))
 t("depois do limite, até a senha certa é travada por alguns minutos (429)", r.status_code == 429 and "Muitas tentativas" in r.get_data(as_text=True) and c.get("/portal").status_code == 302)
 with psycopg.connect(url) as cn: cn.execute("UPDATE portal_falhas SET created_at = now() - interval '20 minutes'")
-t("passada a janela, volta a funcionar", membro_tenta(cod3, "Maria das Dores Souza", "1985-03-20")[1].status_code == 302)
+t("passada a janela, volta a funcionar", membro_tenta(cod3, cpf("111444777"))[1].status_code == 302)
 
 print(f"\n{sum(res)}/{len(res)} verificações passaram")
 sys.exit(0 if all(res) else 1)
