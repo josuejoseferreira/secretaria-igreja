@@ -86,6 +86,10 @@ def auth():
         with conn() as c: u = c.execute("SELECT id,nome,senha_hash FROM usuarios WHERE perfil='admin' AND ativo ORDER BY id LIMIT 1").fetchone()
         if u: session.update(uid=u["id"], nome=u["nome"], sv=_sv(u["senha_hash"]))
     if request.endpoint in ("login", "membro_entrada", "membro_sair"): return
+    # A sessão do portal (senha única, "pm") e a do secretário/usuário ("uid") convivem no mesmo navegador sem se derrubar:
+    # as telas do portal seguem a sessão do portal; o resto do sistema segue a do usuário. Por isso, atualizar a página
+    # (F5) deixa cada aba onde estava.
+    if "pm" in session and request.endpoint in PORTAL_ROTAS_CODIGO and _pm_manda(): return _auth_codigo()
     if "uid" not in session and "pm" in session: return _auth_codigo()   # membro que entrou pela senha única do portal
     if "uid" not in session: return _nao_autenticado()
     # Permissões vêm SEMPRE do banco (nunca do cookie): desativar, trocar o perfil ou as congregações
@@ -114,6 +118,23 @@ def auth():
         if ep not in PORTAL_ROTAS: return _negado_membro()
         if g.trocar_senha and ep not in PORTAL_ROTAS_TROCA: return _negado_membro(trocar=True)
 
+def _pm_manda():
+    """Há sessão do portal (senha única). Nas telas do portal ela vale mesmo com um secretário/administrador logado no mesmo
+    navegador; só cede lugar a uma conta individual de membro (perfil 'membro'), que tem o seu próprio fluxo."""
+    if "uid" not in session: return True
+    with conn() as c: u = c.execute("SELECT perfil FROM usuarios WHERE id=%s", (session["uid"],)).fetchone()
+    return not u or u["perfil"] != "membro"
+
+def _abrir_sessao_portal(pm):
+    """Abre a sessão do portal SEM derrubar a do secretário aberta no mesmo navegador. Só uma conta individual de membro
+    (que tem outro fluxo) sai da sessão ao entrar pela senha única."""
+    uid = session.get("uid")
+    if uid:
+        with conn() as c: u = c.execute("SELECT perfil FROM usuarios WHERE id=%s", (uid,)).fetchone()
+        if not u or u["perfil"] == "membro":
+            for k in ("uid", "sv", "nome"): session.pop(k, None)
+    session["pm"] = pm; csrf()
+
 PORTAL_INDISPONIVEL = "O acesso está temporariamente indisponível, fale com o secretário!"
 
 def _portal_ativo():
@@ -135,7 +156,7 @@ def _auth_codigo():
         ok = bool(cf["ativo"]) and cf["versao"] == pm.get("v") and (pm.get("m") is None or bool(
             c.execute("SELECT 1 FROM membros WHERE id=%s AND excluido_em IS NULL", (pm.get("m"),)).fetchone()))
     if not ok:
-        off = not cf["ativo"]; session.clear()
+        off = not cf["ativo"]; session.pop("pm", None)   # só a sessão do portal cai; a do secretário (se houver) continua
         if off: return _portal_indisponivel()
         return (jsonify(erro="Sua sessão terminou. Entre novamente com a senha do portal.", sessao_expirada=True), 401) if request.path.startswith("/api") else redirect("/membro")
     g.admin, g.congs, g.membro_id, g.trocar_senha, g.codigo, g.novo = False, [], pm.get("m"), False, True, pm.get("m") is None   # novo = ainda vai criar o próprio cadastro
@@ -195,7 +216,9 @@ def login():
                     c.execute("UPDATE usuarios SET bloqueado_ate=CASE WHEN falhas_login+1>=5 THEN now()+interval '15 minutes' ELSE bloqueado_ate END,"
                               "falhas_login=CASE WHEN falhas_login+1>=5 THEN 0 ELSE falhas_login+1 END WHERE id=%s", (u["id"],))
         if ok:
+            pm = None if membro else session.get("pm")   # entrar como secretário não derruba o portal aberto em outra aba
             session.clear(); session.permanent = True; session.update(uid=u["id"], nome=u["nome"], sv=_sv(u["senha_hash"]))
+            if pm: session["pm"] = pm
             return redirect("/portal" if membro else "/")
         msg = PORTAL_INDISPONIVEL if desligado else "Muitas tentativas. Aguarde alguns minutos e tente novamente." if bloq else "Login ou senha inválidos."
     return render_template("login.html", csrf=csrf(), msg=msg)
@@ -206,7 +229,9 @@ def index():
 
 @app.get("/logout")
 def logout():
-    session.clear(); return redirect("/login")
+    pm = session.get("pm"); session.clear()   # sair do sistema não derruba o portal do membro aberto em outra aba
+    if pm: session["pm"] = pm
+    return redirect("/login")
 
 @app.get("/health")
 def health():
@@ -600,7 +625,8 @@ def membros():
     filtro_cong("m.congregacao_id", w, p)
     if a.get("status"): w.append("m.status=%s"); p.append(a["status"])
     if a.get("cong"): w.append("m.congregacao_id=%s"); p.append(_int(a["cong"]))
-    if a.get("membresia"): w.append("m.status_membresia=%s"); p.append(a["membresia"])
+    if a.get("membresia") == "sem": w.append("m.status_membresia IS NULL")   # cadastros do portal aguardando a secretaria definir
+    elif a.get("membresia"): w.append("m.status_membresia=%s"); p.append(a["membresia"])
     if a.get("cargo"): w.append("m.cargo=%s"); p.append(a["cargo"])
     if a.get("nome"): w.append("m.nome_busca LIKE '%%'||f_unaccent(%s)||'%%'"); p.append(a["nome"])
     por = min(max(_int(a.get("por")), 0), 200); pag = max(_int(a.get("pagina"), 1), 1)
@@ -1235,13 +1261,13 @@ def portal_foto():
 NOVOS_MAX = 30   # no máximo 30 cadastros novos por hora pelo portal (evita encher o sistema de cadastros falsos)
 
 def _portal_criar(v, foto):
-    """Membro entrou com a senha do portal e escolheu fazer o PRÓPRIO cadastro. Nasce como 'Congregado', sem congregação e sem cargo:
+    """Membro entrou com a senha do portal e escolheu fazer o PRÓPRIO cadastro. Nasce 'Ativo' e SEM Status da Membresia (a secretaria define; aparece no filtro 'Sem status definido'), sem congregação e sem cargo:
     quem confirma a situação oficial é a secretaria. Depois de criado, a sessão passa a ser desse cadastro (só ele)."""
     try:
         with conn() as c:
             if c.execute("SELECT count(*) n FROM historico_membro WHERE secretario_id IS NULL AND descricao LIKE 'Cadastro criado pelo próprio membro%' AND created_at > now() - interval '1 hour'").fetchone()["n"] >= NOVOS_MAX:
                 return jsonify(erros=[dict(msg="Muitos cadastros foram enviados agora. Tente novamente em alguns minutos ou fale com o secretário.")]), 429
-            mid = c.execute("INSERT INTO membros(" + ",".join(PORTAL_EDITAVEIS) + ",nome_busca,status,status_membresia) VALUES(" + ",".join(["%s"] * len(PORTAL_EDITAVEIS)) + ",f_unaccent(%s),'Ativo','Congregado') RETURNING id",
+            mid = c.execute("INSERT INTO membros(" + ",".join(PORTAL_EDITAVEIS) + ",nome_busca,status,status_membresia) VALUES(" + ",".join(["%s"] * len(PORTAL_EDITAVEIS)) + ",f_unaccent(%s),'Ativo',NULL) RETURNING id",
                             [v[k] for k in PORTAL_EDITAVEIS] + [v["nome"]]).fetchone()["id"]
             dif = {k: dict(antes=None, depois=_ver_valor(k, v[k])) for k in PORTAL_EDITAVEIS if v[k] not in (None, "", False)}
             if foto:
@@ -1378,14 +1404,14 @@ def membro_entrada():
             elif not re.fullmatch(r"\d{8}", cod) or not secrets.compare_digest(cod, cf["codigo"]):
                 c.execute("INSERT INTO portal_falhas DEFAULT VALUES"); ctx["msg"] = "Senha do portal incorreta. Confira os 8 dígitos."; ctx["campo"] = "codigo"; status = 400
             elif novo:   # senha certa + "quero me cadastrar": abre o formulário em branco (nada é gravado até ele enviar)
-                session.clear(); session["pm"] = dict(m=None, v=cf["versao"]); csrf()
+                _abrir_sessao_portal(dict(m=None, v=cf["versao"]))
                 return redirect("/portal")
             elif not cpf_valido(cpfd):
                 ctx["msg"] = "Informe um CPF válido (11 dígitos)."; ctx["campo"] = "cpf"; status = 400
             else:
                 m = c.execute("SELECT id FROM membros WHERE excluido_em IS NULL AND cpf=%s", (f"{cpfd[:3]}.{cpfd[3:6]}.{cpfd[6:9]}-{cpfd[9:]}",)).fetchone()
                 if m:
-                    session.clear(); session["pm"] = dict(m=m["id"], v=cf["versao"]); csrf()
+                    _abrir_sessao_portal(dict(m=m["id"], v=cf["versao"]))
                     return redirect("/portal")
                 c.execute("INSERT INTO portal_falhas DEFAULT VALUES")
                 ctx["msg"] = "Não encontramos esse CPF no cadastro. Confira o número. Se você ainda não tem cadastro, use “Quero fazer o meu cadastro”; se não tem CPF, fale com o secretário."; ctx["campo"] = "cpf"; status = 400
@@ -1393,7 +1419,7 @@ def membro_entrada():
 
 @app.get("/membro/sair")
 def membro_sair():
-    session.clear(); return redirect("/membro")
+    session.pop("pm", None); return redirect("/membro")   # sai só do portal; a sessão do secretário (se houver) continua
 
 # ---------------------------------------------------------------- AGENDA (semana, eventos, aniversariantes, Datashow)
 DIAS_SEMANA = ["SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA", "SÁBADO", "DOMINGO"]

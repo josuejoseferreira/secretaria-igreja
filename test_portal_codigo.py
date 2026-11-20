@@ -162,7 +162,10 @@ s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, nome=""), "PUT"); t("novo
 s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, cpf=fmt(cpf("111444777"))), "PUT"); t("novo cadastro com CPF que já existe: 400 com orientação", s == 400 and "já está cadastrado" in str(r))
 s, r = call(nc, "/api/portal/meu-cadastro", novo, "PUT"); t("novo cadastro enviado (200)", s == 200 and r.get("novo") is True)
 nm = db("SELECT id,nome,status,status_membresia,cargo,congregacao_id,cpf FROM membros WHERE cpf=%s", (fmt(cpf("123456789")),))
-t("cadastro criado como Congregado, sem cargo e sem congregação (a secretaria confirma depois)", len(nm) == 1 and nm[0][2:6] == ("Ativo", "Congregado", None, None))
+t("cadastro criado SEM Status da Membresia, sem cargo e sem congregação (a secretaria define depois)", len(nm) == 1 and nm[0][2:6] == ("Ativo", None, None, None))
+sem = call(adm, "/api/membros?membresia=sem")[1]
+t("filtro 'Sem status definido' lista o cadastro vindo do portal", [x["nome"] for x in sem] == ["Lucas Almeida Rocha"] and sem[0]["status_membresia"] is None)
+t("filtros Membro/Congregado não trazem quem está sem status", all(x["nome"] != "Lucas Almeida Rocha" for q in ("Membro", "Congregado") for x in call(adm, "/api/membros?membresia=" + q)[1]))
 t("ignorou cargo/status/congregação/id enviados", nm[0][4] is None and nm[0][5] is None and nm[0][0] != 1)
 h2 = db("SELECT secretario_id,secretario_nome,descricao FROM historico_membro WHERE membro_id=%s", (nm[0][0],))
 t("Histórico registra 'Cadastro criado pelo próprio membro', sem usuário", len(h2) == 1 and h2[0][0] is None and "criado pelo próprio membro" in h2[0][2] and "via portal" in h2[0][1])
@@ -172,6 +175,22 @@ s, eu = call(nc, "/api/portal/meu-cadastro"); t("depois de criar, a sessão pass
 s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, logradouro="Rua C"), "PUT")
 t("novo envio na mesma sessão ATUALIZA o cadastro dele (não cria outro)", s == 200 and db("SELECT count(*) FROM membros")[0][0] == membros0 + 1 and db("SELECT logradouro FROM membros WHERE id=%s", (nm[0][0],))[0][0] == "Rua C")
 c, r = membro_tenta(cod, fmt(cpf("123456789"))); t("o novo membro entra depois pelo CPF", r.status_code == 302 and call(c, "/api/portal/meu-cadastro")[1]["nome"] == "Lucas Almeida Rocha")
+
+# ---------- 7c. Secretário e portal no MESMO navegador: atualizar a página (F5) deixa cada tela onde estava
+mesmo = A.app.test_client(); mesmo.get("/login"); mesmo.post("/login", data={"login": "admin", "senha": "senha-de-teste-123", "csrf": tok(mesmo)})
+t("(mesmo navegador) secretário logado abre a tela principal", mesmo.get("/").status_code == 200)
+_, r = membro_tenta(cod, "", client=mesmo, acao="novo")
+t("(mesmo navegador) abrir o link do portal não derruba o secretário", r.status_code == 302 and call(mesmo, "/api/meta")[0] == 200)
+t("(mesmo navegador) F5 na tela principal NÃO vai para o portal", mesmo.get("/").status_code == 200)
+t("(mesmo navegador) F5 no portal continua no portal", mesmo.get("/portal").status_code == 200 and call(mesmo, "/api/portal/meu-cadastro")[0] == 200)
+mesmo.get("/membro/sair")
+t("(mesmo navegador) sair do portal não desconecta o secretário", mesmo.get("/").status_code == 200 and mesmo.get("/portal").status_code == 302)
+pc, r = membro_tenta(cod, "", acao="novo")
+t("(mesmo navegador) portal aberto primeiro", r.status_code == 302 and pc.get("/portal").status_code == 200)
+pc.get("/login"); pc.post("/login", data={"login": "admin", "senha": "senha-de-teste-123", "csrf": tok(pc)})
+t("(mesmo navegador) secretário entrar depois NÃO tira o membro do portal (F5 fica no portal)", pc.get("/portal").status_code == 200 and call(pc, "/api/portal/meu-cadastro")[0] == 200 and pc.get("/").status_code == 200)
+pc.get("/logout")
+t("(mesmo navegador) o secretário sair não derruba o portal", pc.get("/portal").status_code == 200 and pc.get("/").status_code == 302)
 
 # ---------- 8. NOVA SENHA derruba sessões abertas
 s, j = call(adm, "/api/config/portal-membro/nova-senha", {}); cod2 = j["codigo"]

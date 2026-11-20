@@ -246,7 +246,7 @@ addEventListener('beforeunload',e=>{if(P.dirty&&!$('#ptform').hidden){e.preventD
 function preenche(o){document.querySelectorAll('#pt [data-k]').forEach(i=>{const x=o?o[i.dataset.k]:null;i.value=x==null?'':(i.type=='date'?String(x).slice(0,10):x)});
  semCpf(!!(o&&o.sem_cpf));semNum(!!o&&String(o.numero||'').trim().toUpperCase()=='S/N');clearErr(pt);marcaAbas();$('#pte').textContent=''}
 function leitura(l){const it=(t,v)=>`<div><small>${t}</small><b>${H(v||'–')}</b></div>`;
- $('#ptro').innerHTML=it('Congregação',l.congregacao)+it('Status da membresia',l.status_membresia)+it('Cargo eclesiástico',l.cargo)+it('Data de chegada à igreja',fd(l.data_chegada))+it('Data de recebimento',fd(l.data_recebimento))}
+ $('#ptro').innerHTML=it('Congregação',l.congregacao)+it('Status da membresia',l.status_membresia||'A definir pela secretaria')+it('Cargo eclesiástico',l.cargo)+it('Data de chegada à igreja',fd(l.data_chegada))+it('Data de recebimento',fd(l.data_recebimento))}
 async function carrega(){const r=await api('/api/portal/meu-cadastro');
  if(!r.ok){$('#pte').textContent=r.j.erro||'Não foi possível carregar o seu cadastro. Tente novamente em instantes.';return}
  P.temFoto=!!r.j.tem_foto;P.fotoV=r.j.foto_v;preenche(r.j);leitura(r.j.leitura||{});fotoVer();P.dirty=false;P.carregou=true}
