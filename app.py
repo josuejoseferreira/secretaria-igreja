@@ -190,6 +190,10 @@ def cong_ok(cid):
     """True se o usuário logado pode acessar essa congregação."""
     return g.admin or (cid is not None and cid in g.congs)
 
+def membro_visivel(cong_id, status_membresia):
+    """Cadastro do portal (sem congregação e sem status da membresia) fica visível a todo usuário, até a secretaria completá-lo."""
+    return cong_ok(cong_id) or (cong_id is None and status_membresia is None)
+
 def filtro_cong(coluna, w, p):
     """Para usuário comum, acrescenta à consulta a restrição às congregações liberadas."""
     if not g.admin: w.append(f"{coluna} = ANY(%s::int[])"); p.append(list(g.congs))
@@ -622,13 +626,18 @@ def validar_historico(lista):
 @app.get("/api/membros")
 def membros():
     a, w, p = request.args, ["m.excluido_em IS NULL"], []
-    filtro_cong("m.congregacao_id", w, p)
+    if not g.admin:   # usuário comum: suas congregações + cadastros novos do portal ainda sem congregação/status
+        w.append("(m.congregacao_id = ANY(%s::int[]) OR (m.congregacao_id IS NULL AND m.status_membresia IS NULL))"); p.append(list(g.congs))
     if a.get("status"): w.append("m.status=%s"); p.append(a["status"])
     if a.get("cong"): w.append("m.congregacao_id=%s"); p.append(_int(a["cong"]))
     if a.get("membresia") == "sem": w.append("m.status_membresia IS NULL")   # cadastros do portal aguardando a secretaria definir
     elif a.get("membresia"): w.append("m.status_membresia=%s"); p.append(a["membresia"])
     if a.get("cargo"): w.append("m.cargo=%s"); p.append(a["cargo"])
-    if a.get("nome"): w.append("m.nome_busca LIKE '%%'||f_unaccent(%s)||'%%'"); p.append(a["nome"])
+    if a.get("nome"):
+        q = a["nome"].strip(); dig = re.sub(r"\D", "", q)
+        if len(dig) >= 3 and re.fullmatch(r"[\d.\-\s]+", q):   # só números/pontuação: procura pelo CPF (com ou sem máscara)
+            w.append("regexp_replace(coalesce(m.cpf,''), '[^0-9]', '', 'g') LIKE '%%'||%s||'%%'"); p.append(dig)
+        else: w.append("m.nome_busca LIKE '%%'||f_unaccent(%s)||'%%'"); p.append(q)
     por = min(max(_int(a.get("por")), 0), 200); pag = max(_int(a.get("pagina"), 1), 1)
     jn = "FROM membros m LEFT JOIN congregacoes c ON c.id=m.congregacao_id WHERE " + " AND ".join(w)
     with conn() as c:
@@ -642,7 +651,7 @@ def membros():
 def ver_membro(id):
     with conn() as c:
         m = c.execute("SELECT m.*,cg.nome congregacao FROM membros m LEFT JOIN congregacoes cg ON cg.id=m.congregacao_id WHERE m.id=%s AND m.excluido_em IS NULL", (id,)).fetchone()
-        if not m or not cong_ok(m["congregacao_id"]): return jsonify(erro="Membro não encontrado."), 404
+        if not m or not membro_visivel(m["congregacao_id"], m["status_membresia"]): return jsonify(erro="Membro não encontrado."), 404
         m["historico"] = c.execute("SELECT id,data,secretario_nome secretario,descricao FROM historico_membro WHERE membro_id=%s ORDER BY data,id", (id,)).fetchall()
         f = c.execute("SELECT EXTRACT(EPOCH FROM atualizado_em)::bigint v FROM membro_foto WHERE membro_id=%s", (id,)).fetchone()
     m["tem_foto"], m["foto_v"] = bool(f), (f["v"] if f else None)
@@ -678,8 +687,8 @@ def salvar_membro(id=None):
         with conn() as c:  # uma transação: ficha + novos registros do histórico, ou nada
             atual = None
             if id:
-                atual = c.execute("SELECT congregacao_id FROM membros WHERE id=%s AND excluido_em IS NULL FOR UPDATE", (id,)).fetchone()
-                if not atual or not cong_ok(atual["congregacao_id"]): return jsonify(erro="Membro não encontrado."), 404
+                atual = c.execute("SELECT congregacao_id,status_membresia FROM membros WHERE id=%s AND excluido_em IS NULL FOR UPDATE", (id,)).fetchone()
+                if not atual or not membro_visivel(atual["congregacao_id"], atual["status_membresia"]): return jsonify(erro="Membro não encontrado."), 404
             if not cong_ok(v["congregacao_id"]): return jsonify(erros=[dict(msg="Você não tem acesso à congregação selecionada.")]), 403
             if v["congregacao_id"] and not c.execute("SELECT 1 FROM congregacoes WHERE id=%s AND (ativo OR id=%s)", (v["congregacao_id"], (atual or {}).get("congregacao_id") or 0)).fetchone():
                 return jsonify(erros=[dict(msg="Selecione uma congregação ativa.")]), 400

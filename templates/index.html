@@ -154,7 +154,7 @@
     <div class="card k-o"><span class="ico o"><svg class="ic" aria-hidden="true"><use href="#i-user-x"/></svg></span><span class="kt"><b id="mk3">–</b><span>Inativos</span><span id="mk3s"></span></span></div>
   </div>
   <details class="card fdet" open><summary class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-filter"/></svg>Filtros<svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
-    <div class="filters"><label class="srch">Nome<input id="mfn" placeholder="Buscar por nome..."></label><label>Status<select id="mfs"></select></label><label>Congregação<select id="mfc"></select></label><label>Status da Membresia<select id="mfm"></select></label><label>Cargo Eclesiástico<select id="mfg"></select></label>
+    <div class="filters"><label class="srch">Nome ou CPF<input id="mfn" placeholder="Buscar por nome ou CPF..."></label><label>Status<select id="mfs"></select></label><label>Congregação<select id="mfc"></select></label><label>Status da Membresia<select id="mfm"></select></label><label>Cargo Eclesiástico<select id="mfg"></select></label>
       <div class="fa"><button type="button" class="p" id="mbf"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>Filtrar</button><button type="button" id="mbl">Limpar</button></div></div></details>
   <div class="card flush"><div class="t"><table class="rt"><thead><tr><th>Nome</th><th>Congregação</th><th>Status</th><th>Status da Membresia</th><th>Cargo Eclesiástico</th><th class="ac">Ações</th></tr></thead><tbody id="mtb"></tbody></table></div>
     <div class="vazio" id="mvz" hidden><svg class="ic" aria-hidden="true"><use href="#i-inbox"/></svg><b>Nenhum membro encontrado.</b><span>Ajuste os filtros ou cadastre um novo membro.</span></div>
@@ -483,7 +483,7 @@ async function lista(pg){if(pg)PG=pg;const q=new URLSearchParams({de:$('#fde').v
  $('#pgi').textContent=TOT?`Mostrando ${(PG-1)*POR+1} a ${Math.min(PG*POR,TOT)} de ${nf(TOT)} registros`:'Nenhum registro';$('#ok1').textContent=nf(TOT);$('#pp').innerHTML=pgnums(PG,pages);$('#pa').disabled=PG<=1;$('#pn').disabled=PG>=pages}
 $('#pp').onclick=e=>{const b=e.target.closest('[data-p]');if(b)lista(+b.dataset.p)};
 $('#por').value=POR;$('#por').onchange=e=>{POR=+e.target.value;try{localStorage.setItem('por',POR)}catch(_){}lista(1)};$('#pa').onclick=()=>lista(PG-1);$('#pn').onclick=()=>lista(PG+1);
-$('#bf').onclick=()=>lista(1);$('#bl').onclick=()=>{['fde','fate','ftipo','fcong','fnome'].forEach(i=>$('#'+i).value='');lista(1)};$('#fnome').onkeydown=e=>e.key=='Enter'&&lista(1);
+$('#bf').onclick=()=>lista(1);$('#bl').onclick=()=>{['fde','fate','ftipo','fcong','fnome'].forEach(i=>$('#'+i).value='');lista(1)};$('#fnome').onkeydown=e=>{if(e.key=='Enter')lista(1)};
 $('#tb').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.e)form(b.dataset.e);else if(b.dataset.x)apagar(b.dataset.x)};
 function apagar(id){ask('Excluir ocorrência','Tem certeza de que deseja excluir esta ocorrência?','Sim, excluir',async()=>{const r=await api('/api/ocorrencias/'+id,{m:'DELETE'});if(r.ok){toast('Ocorrência excluída');lista();ocKpi()}else toast(r.j.erro,'err')})}
 const col=s=>Object.fromEntries([...document.querySelectorAll(`#md [${s}]`)].map(i=>[i.getAttribute(s),i.value]));
@@ -557,7 +557,7 @@ async function membros(pg){if(pg)MPG=pg;const q=new URLSearchParams({status:$('#
  $('#mpgi').textContent=MTOT?`Mostrando ${(MPG-1)*MPOR+1} a ${Math.min(MPG*MPOR,MTOT)} de ${nf(MTOT)} registros`:'Nenhum registro';$('#mpp').innerHTML=pgnums(MPG,pages);$('#mpa').disabled=MPG<=1;$('#mpn').disabled=MPG>=pages}
 $('#mpp').onclick=e=>{const b=e.target.closest('[data-p]');if(b)membros(+b.dataset.p)};
 $('#mpor').value=MPOR;$('#mpor').onchange=e=>{MPOR=+e.target.value;try{localStorage.setItem('por',MPOR)}catch(_){}membros(1)};$('#mpa').onclick=()=>membros(MPG-1);$('#mpn').onclick=()=>membros(MPG+1);
-$('#mbf').onclick=()=>membros(1);$('#mbl').onclick=()=>{['mfs','mfc','mfn','mfm','mfg'].forEach(i=>$('#'+i).value='');membros(1)};$('#mfn').onkeydown=e=>e.key=='Enter'&&membros(1);
+$('#mbf').onclick=()=>membros(1);$('#mbl').onclick=()=>{['mfs','mfc','mfn','mfm','mfg'].forEach(i=>$('#'+i).value='');membros(1)};$('#mfn').onkeydown=e=>{if(e.key=='Enter')membros(1)};
 $('#mbn').onclick=()=>ficha();
 $('#mtb').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.v)ver(b.dataset.v);else if(b.dataset.e)ficha(b.dataset.e);else if(b.dataset.x)excluirM(b.dataset.x,b.dataset.n)};
 function excluirM(id,nome){ask('Excluir membro',`Tem certeza de que deseja excluir <b>${H(nome)}</b>? O cadastro deixará de aparecer na lista; o histórico fica preservado no banco de dados.`,'Sim, excluir',async()=>{const r=await api('/api/membros/'+id,{m:'DELETE'});if(r.ok){toast('Membro excluído com sucesso');membros();mbKpi()}else toast(r.j.erro,'err')})}
@@ -750,7 +750,7 @@ async function anivers(){const q=new URLSearchParams({de:$('#ade').value,ate:$('
 function anRender(){const L=AL,varios=new Set(L.map(x=>x.mes)).size>1,{pages,V}=APG.slice(L);let ult=0,h='';
  V.forEach(x=>{if(varios&&x.mes!=ult){ult=x.mes;h+=`<tr class="mes"><td colspan="3">${MESES[x.mes-1]}</td></tr>`}h+=`<tr><td class="nm" data-label="Nome"><span class="av ${avc(x.nome)}" aria-hidden="true">${ini(x.nome)}</span>${H(x.nome)}</td><td data-label="Congregação">${H(x.congregacao||'–')}</td><td data-label="Aniversário"><span class="day">${String(x.dia).padStart(2,'0')}/${String(x.mes).padStart(2,'0')}</span></td></tr>`});
  $('#atb').innerHTML=h;APG.draw(L.length,pages,L.length>1?'aniversariantes':'aniversariante')}
-$('#abf').onclick=anivers;$('#abl').onclick=()=>{['ade','aate','ames','acong','anome'].forEach(i=>$('#'+i).value='');anivers()};$('#anome').onkeydown=e=>e.key=='Enter'&&anivers();
+$('#abf').onclick=anivers;$('#abl').onclick=()=>{['ade','aate','ames','acong','anome'].forEach(i=>$('#'+i).value='');anivers()};$('#anome').onkeydown=e=>{if(e.key=='Enter')anivers()};
 $('#abp').onclick=()=>window.open('/aniversariantes/imprimir?'+AQ,'_blank');
 /* ===== Configuração > Faixa etária ===== */
 /* Configuração > Fonte (preferência guardada neste navegador) */
