@@ -133,3 +133,26 @@ Como funciona a segurança:
 - **Contas individuais (seção 15):** continuam existindo, mas também obedecem à chave geral: com o portal desativado elas veem a mesma mensagem.
 - **Atenção:** a senha única fica gravada em texto no banco (o administrador precisa vê-la); trate o banco como já deve tratar. Quem sabe a senha e o CPF de um membro consegue abrir o cadastro dele; por isso toda alteração é registrada. Troque a senha quando quiser (por exemplo, a cada campanha de atualização).
 - **Instalação:** `python app.py migrate` (aplica `014_portal_chave_geral.sql`; só adiciona tabelas e permite “sem usuário” nos registros de alteração) e reinicie. Testes: `TEST_DATABASE_URL=... python test_portal_codigo.py`.
+
+## Segurança de acesso (etapas 3 a 5 da adequação LGPD)
+
+- **Bloqueio permanente:** 5 senhas incorretas seguidas bloqueiam a conta (qualquer perfil). Não há desbloqueio por tempo nem por troca de senha.
+  Só um administrador libera, em *Usuários* → **DESBLOQUEAR ACESSO** (conferido no servidor; ninguém desbloqueia a própria conta).
+- **Única conta administradora bloqueada:** no servidor, `python app.py desbloquear <login>` (pede confirmação e motivo; fica na auditoria).
+- **Inatividade:** 15 minutos sem uso bloqueiam a sessão; só a senha reabre (errar 5 vezes ali também bloqueia a conta).
+- **Senhas:** 8 a 128 caracteres, com letras e números, diferentes do login.
+- **Auditoria:** tabela `auditoria` (imutável no banco) e tela *Auditoria* para administradores. Nunca guarda senhas, hashes ou tokens.
+- **Preservação:** o banco impede DELETE em membros, ocorrências, lotes, histórico, congregações, usuários e acessos; a foto do membro
+  guarda as versões anteriores. Exclusões no sistema são lógicas (arquivar/inativar).
+- **Limite por origem (IP):** 20 falhas em 15 min recusam novas tentativas daquele IP sem contá-las contra as contas.
+  No Render defina `TRUST_PROXY=1` (e `COOKIE_SECURE=1`, que também liga o HSTS).
+- Migrations novas: `016_bloqueio_permanente`, `017_auditoria`, `018_preservacao_documental`. Testes novos: `python test_seguranca.py`.
+- Os scripts `gerar_*_exemplo.py --limpar` que apagam registros deixam de funcionar de propósito; para limpar dados de exemplo, recrie o banco de teste.
+
+## Portal do Membro com aprovação (etapa 6)
+
+- O que o membro envia (atualização ou novo cadastro) vira uma **ficha pendente** (`portal_fichas`, migration 019), separada do cadastro oficial.
+- Em **Fichas do Portal** (somente administrador) a Secretaria vê antes/depois, **autoriza** (aí os dados são aplicados ao cadastro e a versão anterior fica guardada)
+  ou **recusa** (justificativa obrigatória). O membro acompanha a situação e o motivo no próprio portal.
+- Fichas aprovadas, recusadas e substituídas nunca são apagadas nem alteradas (o banco impede).
+- Um novo envio do mesmo membro substitui a ficha pendente anterior (que continua guardada).

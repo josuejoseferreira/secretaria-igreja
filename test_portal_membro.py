@@ -28,6 +28,15 @@ def tok(client):
 def call(client, path, body=None, m=None, csrf=True):
     r = client.open(path, method=m or ("POST" if body is not None else "GET"), json=body, headers={"X-CSRF-Token": tok(client)} if csrf else {})
     return r.status_code, (r.get_json(silent=True) or {}) if r.is_json else {}
+
+_call0 = call
+def call(client, path, body=None, m=None, csrf=True):
+    """Etapa 6: o portal agora só ENVIA a ficha (pendente). Para continuar verificando o efeito no cadastro, a Secretaria (adm) autoriza em seguida."""
+    s, r = _call0(client, path, body, m, csrf)
+    if path == "/api/portal/meu-cadastro" and m == "PUT" and s == 200 and r.get("pendente") and not r.get("novo"):
+        fid = db("SELECT max(id) FROM portal_fichas WHERE situacao='pendente'")[0][0]
+        assert _call0(adm, f"/api/portal/fichas/{fid}/aprovar", {})[0] == 200
+    return s, r
 def entrar(login, senha):
     c = A.app.test_client(); c.get("/login"); c.post("/login", data={"login": login, "senha": senha, "csrf": tok(c)}); c.get("/"); return c
 def entrar_membro(login, senha):   # o navegador do membro cai em /portal (é lá que o token CSRF da página é gerado)
@@ -240,13 +249,13 @@ call(mb, "/api/portal/senha", dict(atual=rl["senha"], nova="TerceiraSenha28", co
 t("membro ativo acessa normalmente", call(mb, "/api/portal/meu-cadastro")[0] == 200)
 t("admin exclui o cadastro (exclusão lógica) e o acesso do membro cai", call(adm, f"/api/membros/{m1}", None, "DELETE")[0] == 200 and call(mb, "/api/portal/meu-cadastro")[0] == 401 and entrar_membro(login1, "TerceiraSenha28")[0].get("/portal").status_code == 302)
 s, r3 = call(adm, f"/api/membros/{m3}/acesso/liberar", {}); login3 = r3["login"]
+with psycopg.connect(url) as c: c.execute("DELETE FROM login_falhas_ip")   # tabela de controle (não é registro oficial)
 for _ in range(5): entrar_membro(login3, "senha-errada-1")
 c3, resp3 = entrar_membro(login3, r3["senha"])
-t("5 erros seguidos bloqueiam a conta do membro (mesmo com a senha certa)", c3.get("/portal").status_code == 302 and "Muitas tentativas" in resp3.data.decode())
-with psycopg.connect(url) as c: c.execute("UPDATE usuarios SET bloqueado_ate=NULL,falhas_login=0 WHERE login=%s", (login3,))
-t("terminado o bloqueio, entra normalmente", entrar_membro(login3, r3["senha"])[0].get("/portal").status_code == 200)
-for _ in range(8): entrar("admin", "errada")
-t("o bloqueio não vale para administradores (login do admin segue igual)", call(entrar("admin", "senha-de-teste-123"), "/api/meta")[0] == 200)
+t("5 erros seguidos bloqueiam a conta do membro (mesmo com a senha certa)", c3.get("/portal").status_code == 302 and "Não foi possível entrar" in resp3.data.decode())
+uid3 = db("SELECT id FROM usuarios WHERE login=%s", (login3,))[0][0]
+t("o bloqueio não termina sozinho: só o desbloqueio administrativo libera", call(adm, f"/api/usuarios/{uid3}/desbloquear", {})[0] == 200)
+t("após o desbloqueio administrativo, entra normalmente", entrar_membro(login3, r3["senha"])[0].get("/portal").status_code == 200)
 
 # ---------- 12. cadastros antigos e sistema existente
 t("cadastros antigos continuam funcionando (admin lista e abre)", call(adm, "/api/membros")[0] == 200 and call(adm, f"/api/membros/{m2}")[0] == 200 and call(adm, "/api/usuarios")[0] == 200 and call(sec, "/api/membros")[0] == 200)

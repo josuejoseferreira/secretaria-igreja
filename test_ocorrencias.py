@@ -78,9 +78,9 @@ t("lista geral traz o slug do tipo (abre a tela do tipo)", "tipo_slug" in call("
 t("grid do tipo: casamento lista 1 registro com dados específicos", len(call("/api/registros?tipo=casamento")[1]) == 1 and "noivo" in call("/api/registros?tipo=casamento")[1][0]["d"])
 t("grid do tipo respeita filtro de nome e congregação", len(call("/api/registros?tipo=casamento&nome=noiva")[1]) == 1 and len(call("/api/registros?tipo=casamento&nome=zzz")[1]) == 0 and len(call(f"/api/registros?tipo=casamento&cong={ct}")[1]) == 0)
 vz = cong("Sem ocorrências")
-t("excluir congregação sem ocorrências", call(f"/api/congregacoes/{vz}", None, "DELETE")[0] == 200 and vz not in [x["id"] for x in call("/api/congregacoes")[1]])
+t("excluir congregação é negado (preservação documental: use Inativar)", call(f"/api/congregacoes/{vz}", None, "DELETE")[0] == 409 and vz in [x["id"] for x in call("/api/congregacoes")[1]])
 s, r = call(f"/api/congregacoes/{mz}", None, "DELETE")
-t("congregação com ocorrências NÃO pode ser excluída", s == 400 and mz in [x["id"] for x in call("/api/congregacoes")[1]])
+t("congregação com ocorrências NÃO pode ser excluída", s == 409 and mz in [x["id"] for x in call("/api/congregacoes")[1]])
 base = {"nome": "Josué José Maria Ferreira Barbosa Miranda", "email": "josuejoseferreira@yahoo.com.br"}
 s, r = call("/api/lotes", {"tipo": "novo_convertido", "data": "2026-11-05", "congregacao_id": mz, "comuns": {}, "linhas": [dict(base, cep="123")]})
 t("CEP inválido é recusado na linha", s == 400 and r["erros"][0]["linha"] == 1)

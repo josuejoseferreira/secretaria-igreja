@@ -115,26 +115,27 @@ input:focus{outline:0;border-color:var(--blue);box-shadow:0 0 0 4px rgba(29,91,2
   </section>
   <main class="lx-main"><div class="lx-card">
     <div class="lx-ico"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="#ch"/></svg></div>
-    <h1>Entrar</h1><p class="s">Acesse com o seu login e senha</p>
+    {% if travada %}<h1>Sessão bloqueada</h1><p class="s">Por segurança, a sessão de <b>{{ nome }}</b> foi bloqueada após 15 minutos sem uso. Digite a senha para continuar.</p>{% else %}<h1>Entrar</h1><p class="s">Acesse com o seu login e senha</p>{% endif %}
     {% if msg %}<div class="lx-err" role="alert"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>{{ msg }}</span></div>{% endif %}
-    <form method="post" id="f">
+    <form method="post" id="f"{% if acao %} action="{{ acao }}"{% endif %}>
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <label>
+      {% if not travada %}      <label>
         <span><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v1.5c0 .8.7 1.5 1.5 1.5h13c.8 0 1.5-.7 1.5-1.5V19c0-2.8-3.6-5-8-5z"/></svg>Login</span>
         <input name="login" placeholder="Digite seu login..." autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" autofocus required>
-      </label>
+      </label>{% endif %}
       <label>
         <span><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5c.8 0 1.5.7 1.5 1.5v9c0 .8-.7 1.5-1.5 1.5h-13A1.5 1.5 0 0 1 4 20.500v-9C4 10.700 4.700 10 5.500 10zm2 0h6V7a3 3 0 0 0-6 0z"/></svg>Senha</span>
         <div class="lx-in">
-          <input name="senha" id="senha" type="password" placeholder="Digite sua senha..." autocomplete="current-password" required>
+          <input name="senha" id="senha" type="password" placeholder="Digite sua senha..." autocomplete="current-password" required {% if travada %}autofocus{% endif %}>
           <button type="button" class="lx-eye" id="eye" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha" hidden>
             <svg class="ic on" aria-hidden="true" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             <svg class="ic off" aria-hidden="true" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
           </button>
         </div>
       </label>
-      <button type="submit" class="lx-go" id="go"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>Entrar</button>
+      <button type="submit" class="lx-go" id="go"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>{% if travada %}Continuar{% else %}Entrar{% endif %}</button>
     </form>
+    {% if travada %}<p class="s" style="margin-top:1rem"><a href="/logout">Sair do sistema</a></p>{% endif %}
     <div class="lx-ou">ou</div>
     <p class="lx-ver"><i>“Até aqui nos ajudou o Senhor.”</i>1 Samuel 7:12</p>
   </div></main>

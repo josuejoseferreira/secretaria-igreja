@@ -26,6 +26,15 @@ def tok(client):
 def call(client, path, body=None, m=None, csrf=True):
     r = client.open(path, method=m or ("POST" if body is not None else "GET"), json=body, headers={"X-CSRF-Token": tok(client)} if csrf else {})
     return r.status_code, (r.get_json(silent=True) or {}) if r.is_json else {}
+
+_call0 = call
+def call(client, path, body=None, m=None, csrf=True):
+    """Etapa 6: o portal agora só ENVIA a ficha (pendente). Para continuar verificando o efeito no cadastro, a Secretaria (adm) autoriza em seguida."""
+    s, r = _call0(client, path, body, m, csrf)
+    if path == "/api/portal/meu-cadastro" and m == "PUT" and s == 200 and r.get("pendente") and not r.get("novo"):
+        fid = db("SELECT max(id) FROM portal_fichas WHERE situacao='pendente'")[0][0]
+        assert _call0(adm, f"/api/portal/fichas/{fid}/aprovar", {})[0] == 200
+    return s, r
 def entrar(login, senha):
     c = A.app.test_client(); c.get("/login"); c.post("/login", data={"login": login, "senha": senha, "csrf": tok(c)}); c.get("/"); return c
 def membro_tenta(codigo, cpfv, client=None, acao="atualizar"):
@@ -162,6 +171,10 @@ s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, nome=""), "PUT"); t("novo
 s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, congregacao_id=""), "PUT"); t("novo cadastro sem congregação: 400 e nada gravado", s == 400 and db("SELECT count(*) FROM membros")[0][0] == membros0)
 s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, cpf=fmt(cpf("111444777"))), "PUT"); t("novo cadastro com CPF que já existe: 400 com orientação", s == 400 and "já está cadastrado" in str(r))
 s, r = call(nc, "/api/portal/meu-cadastro", novo, "PUT"); t("novo cadastro enviado (200)", s == 200 and r.get("novo") is True)
+t("novo cadastro fica PENDENTE e NÃO cria membro oficial", r.get("pendente") is True and db("SELECT count(*) FROM membros")[0][0] == membros0 and db("SELECT count(*) FROM portal_fichas WHERE tipo='novo_cadastro' AND situacao='pendente'")[0][0] == 1)
+t("antes da aprovação o CPF não existe no cadastro oficial", db("SELECT count(*) FROM membros WHERE cpf=%s", (fmt(cpf("123456789")),))[0][0] == 0)
+fid_novo = db("SELECT max(id) FROM portal_fichas WHERE situacao='pendente'")[0][0]
+t("a Secretaria autoriza e só então o cadastro nasce", call(adm, f"/api/portal/fichas/{fid_novo}/aprovar", {})[0] == 200)
 nm = db("SELECT id,nome,status,status_membresia,cargo,congregacao_id,cpf FROM membros WHERE cpf=%s", (fmt(cpf("123456789")),))
 t("cadastro criado SEM Status da Membresia e sem cargo, COM a congregação escolhida pelo membro", len(nm) == 1 and nm[0][2:6] == ("Ativo", None, None, ca))
 sem = call(adm, "/api/membros?membresia=sem")[1]
@@ -172,9 +185,9 @@ h2 = db("SELECT secretario_id,secretario_nome,descricao FROM historico_membro WH
 t("Histórico registra 'Cadastro criado pelo próprio membro', sem usuário", len(h2) == 1 and h2[0][0] is None and "criado pelo próprio membro" in h2[0][2] and "via portal" in h2[0][1])
 al = db("SELECT usuario_id,campos FROM membro_alteracoes WHERE membro_id=%s", (nm[0][0],))
 t("registro permanente criado e o CPF fica mascarado", len(al) == 1 and al[0][0] is None and fmt(cpf("123456789")) not in str(al[0][1]))
-s, eu = call(nc, "/api/portal/meu-cadastro"); t("depois de criar, a sessão passa a ser SÓ desse cadastro", s == 200 and eu["nome"] == "Lucas Almeida Rocha")
+s, eu = call(nc, "/api/portal/meu-cadastro"); t("a sessão do cadastro novo continua sem acesso a cadastro oficial (formulário em branco)", s == 200 and eu["nome"] is None)
 s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, logradouro="Rua C"), "PUT")
-t("novo envio na mesma sessão ATUALIZA o cadastro dele (não cria outro)", s == 200 and db("SELECT count(*) FROM membros")[0][0] == membros0 + 1 and db("SELECT logradouro FROM membros WHERE id=%s", (nm[0][0],))[0][0] == "Rua C")
+t("novo envio com o CPF que agora existe é recusado (não cria outro)", s == 400 and db("SELECT count(*) FROM membros")[0][0] == membros0 + 1)
 c, r = membro_tenta(cod, fmt(cpf("123456789"))); t("o novo membro entra depois pelo CPF", r.status_code == 302 and call(c, "/api/portal/meu-cadastro")[1]["nome"] == "Lucas Almeida Rocha")
 
 # ---------- 7c. Secretário e portal no MESMO navegador: atualizar a página (F5) deixa cada tela onde estava

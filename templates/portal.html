@@ -111,7 +111,7 @@ main.pt::after{display:none}
 <section id="ptform" aria-labelledby="h-pt">
   <div class="pt-hero"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-user"/></svg></span>
     <div><h1 id="h-pt">{% if novo %}Faça o seu cadastro{% else %}Olá, {{ primeiro_nome }}!{% endif %}</h1>
-      <p>{% if novo %}Preencha os seus dados nas três seções abaixo e toque em <b>Enviar atualização</b>. A secretaria vai conferir as informações.{% else %}Este é o seu espaço para manter o cadastro da igreja atualizado. Confira seus dados, corrija o que for preciso nas três seções abaixo e toque em <b>Enviar atualização</b>.{% endif %}</p></div></div>
+      <p>{% if novo %}Preencha os seus dados nas três seções abaixo e toque em <b>Enviar atualização</b>. A secretaria vai conferir as informações antes de criar o seu cadastro.{% else %}Este é o seu espaço para manter o cadastro da igreja atualizado. Confira seus dados, corrija o que for preciso nas três seções abaixo e toque em <b>Enviar atualização</b>.{% endif %}</p></div></div>
 
   <div class="mf-tabs" role="tablist" aria-label="Seções do cadastro">
     <button type="button" role="tab" id="ptt1" data-t="1" aria-selected="true" aria-controls="ptp1"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg><span>Dados Pessoais</span></button>
@@ -150,6 +150,7 @@ main.pt::after{display:none}
     <div class="f" style="margin-top:var(--s4)"><label><span>Congregação<span class="req" aria-hidden="true">*</span></span><select data-k="congregacao_id" aria-required="true"></select></label></div>
     <h3 class="sub" style="margin:var(--s5) 0 0;font-size:.9375rem;color:var(--navy)">Situação na igreja</h3>
     <div class="pt-ro" id="ptro" aria-label="Situação na igreja (somente leitura)"></div>
+    <div class="pt-nota" id="ptsol" hidden role="status"></div>
     <div class="pt-nota"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg><span>O <b>Status da membresia</b> e as demais informações oficiais são mantidos pela secretaria e não podem ser alterados aqui. Se algo estiver incorreto, procure a secretaria.</span></div></div>
 
   <div class="card pt-bar"><div id="pte" class="alert" role="alert"></div>
@@ -160,7 +161,7 @@ main.pt::after{display:none}
 <section id="ptok" hidden aria-labelledby="h-ok"><div class="card pt-ok" role="status">
   <div class="big"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></div>
   <h2 id="h-ok" tabindex="-1">Cadastro enviado com sucesso!</h2>
-  <p>Seus dados foram atualizados e registrados no sistema da Secretaria Geral.</p>
+  <p>Seus dados foram <b>enviados e aguardam a conferência da Secretaria</b>. O cadastro oficial só será alterado depois da aprovação, e você poderá acompanhar o resultado aqui no portal.</p>
   <p><b>Obrigado por ajudar a manter o cadastro da igreja atualizado!</b></p>
   <div class="acts"><button type="button" class="p" id="ptnovo"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>Novo preenchimento</button><button type="button" id="ptsair"><svg class="ic" aria-hidden="true"><use href="#i-out"/></svg>Sair do sistema</button></div></div></section>
 </div>
@@ -174,7 +175,7 @@ main.pt::after{display:none}
 const $=s=>document.querySelector(s),H=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const CSRF=document.querySelector('meta[name=csrf]').content;
 const api=async(u,o)=>{const r=await fetch(u,o&&{method:o.m,headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF},body:JSON.stringify(o.b)});
- if(r.status==401){location='{{ entrada }}';return{ok:false,j:{}}}
+ if(r.status==401){location='{{ entrada }}';return{ok:false,j:{}}}if(r.status==423){location='/destravar';return{ok:false,j:{}}}
  let j={};try{j=await r.json()}catch(_){}
  if(r.status==403&&j.trocar_senha){location.reload()}
  return{ok:r.ok,j}};
@@ -246,12 +247,16 @@ addEventListener('beforeunload',e=>{if(P.dirty&&!$('#ptform').hidden){e.preventD
 /* carregar o MEU cadastro (o servidor decide qual: o vinculado à conta) */
 function preenche(o){document.querySelectorAll('#pt [data-k]').forEach(i=>{const x=o?o[i.dataset.k]:null;i.value=x==null?'':(i.type=='date'?String(x).slice(0,10):x)});
  semCpf(!!(o&&o.sem_cpf));semNum(!!o&&String(o.numero||'').trim().toUpperCase()=='S/N');clearErr(pt);marcaAbas();$('#pte').textContent=''}
+function solicitacoes(L){const e=$('#ptsol');if(!L||!L.length){e.hidden=true;return}const x=L.find(z=>z.situacao!='substituida')||L[0],d=v=>v?new Date(v).toLocaleDateString('pt-BR'):'';
+ e.hidden=false;e.innerHTML=x.situacao=='pendente'?`<span><b>Atualização aguardando análise</b> da Secretaria, enviada em ${d(x.enviada_em)}. Os dados oficiais ainda não foram alterados.</span>`
+ :x.situacao=='aprovada'?`<span><b>Última atualização aprovada</b> pela Secretaria em ${d(x.decidida_em)}.</span>`
+ :`<span><b>Última atualização recusada</b> em ${d(x.decidida_em)}. Motivo: ${H(x.justificativa||'não informado')}. Você pode corrigir e enviar de novo.</span>`}
 function leitura(l){const it=(t,v)=>`<div><small>${t}</small><b>${H(v||'–')}</b></div>`;
  $('#ptro').innerHTML=it('Status da membresia',l.status_membresia||'A definir pela secretaria')+it('Cargo eclesiástico',l.cargo)+it('Data de chegada à igreja',fd(l.data_chegada))+it('Data de recebimento',fd(l.data_recebimento))}
 async function carrega(){const r=await api('/api/portal/meu-cadastro');
  if(!r.ok){$('#pte').textContent=r.j.erro||'Não foi possível carregar o seu cadastro. Tente novamente em instantes.';return}
  P.temFoto=!!r.j.tem_foto;P.fotoV=r.j.foto_v;const cgs=r.j.congregacoes||[];if(!r.j.congregacao_id&&cgs.length==1)r.j.congregacao_id=cgs[0].id;
- K('congregacao_id').innerHTML='<option value="">Selecione...</option>'+cgs.map(c=>`<option value="${c.id}">${H(c.nome)}</option>`).join('');preenche(r.j);leitura(r.j.leitura||{});fotoVer();P.dirty=false;P.carregou=true}
+ K('congregacao_id').innerHTML='<option value="">Selecione...</option>'+cgs.map(c=>`<option value="${c.id}">${H(c.nome)}</option>`).join('');preenche(r.j);leitura(r.j.leitura||{});solicitacoes(r.j.solicitacoes);fotoVer();P.dirty=false;P.carregou=true}
 
 /* foto */
 const FTIPOS=['image/jpeg','image/png','image/webp'],FMAX=10*1024*1024;

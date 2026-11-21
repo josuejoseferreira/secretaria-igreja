@@ -1,10 +1,11 @@
-import os, re, glob, json, sys, secrets, hashlib, base64, unicodedata
+import os, re, glob, json, sys, secrets, hashlib, base64, unicodedata, time
 from functools import wraps
 import psycopg
 from dotenv import load_dotenv
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
-from flask import Flask, request, jsonify, session, redirect, render_template, g, Response
+from flask import Flask, request, jsonify, session, redirect, render_template, g, Response, has_request_context
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from flask.json.provider import DefaultJSONProvider
@@ -26,6 +27,14 @@ DEV = os.environ.get("DEV_SEM_LOGIN") == "1" and os.environ.get("HOST", "127.0.0
 app.secret_key = cfg("SECRET_KEY")
 app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", PERMANENT_SESSION_LIFETIME=28800,
                   SESSION_COOKIE_SECURE=os.environ.get("COOKIE_SECURE", "0") == "1")
+# Atrás do Render (um proxy): TRUST_PROXY=1 faz o sistema enxergar o IP real do visitante. Sem proxy, deixe desligado
+# (ligar sem proxy deixaria o visitante forjar o próprio IP).
+if os.environ.get("TRUST_PROXY") == "1": app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+INATIVIDADE = 15 * 60          # segundos sem uso até a sessão ser bloqueada (pede a senha de novo)
+LOGIN_FALHAS_MAX = 5           # 5 senhas incorretas seguidas = conta bloqueada até o administrador liberar
+IP_FALHAS_MAX, IP_JANELA = 5, "15 minutes"   # 5 falhas por origem (IP) em 15 min: recusa novas tentativas dessa origem (sem contá-las contra as contas)
+MSG_LOGIN = "Não foi possível entrar. Confira o login e a senha ou procure a Secretaria."   # mesma resposta para qualquer falha
+DUMMY_HASH = generate_password_hash(secrets.token_hex(16))   # equaliza o tempo de resposta quando o login não existe
 N = ("nome", "Nome")
 # slug: (nome, rótulo da data, campos comuns, campos por pessoa, chaves de nome, chave de exibição)
 TIPOS = {
@@ -61,8 +70,65 @@ def init_db():
             c.execute("INSERT INTO tipos_ocorrencia(slug,nome) VALUES(%s,%s) ON CONFLICT(slug) DO UPDATE SET nome=EXCLUDED.nome", (slug, t[0]))
         if not c.execute("SELECT 1 FROM usuarios WHERE login=%s", (LOGIN,)).fetchone():
             pw = os.environ.get("ADMIN_PASSWORD", "").strip() or (secrets.token_urlsafe(16) if DEV else cfg("ADMIN_PASSWORD"))
-            if len(pw) < 8: sys.exit("ADMIN_PASSWORD deve ter ao menos 8 caracteres.")
+            if erro_senha(pw, LOGIN): sys.exit("ADMIN_PASSWORD inválida: " + erro_senha(pw, LOGIN))
             c.execute("INSERT INTO usuarios(nome,login,senha_hash,perfil) VALUES('Administrador',%s,%s,'admin')", (LOGIN, generate_password_hash(pw)))
+
+def erro_senha(s, login=None):
+    """Regra de senha de todas as contas: 8 a 128 caracteres, com letras e números, e diferente do login."""
+    if not isinstance(s, str) or not 8 <= len(s) <= 128: return "A senha deve ter entre 8 e 128 caracteres."
+    if not (re.search(r"[A-Za-z]", s) and re.search(r"\d", s)): return "A senha deve ter letras e números."
+    if login and s.lower() == str(login).lower(): return "A senha não pode ser igual ao login."
+    return None
+
+def _ip():
+    return (request.remote_addr or "")[:45] if has_request_context() else ""
+
+_AUTO = object()
+SEGREDOS = ("senha", "password", "token", "hash", "secret", "csrf")
+def _limpa(x):
+    """Remove qualquer campo de segredo antes de gravar na auditoria (a auditoria nunca guarda senha, hash ou token)."""
+    if isinstance(x, dict): return {k: ("[omitido]" if any(t in str(k).lower() for t in SEGREDOS) else _limpa(v)) for k, v in x.items()}
+    if isinstance(x, (list, tuple)): return [_limpa(i) for i in x]
+    return x.isoformat() if hasattr(x, "isoformat") else x
+
+def audit(c, operacao, entidade=None, registro_id=None, antes=None, depois=None, motivo=None, resultado="sucesso",
+          usuario_id=_AUTO, usuario_nome=_AUTO, perfil=_AUTO):
+    """Registro permanente de auditoria. Com `c` (a mesma conexão da operação) grava na MESMA transação: ou a operação e o
+    registro valem juntos, ou nenhum dos dois. Sem `c`, abre a própria conexão."""
+    rq = has_request_context()
+    if usuario_id is _AUTO: usuario_id = session.get("uid") if rq else None
+    if usuario_nome is _AUTO: usuario_nome = session.get("nome") if rq else None
+    if perfil is _AUTO: perfil = getattr(g, "perfil", None) if rq else None
+    args = (usuario_id, (usuario_nome or None), perfil, _ip() or None, operacao, entidade, None if registro_id is None else str(registro_id),
+            None if antes is None else Jsonb(_limpa(antes)), None if depois is None else Jsonb(_limpa(depois)), motivo, resultado)
+    sql = "INSERT INTO auditoria(usuario_id,usuario_nome,perfil,ip,operacao,entidade,registro_id,antes,depois,motivo,resultado) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    if c is not None: c.execute(sql, args)
+    else:
+        with conn() as c2: c2.execute(sql, args)
+
+def _ip_limitado(c, ip):
+    return c.execute("SELECT count(*) n FROM login_falhas_ip WHERE ip=%s AND created_at > now() - %s::interval", (ip, IP_JANELA)).fetchone()["n"] >= IP_FALHAS_MAX
+
+def _falha_ip(c, ip):
+    c.execute("INSERT INTO login_falhas_ip(ip) VALUES(%s)", (ip,))
+
+def _falha_senha_conta(c, u, origem):
+    """Conta uma senha incorreta. Na 5ª seguida a conta é BLOQUEADA, sem prazo: só o administrador libera.
+    Retorna (tentativas, bloqueou_agora). Uma conta já bloqueada não é contada de novo."""
+    r = c.execute("""UPDATE usuarios SET falhas_login=falhas_login+1,
+        bloqueado=CASE WHEN falhas_login+1>=%(m)s THEN true ELSE bloqueado END,
+        bloqueado_em=CASE WHEN falhas_login+1>=%(m)s THEN now() ELSE bloqueado_em END,
+        bloqueio_motivo=CASE WHEN falhas_login+1>=%(m)s THEN %(mot)s ELSE bloqueio_motivo END,
+        total_bloqueios=total_bloqueios+CASE WHEN falhas_login+1>=%(m)s THEN 1 ELSE 0 END
+        WHERE id=%(id)s AND NOT bloqueado RETURNING falhas_login,bloqueado""",
+        dict(m=LOGIN_FALHAS_MAX, mot=f"{LOGIN_FALHAS_MAX} tentativas de senha incorreta seguidas", id=u["id"])).fetchone()
+    if not r: return LOGIN_FALHAS_MAX, False
+    audit(c, "login_falha", "usuarios", u["login"], depois=dict(tentativa=r["falhas_login"], de=LOGIN_FALHAS_MAX, origem=origem),
+          resultado="falha", usuario_id=u["id"], usuario_nome=u["nome"], perfil=u["perfil"])
+    if r["bloqueado"]:
+        audit(c, "conta_bloqueada", "usuarios", u["login"], depois=dict(tentativas=r["falhas_login"]), motivo="Quinta senha incorreta seguida",
+              usuario_id=u["id"], usuario_nome=u["nome"], perfil=u["perfil"])
+    return r["falhas_login"], bool(r["bloqueado"])
 
 def csrf():
     if "csrf" not in session: session["csrf"] = secrets.token_hex(16)
@@ -96,14 +162,14 @@ def auth():
     # de alguém vale já na próxima requisição dele.
     congs, membro_ok = [], False
     with conn() as c:
-        u = c.execute("SELECT id,nome,perfil,ativo,senha_hash,membro_id,trocar_senha FROM usuarios WHERE id=%s", (session["uid"],)).fetchone()
+        u = c.execute("SELECT id,nome,perfil,ativo,senha_hash,membro_id,trocar_senha,bloqueado FROM usuarios WHERE id=%s", (session["uid"],)).fetchone()
         if u and u["ativo"] and u["perfil"] == "membro":
             # conta de membro: o acesso precisa estar ATIVO e o cadastro vinculado não pode ter sido excluído (revogar vale na hora)
             membro_ok = bool(c.execute("SELECT 1 FROM membro_acesso a JOIN membros m ON m.id=a.membro_id WHERE a.usuario_id=%s AND a.membro_id=%s AND a.situacao='ativo' AND m.excluido_em IS NULL",
                                        (u["id"], u["membro_id"])).fetchone())
         elif u and u["ativo"] and u["perfil"] != "admin":
             congs = [r["congregacao_id"] for r in c.execute("SELECT congregacao_id FROM usuario_congregacoes WHERE usuario_id=%s", (u["id"],))]
-    if not u or not u["ativo"] or session.get("sv") != _sv(u["senha_hash"]) or (u["perfil"] == "membro" and not membro_ok):
+    if not u or not u["ativo"] or u["bloqueado"] or session.get("sv") != _sv(u["senha_hash"]) or (u["perfil"] == "membro" and not membro_ok):
         session.clear(); return _nao_autenticado()
     if u["perfil"] == "membro" and not _portal_ativo():   # chave geral desligada: vale também para contas individuais já criadas
         session.clear(); return _portal_indisponivel()
@@ -111,7 +177,19 @@ def auth():
     g.congs = None if g.admin else congs   # None = todas; lista = somente essas congregações
     g.membro_id = u["membro_id"] if u["perfil"] == "membro" else None   # vem do BANCO, nunca do navegador
     g.trocar_senha = bool(u["trocar_senha"])
+    g.perfil = u["perfil"]
     session["nome"] = u["nome"]
+    # Inatividade: 15 minutos sem uso bloqueiam a sessão; só a senha reabre. O servidor decide (o navegador só avisa).
+    agora = time.time()
+    if session.get("ult") is None: session["ult"] = agora
+    if not session.get("travada") and agora - session["ult"] > INATIVIDADE:
+        session["travada"] = True
+        audit(None, "sessao_travada", "usuarios", u["id"], motivo="15 minutos sem uso")
+    if session.get("travada"):
+        if request.endpoint not in ("destravar", "logout"):
+            if request.path.startswith("/api"): return jsonify(erro="Sessão bloqueada por inatividade. Informe a senha para continuar.", travada=True), 423
+            return redirect("/destravar")
+    elif request.headers.get("X-Atividade") != "automatica": session["ult"] = agora
     if g.membro_id:
         # Conta de membro: lista fechada (deny-by-default). Qualquer outra rota do sistema é negada no servidor.
         ep = request.endpoint
@@ -133,7 +211,7 @@ def _abrir_sessao_portal(pm):
         with conn() as c: u = c.execute("SELECT perfil FROM usuarios WHERE id=%s", (uid,)).fetchone()
         if not u or u["perfil"] == "membro":
             for k in ("uid", "sv", "nome"): session.pop(k, None)
-    session["pm"] = pm; csrf()
+    session["pm"] = pm; session["pm_ult"] = time.time(); csrf()
 
 PORTAL_INDISPONIVEL = "O acesso está temporariamente indisponível, fale com o secretário!"
 
@@ -151,6 +229,11 @@ def _auth_codigo():
     """Sessão de membro aberta com a senha única. Tudo é conferido no BANCO a cada requisição: se o portal for desativado
     ou a senha trocada pelo administrador, a sessão cai na hora. O membro vem da sessão assinada, nunca do navegador."""
     pm = session.get("pm") or {}
+    agora = time.time()
+    if agora - session.get("pm_ult", agora) > INATIVIDADE:   # 15 min sem uso: a sessão por senha única termina
+        session.pop("pm", None); session.pop("pm_ult", None)
+        return (jsonify(erro="Sua sessão terminou por inatividade. Entre novamente com a senha do portal.", sessao_expirada=True), 401) if request.path.startswith("/api") else redirect("/membro")
+    if request.headers.get("X-Atividade") != "automatica": session["pm_ult"] = agora
     with conn() as c:
         cf = c.execute("SELECT ativo,versao FROM portal_config WHERE id=1").fetchone()
         ok = bool(cf["ativo"]) and cf["versao"] == pm.get("v") and (pm.get("m") is None or bool(
@@ -159,23 +242,36 @@ def _auth_codigo():
         off = not cf["ativo"]; session.pop("pm", None)   # só a sessão do portal cai; a do secretário (se houver) continua
         if off: return _portal_indisponivel()
         return (jsonify(erro="Sua sessão terminou. Entre novamente com a senha do portal.", sessao_expirada=True), 401) if request.path.startswith("/api") else redirect("/membro")
+    g.perfil = "membro (senha única)"
     g.admin, g.congs, g.membro_id, g.trocar_senha, g.codigo, g.novo = False, [], pm.get("m"), False, True, pm.get("m") is None   # novo = ainda vai criar o próprio cadastro
     if request.endpoint not in PORTAL_ROTAS_CODIGO: return _negado_membro()
 
 # Únicas rotas que uma conta de membro pode usar. Todo o resto do sistema responde 403/redireciona.
-PORTAL_ROTAS = {"portal", "portal_ver", "portal_salvar", "portal_foto", "portal_senha", "logout"}
-PORTAL_ROTAS_TROCA = {"portal", "portal_senha", "logout"}   # enquanto a senha inicial não for trocada
+PORTAL_ROTAS = {"portal", "portal_ver", "portal_salvar", "portal_foto", "portal_senha", "logout", "destravar"}
+PORTAL_ROTAS_TROCA = {"portal", "portal_senha", "logout", "destravar"}   # enquanto a senha inicial não for trocada
 
 def _negado_membro(trocar=False):
     if request.path.startswith("/api"):
         return jsonify(erro="Troque a senha inicial para continuar." if trocar else "Acesso restrito.", trocar_senha=trocar), 403
     return redirect("/portal")
 
+CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+       "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://viacep.com.br; "
+       "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+
 @app.after_request
-def _sem_cache(resp):
-    # Dados pessoais e credenciais nunca ficam guardados no cache do navegador.
-    if request.path in ("/portal", "/membro") or request.path.startswith(("/api/portal", "/api/config/portal-membro")) or (request.path.startswith("/api/membros/") and "/acesso" in request.path):
-        resp.headers["Cache-Control"] = "no-store"
+def _cabecalhos(resp):
+    # Cabeçalhos de segurança em todas as respostas. 'unsafe-inline' é necessário hoje porque as telas usam script e estilo
+    # dentro do próprio HTML; fica como melhoria futura mover isso para arquivos (aí a CSP pode ficar estrita).
+    resp.headers["Content-Security-Policy"] = CSP
+    resp.headers["X-Frame-Options"] = "DENY"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Referrer-Policy"] = "same-origin"
+    resp.headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=()"
+    resp.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    if app.config["SESSION_COOKIE_SECURE"]: resp.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # Dados pessoais e credenciais nunca ficam guardados no cache do navegador (a foto define o próprio cache privado).
+    if request.endpoint != "static" and "Cache-Control" not in resp.headers: resp.headers["Cache-Control"] = "no-store"
     return resp
 
 def so_admin(f):
@@ -200,32 +296,72 @@ def filtro_cong(coluna, w, p):
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    msg = ""
+    msg, status = "", 200
     if request.method == "POST":
-        bloq = desligado = False
+        login_ = (request.form.get("login") or "").strip()[:60]; senha = request.form.get("senha") or ""
+        ip = _ip(); ident = login_ if LOGIN_RE.fullmatch(login_) else "(formato inválido)"   # nunca grava texto livre (poderia ser uma senha digitada no lugar errado)
+        ok = desligado = membro = False; u = None
         with conn() as c:
-            u = c.execute("SELECT * FROM usuarios WHERE login=%s AND ativo", (request.form["login"],)).fetchone()
-            membro = bool(u) and u["perfil"] == "membro"
-            if membro: bloq = bool(c.execute("SELECT coalesce(bloqueado_ate > now(), false) b FROM usuarios WHERE id=%s", (u["id"],)).fetchone()["b"])
-            ok = bool(u) and not bloq and check_password_hash(u["senha_hash"], request.form["senha"])
-            desligado = membro and ok and not bool(c.execute("SELECT ativo FROM portal_config WHERE id=1").fetchone()["ativo"])
-            if desligado: ok = False
-            if membro and ok:   # só entra quem tem o acesso ATIVO e cadastro não excluído
-                ok = bool(c.execute("SELECT 1 FROM membro_acesso a JOIN membros m ON m.id=a.membro_id WHERE a.usuario_id=%s AND a.situacao='ativo' AND m.excluido_em IS NULL", (u["id"],)).fetchone())
-            if membro and not bloq:   # 5 erros seguidos = 15 min de bloqueio (vale só para contas de membro)
-                if ok:
-                    c.execute("UPDATE usuarios SET falhas_login=0,bloqueado_ate=NULL WHERE id=%s", (u["id"],))
-                    c.execute("UPDATE membro_acesso SET ultimo_acesso_em=now() WHERE usuario_id=%s", (u["id"],))
+            if _ip_limitado(c, ip):   # origem com tentativas demais: recusa SEM contar contra a conta (evita bloquear terceiros em massa)
+                audit(c, "login_limitado_ip", "usuarios", ident, resultado="negado", usuario_id=None, usuario_nome=None, perfil="anônimo")
+                msg, status = MSG_LOGIN, 429
+            else:
+                u = c.execute("SELECT * FROM usuarios WHERE login=%s", (login_,)).fetchone()
+                senha_ok = check_password_hash(u["senha_hash"] if u else DUMMY_HASH, senha) and bool(u)   # sempre confere um hash: mesmo tempo com ou sem login
+                if not u:
+                    _falha_ip(c, ip); audit(c, "login_falha", "usuarios", ident, resultado="falha", usuario_id=None, usuario_nome=None, perfil="anônimo")
+                elif not u["ativo"]:
+                    _falha_ip(c, ip); audit(c, "login_conta_desativada", "usuarios", u["login"], resultado="negado", usuario_id=u["id"], usuario_nome=u["nome"], perfil=u["perfil"])
+                elif u["bloqueado"]:   # bloqueada: nem a senha certa entra; só o administrador libera
+                    _falha_ip(c, ip); audit(c, "login_conta_bloqueada", "usuarios", u["login"], resultado="negado", usuario_id=u["id"], usuario_nome=u["nome"], perfil=u["perfil"])
+                elif not senha_ok:
+                    _falha_ip(c, ip); _falha_senha_conta(c, u, "login")
                 else:
-                    c.execute("UPDATE usuarios SET bloqueado_ate=CASE WHEN falhas_login+1>=5 THEN now()+interval '15 minutes' ELSE bloqueado_ate END,"
-                              "falhas_login=CASE WHEN falhas_login+1>=5 THEN 0 ELSE falhas_login+1 END WHERE id=%s", (u["id"],))
+                    membro = u["perfil"] == "membro"; ok = True
+                    if membro:
+                        desligado = not bool(c.execute("SELECT ativo FROM portal_config WHERE id=1").fetchone()["ativo"])
+                        if desligado: ok = False
+                        else: ok = bool(c.execute("SELECT 1 FROM membro_acesso a JOIN membros m ON m.id=a.membro_id WHERE a.usuario_id=%s AND a.situacao='ativo' AND m.excluido_em IS NULL", (u["id"],)).fetchone())
+                    if ok:
+                        c.execute("UPDATE usuarios SET falhas_login=0 WHERE id=%s", (u["id"],))
+                        if membro: c.execute("UPDATE membro_acesso SET ultimo_acesso_em=now() WHERE usuario_id=%s", (u["id"],))
+                        audit(c, "login_sucesso", "usuarios", u["login"], usuario_id=u["id"], usuario_nome=u["nome"], perfil=u["perfil"])
+                    else:
+                        audit(c, "login_negado", "usuarios", u["login"], motivo="Portal desligado" if desligado else "Acesso do membro não está ativo", resultado="negado",
+                              usuario_id=u["id"], usuario_nome=u["nome"], perfil=u["perfil"])
+                if not ok and not msg: msg = PORTAL_INDISPONIVEL if desligado else MSG_LOGIN
         if ok:
             pm = None if membro else session.get("pm")   # entrar como secretário não derruba o portal aberto em outra aba
-            session.clear(); session.permanent = True; session.update(uid=u["id"], nome=u["nome"], sv=_sv(u["senha_hash"]))
-            if pm: session["pm"] = pm
+            pmu = session.get("pm_ult")
+            session.clear(); session.permanent = True; session.update(uid=u["id"], nome=u["nome"], sv=_sv(u["senha_hash"]), ult=time.time())
+            if pm: session["pm"] = pm; session["pm_ult"] = pmu or time.time()
             return redirect("/portal" if membro else "/")
-        msg = PORTAL_INDISPONIVEL if desligado else "Muitas tentativas. Aguarde alguns minutos e tente novamente." if bloq else "Login ou senha inválidos."
-    return render_template("login.html", csrf=csrf(), msg=msg)
+        if not msg: msg = MSG_LOGIN
+    return render_template("login.html", csrf=csrf(), msg=msg), status
+
+@app.route("/destravar", methods=["GET", "POST"])
+def destravar():
+    """Sessão bloqueada por inatividade: só a senha da própria conta reabre. Errar a senha aqui conta na regra das 5 tentativas."""
+    msg = ""
+    if request.method == "POST":
+        senha = request.form.get("senha") or ""; ip = _ip()
+        with conn() as c:
+            u = c.execute("SELECT id,nome,login,perfil,senha_hash,ativo,bloqueado FROM usuarios WHERE id=%s", (session["uid"],)).fetchone()
+            if not u or not u["ativo"] or u["bloqueado"]:
+                session.clear(); return redirect("/login")
+            if _ip_limitado(c, ip): msg = MSG_LOGIN
+            elif check_password_hash(u["senha_hash"], senha):
+                c.execute("UPDATE usuarios SET falhas_login=0 WHERE id=%s", (u["id"],))
+                session["travada"] = False; session["ult"] = time.time()
+                audit(c, "sessao_destravada", "usuarios", u["login"])
+                return redirect("/portal" if u["perfil"] == "membro" else "/")
+            else:
+                _falha_ip(c, ip); n, bloq = _falha_senha_conta(c, u, "destravar")
+                if bloq: session.clear(); return redirect("/login")
+                msg = "Senha incorreta."
+    elif not session.get("travada"):
+        session["travada"] = True; audit(None, "sessao_travada", "usuarios", session["uid"], motivo="Bloqueio manual/inatividade no navegador")
+    return render_template("login.html", csrf=csrf(), msg=msg, travada=True, nome=session.get("nome", ""), acao="/destravar"), (429 if msg == MSG_LOGIN else 200)
 
 @app.route("/")
 def index():
@@ -233,8 +369,9 @@ def index():
 
 @app.get("/logout")
 def logout():
-    pm = session.get("pm"); session.clear()   # sair do sistema não derruba o portal do membro aberto em outra aba
-    if pm: session["pm"] = pm
+    if session.get("uid"): audit(None, "logout", "usuarios", session["uid"])
+    pm = session.get("pm"); pmu = session.get("pm_ult"); session.clear()   # sair do sistema não derruba o portal do membro aberto em outra aba
+    if pm: session["pm"] = pm; session["pm_ult"] = pmu or time.time()
     return redirect("/login")
 
 @app.get("/health")
@@ -467,6 +604,7 @@ def congregacao(id=None):
         with conn() as c:
             if id: c.execute("UPDATE congregacoes SET nome=%s,codigo=%s,ativo=%s,updated_at=now() WHERE id=%s", (nome, d.get("codigo") or None, bool(d.get("ativo", True)), id))
             else: c.execute("INSERT INTO congregacoes(nome,codigo,ativo) VALUES(%s,%s,%s)", (nome, d.get("codigo") or None, bool(d.get("ativo", True))))
+            audit(c, "congregacao_alterada" if id else "congregacao_criada", "congregacoes", id, depois=dict(nome=nome, codigo=d.get("codigo") or None, ativo=bool(d.get("ativo", True))))
     except psycopg.errors.UniqueViolation:
         return jsonify(erro="Já existe uma congregação com esse nome."), 400
     return jsonify(ok=True)
@@ -474,11 +612,9 @@ def congregacao(id=None):
 @app.delete("/api/congregacoes/<int:id>")
 @so_admin
 def excluir_congregacao(id):
-    with conn() as c:
-        if c.execute("SELECT 1 FROM lotes_ocorrencias WHERE congregacao_id=%s LIMIT 1", (id,)).fetchone():
-            return jsonify(erro="Esta congregação tem ocorrências vinculadas e não pode ser excluída. Use Inativar para preservar o histórico."), 400
-        n = c.execute("DELETE FROM congregacoes WHERE id=%s", (id,)).rowcount
-    return (jsonify(ok=True), 200) if n else (jsonify(erro="Congregação não encontrada."), 404)
+    # Preservação documental: congregação não é apagada de forma definitiva (o banco também impede). Use Inativar.
+    audit(None, "exclusao_congregacao_negada", "congregacoes", id, resultado="negado", motivo="Preservação documental: use Inativar")
+    return jsonify(erro="Congregações não são apagadas definitivamente, para preservar os registros. Use Inativar."), 409
 
 @app.get("/api/congregacoes")
 def congregacoes():
@@ -654,6 +790,7 @@ def ver_membro(id):
         m = c.execute("SELECT m.*,cg.nome congregacao FROM membros m LEFT JOIN congregacoes cg ON cg.id=m.congregacao_id WHERE m.id=%s AND m.excluido_em IS NULL", (id,)).fetchone()
         if not m or not membro_visivel(m["congregacao_id"], m["status_membresia"]): return jsonify(erro="Membro não encontrado."), 404
         m["historico"] = c.execute("SELECT id,data,secretario_nome secretario,descricao FROM historico_membro WHERE membro_id=%s ORDER BY data,id", (id,)).fetchall()
+        audit(c, "membro_consultado", "membros", id)   # consulta a dados pessoais/religiosos (sensíveis)
         f = c.execute("SELECT EXTRACT(EPOCH FROM atualizado_em)::bigint v FROM membro_foto WHERE membro_id=%s", (id,)).fetchone()
     m["tem_foto"], m["foto_v"] = bool(f), (f["v"] if f else None)
     m.pop("nome_busca", None)
@@ -688,7 +825,7 @@ def salvar_membro(id=None):
         with conn() as c:  # uma transação: ficha + novos registros do histórico, ou nada
             atual = None
             if id:
-                atual = c.execute("SELECT congregacao_id,status_membresia FROM membros WHERE id=%s AND excluido_em IS NULL FOR UPDATE", (id,)).fetchone()
+                atual = c.execute("SELECT * FROM membros WHERE id=%s AND excluido_em IS NULL FOR UPDATE", (id,)).fetchone()
                 if not atual or not membro_visivel(atual["congregacao_id"], atual["status_membresia"]): return jsonify(erro="Membro não encontrado."), 404
             if not cong_ok(v["congregacao_id"]): return jsonify(erros=[dict(msg="Você não tem acesso à congregação selecionada.")]), 403
             if v["congregacao_id"] and not c.execute("SELECT 1 FROM congregacoes WHERE id=%s AND (ativo OR id=%s)", (v["congregacao_id"], (atual or {}).get("congregacao_id") or 0)).fetchone():
@@ -705,6 +842,12 @@ def salvar_membro(id=None):
                 c.execute("DELETE FROM membro_foto WHERE membro_id=%s", (id,))
             for dt, desc in novos:  # secretário = usuário logado (nunca informado pelo navegador)
                 c.execute("INSERT INTO historico_membro(membro_id,data,secretario_id,secretario_nome,descricao) VALUES(%s,%s,%s,%s,%s)", (id, dt, session["uid"], session["nome"], desc))
+            ant = atual or {}   # valores anteriores x posteriores (CPF sempre mascarado) na auditoria
+            dif = {k: dict(antes=_ver_valor(k, ant.get(k)), depois=_ver_valor(k, v[k])) for k in COLS_MEMBRO if _norm(ant.get(k)) != _norm(v[k])}
+            if foto and not foto[2]: dif["foto"] = dict(antes=None, depois="Nova foto enviada")
+            elif d.get("foto_remover") is True: dif["foto"] = dict(antes="Com foto", depois="Foto removida (versão anterior preservada)")
+            if novos: dif["historico_novo"] = dict(antes=None, depois=f"{len(novos)} registro(s) acrescentado(s)")
+            audit(c, "membro_alterado" if atual else "membro_criado", "membros", id, depois=dif)
     except psycopg.errors.UniqueViolation:
         return jsonify(erros=[dict(msg="Já existe um membro cadastrado com este CPF.")]), 400
     return jsonify(id=id), (201 if atual is False else 200)
@@ -714,7 +857,24 @@ def excluir_membro(id):
     w, p = ["id=%s", "excluido_em IS NULL"], [id]; filtro_cong("congregacao_id", w, p)
     with conn() as c:  # exclusão lógica: o cadastro sai das telas, o histórico permanece no banco
         n = c.execute("UPDATE membros SET excluido_em=now(),updated_at=now() WHERE " + " AND ".join(w), p).rowcount
+        if n: audit(c, "membro_excluido_logico", "membros", id, motivo="Exclusão lógica: cadastro, histórico e documentos permanecem preservados")
     return (jsonify(ok=True), 200) if n else (jsonify(erro="Membro não encontrado."), 404)
+
+@app.get("/api/membros/<int:id>/foto/versoes")
+@so_admin
+def foto_versoes(id):
+    with conn() as c:
+        return jsonify(c.execute("SELECT id,tipo,tamanho,foto_atualizada_em,arquivada_em,operacao FROM membro_foto_versoes WHERE membro_id=%s ORDER BY id DESC", (id,)).fetchall())
+
+@app.get("/api/membros/<int:id>/foto/versoes/<int:vid>")
+@so_admin
+def foto_versao(id, vid):
+    with conn() as c:
+        r = c.execute("SELECT imagem,tipo FROM membro_foto_versoes WHERE id=%s AND membro_id=%s", (vid, id)).fetchone()
+        if not r: return jsonify(erro="Versão não encontrada."), 404
+        audit(c, "foto_versao_consultada", "membros", id, depois=dict(versao=vid))
+    resp = Response(bytes(r["imagem"]), mimetype=r["tipo"]); resp.headers["Content-Disposition"] = "inline"
+    return resp
 
 def consultar_aniversariantes(a):
     """Filtra pelo dia/mês de nascimento (o ano é ignorado). Retorna (linhas, erro)."""
@@ -773,6 +933,7 @@ def imprimir_aniversariantes():
     if a.get("cong"):
         with conn() as c: x = c.execute("SELECT nome FROM congregacoes WHERE id=%s", (_int(a["cong"]),)).fetchone()
         cong = x["nome"] if x and cong_ok(_int(a["cong"])) else "–"
+    audit(None, "relatorio_impresso", "aniversariantes", None, depois=a.to_dict())
     grupos = [(MESES[k - 1] if len({r["mes"] for r in rows}) > 1 else None, list(g)) for k, g in groupby(rows, key=lambda r: r["mes"])]
     return render_template("aniversariantes_imprimir.html", grupos=grupos, total=len(rows), consulta=texto_consulta(a), congregacao=cong,
                            nome=(a.get("nome") or "").strip(), emitido=datetime.now().strftime("%d/%m/%Y %H:%M"), usuario=session.get("nome", ""))
@@ -983,6 +1144,7 @@ def api_comparativo():
 def imprimir_comparativo():
     r, erro = relatorio_comparativo(request.args)
     if erro: return erro, 400
+    audit(None, "relatorio_impresso", "comparativo", None, depois=request.args.to_dict())
     return render_template("relatorio_comparativo_imprimir.html", r=r, emitido=datetime.now().strftime("%d/%m/%Y %H:%M"), usuario=session.get("nome", ""))
 
 # ===================== USUÁRIOS E PERMISSÕES (somente administrador) =====================
@@ -1005,7 +1167,8 @@ def validar_usuario(d, c, novo):
     v["ativo"] = d.get("ativo") is not False and d.get("ativo") not in (0, "0", "false")
     senha = d.get("senha") or ""
     if senha or novo:
-        if not isinstance(senha, str) or not 8 <= len(senha) <= 128: erros.append("A senha deve ter entre 8 e 128 caracteres.")
+        er = erro_senha(senha, v.get("login"))
+        if er: erros.append(er)
         else: v["senha"] = senha
     ids = d.get("congregacoes") or []
     if not isinstance(ids, list) or any(not isinstance(i, int) or isinstance(i, bool) for i in ids): erros.append("Lista de congregações inválida."); ids = []
@@ -1021,7 +1184,7 @@ def validar_usuario(d, c, novo):
 @so_admin
 def listar_usuarios():
     with conn() as c:
-        return jsonify(c.execute("""SELECT u.id,u.nome,u.login,u.perfil,u.ativo,
+        return jsonify(c.execute("""SELECT u.id,u.nome,u.login,u.perfil,u.ativo,u.bloqueado,u.falhas_login,u.bloqueado_em,u.desbloqueado_em,u.desbloqueado_por_nome,u.total_bloqueios,
             coalesce(array_agg(uc.congregacao_id ORDER BY uc.congregacao_id) FILTER (WHERE uc.congregacao_id IS NOT NULL),'{}') congregacoes
             FROM usuarios u LEFT JOIN usuario_congregacoes uc ON uc.usuario_id=u.id WHERE u.perfil <> 'membro' GROUP BY u.id ORDER BY lower(u.nome),u.id""").fetchall())
 
@@ -1040,6 +1203,7 @@ def criar_usuario():
             uid = c.execute("INSERT INTO usuarios(nome,login,senha_hash,perfil,ativo) VALUES(%s,%s,%s,%s,%s) RETURNING id",
                             (v["nome"], v["login"], generate_password_hash(v["senha"]), v["perfil"], v["ativo"])).fetchone()["id"]
             gravar_congs(c, uid, v["congregacoes"])
+            audit(c, "usuario_criado", "usuarios", uid, depois=dict(nome=v["nome"], login=v["login"], perfil=v["perfil"], ativo=v["ativo"], congregacoes=v["congregacoes"]))
     except psycopg.errors.UniqueViolation:
         return jsonify(erros=[dict(msg="Já existe um usuário com esse login.")]), 400
     return jsonify(id=uid), 201
@@ -1056,13 +1220,57 @@ def editar_usuario(id):
             if id == session["uid"] and (v.get("perfil") != "admin" or not v["ativo"]):
                 erros.append("Você não pode alterar o seu próprio perfil nem desativar a sua própria conta.")
             if erros: return jsonify(erros=[dict(msg=m) for m in erros]), 400
+            ant = c.execute("SELECT nome,perfil,ativo FROM usuarios WHERE id=%s", (id,)).fetchone()
+            ant["congregacoes"] = [r["congregacao_id"] for r in c.execute("SELECT congregacao_id FROM usuario_congregacoes WHERE usuario_id=%s ORDER BY 1", (id,))]
             c.execute("UPDATE usuarios SET nome=%s,perfil=%s,ativo=%s,updated_at=now() WHERE id=%s", (v["nome"], v["perfil"], v["ativo"], id))
-            if "senha" in v: c.execute("UPDATE usuarios SET senha_hash=%s WHERE id=%s", (generate_password_hash(v["senha"]), id))
+            if "senha" in v: c.execute("UPDATE usuarios SET senha_hash=%s WHERE id=%s", (generate_password_hash(v["senha"]), id))   # trocar a senha NÃO desbloqueia a conta
             gravar_congs(c, id, v["congregacoes"])
+            audit(c, "usuario_alterado", "usuarios", id, antes=ant, depois=dict(nome=v["nome"], perfil=v["perfil"], ativo=v["ativo"], congregacoes=v["congregacoes"], senha_alterada="senha" in v))
             if not c.execute("SELECT 1 FROM usuarios WHERE perfil='admin' AND ativo LIMIT 1").fetchone(): raise SemAdmin()
     except SemAdmin:
         return jsonify(erros=[dict(msg="O sistema precisa ter ao menos um administrador ativo.")]), 400
     return jsonify(ok=True)
+
+@app.get("/api/usuarios/bloqueados")
+@so_admin
+def contas_bloqueadas():
+    """Todas as contas bloqueadas (inclusive de membros) para o administrador desbloquear. Não é publicada para ninguém mais."""
+    with conn() as c:
+        return jsonify(c.execute("""SELECT id,nome,login,perfil,falhas_login,bloqueado_em,bloqueio_motivo,total_bloqueios,desbloqueado_em,desbloqueado_por_nome
+                                    FROM usuarios WHERE bloqueado ORDER BY bloqueado_em DESC,id""").fetchall())
+
+@app.post("/api/usuarios/<int:id>/desbloquear")
+@so_admin
+def desbloquear_usuario(id):
+    """DESBLOQUEAR ACESSO: somente administrador ativo (conferido no servidor). Zera as tentativas; o histórico fica na auditoria."""
+    d = request.get_json(silent=True) or {}
+    motivo = (d.get("motivo") or "").strip()[:300] if isinstance(d.get("motivo"), str) else ""
+    if id == session["uid"]: return jsonify(erro="Você não pode desbloquear a própria conta."), 403
+    with conn() as c:
+        r = c.execute("""UPDATE usuarios SET bloqueado=false,falhas_login=0,bloqueado_ate=NULL,desbloqueado_em=now(),desbloqueado_por=%s,desbloqueado_por_nome=%s,updated_at=now()
+                         WHERE id=%s AND bloqueado RETURNING login,nome,perfil,bloqueado_em,total_bloqueios""", (session["uid"], session["nome"], id)).fetchone()
+        if not r: return jsonify(erro="Esta conta não está bloqueada."), 409
+        audit(c, "desbloqueio_administrativo", "usuarios", id, antes=dict(bloqueado=True, bloqueado_em=r["bloqueado_em"]), depois=dict(bloqueado=False, login=r["login"], perfil=r["perfil"]), motivo=motivo or None)
+    return jsonify(ok=True, login=r["login"])
+
+@app.get("/api/auditoria")
+@so_admin
+def api_auditoria():
+    a = request.args; w, p = [], []
+    if a.get("operacao"): w.append("operacao ILIKE %s"); p.append("%" + a["operacao"].strip() + "%")
+    if a.get("usuario"): w.append("(usuario_nome ILIKE %s OR registro_id ILIKE %s)"); p += ["%" + a["usuario"].strip() + "%"] * 2
+    if a.get("resultado") in ("sucesso", "falha", "negado"): w.append("resultado=%s"); p.append(a["resultado"])
+    de, ate = parse_data(a.get("de")), parse_data(a.get("ate"))
+    if de: w.append("(created_at AT TIME ZONE 'America/Sao_Paulo')::date >= %s"); p.append(de)
+    if ate: w.append("(created_at AT TIME ZONE 'America/Sao_Paulo')::date <= %s"); p.append(ate)
+    por = min(max(_int(a.get("por"), 50), 1), 200); pag = max(_int(a.get("pagina"), 1), 1)
+    cond = (" WHERE " + " AND ".join(w)) if w else ""
+    with conn() as c:
+        total = c.execute("SELECT count(*) n FROM auditoria" + cond, p).fetchone()["n"]
+        rows = c.execute("SELECT id,created_at,usuario_nome,perfil,ip,operacao,entidade,registro_id,antes,depois,motivo,resultado FROM auditoria" + cond +
+                         f" ORDER BY created_at DESC,id DESC LIMIT {por} OFFSET {(pag - 1) * por}", p).fetchall()
+    resp = jsonify(rows); resp.headers["X-Total-Count"] = str(total)
+    return resp
 
 # ---------------------------------------------------------------- PORTAL DO MEMBRO
 # O membro (conta de perfil "membro") só enxerga e altera o PRÓPRIO cadastro. O vínculo conta -> cadastro vem do banco
@@ -1096,6 +1304,7 @@ def so_membro(f):
 
 def _log_acesso(c, membro_id, acao):
     c.execute("INSERT INTO membro_acesso_log(membro_id,acao,por_id,por_nome) VALUES(%s,%s,%s,%s)", (membro_id, acao, session["uid"], session["nome"]))
+    audit(c, "membro_acesso_" + acao, "membros", membro_id)
 
 # ----- administrador: liberar / revogar / nova senha temporária
 @app.get("/api/membros/<int:id>/acesso")
@@ -1125,7 +1334,7 @@ def _emitir_credenciais(id, modo):
                     return jsonify(erro="O acesso deste membro já está ativo. Para entregar outra senha, use “Gerar nova senha temporária”."), 409
                 if a:   # conta já vinculada: mantém o mesmo login
                     uid = a["usuario_id"]
-                    c.execute("UPDATE usuarios SET senha_hash=%s,ativo=true,trocar_senha=true,falhas_login=0,bloqueado_ate=NULL,nome=%s,updated_at=now() WHERE id=%s", (h, m["nome"], uid))
+                    c.execute("UPDATE usuarios SET senha_hash=%s,ativo=true,trocar_senha=true,nome=%s,updated_at=now() WHERE id=%s", (h, m["nome"], uid))   # não mexe no bloqueio: só o botão Desbloquear acesso libera
                     login = c.execute("SELECT login FROM usuarios WHERE id=%s", (uid,)).fetchone()["login"]
                     if modo == "liberar":
                         c.execute("UPDATE membro_acesso SET situacao='ativo',liberado_em=now(),liberado_por=%s,liberado_por_nome=%s,senha_gerada_em=now(),"
@@ -1277,6 +1486,9 @@ def portal_ver():
     # somente leitura: situação eclesiástica oficial é da secretaria
     out["leitura"] = {k: m[k] for k in ("status_membresia", "cargo", "data_chegada", "data_recebimento")}
     out["tem_foto"], out["foto_v"] = bool(f), (f["v"] if f else None)
+    with conn() as c:   # acompanhamento: situação das últimas solicitações do próprio membro
+        out["solicitacoes"] = c.execute("""SELECT situacao,enviada_em,decidida_em,CASE WHEN situacao='recusada' THEN justificativa END justificativa
+                                            FROM portal_fichas WHERE membro_id=%s ORDER BY id DESC LIMIT 5""", (g.membro_id,)).fetchall()
     return jsonify(out)
 
 @app.get("/api/portal/foto")
@@ -1292,29 +1504,29 @@ def portal_foto():
 
 NOVOS_MAX = 30   # no máximo 30 cadastros novos por hora pelo portal (evita encher o sistema de cadastros falsos)
 
+def _dados_ficha(v):
+    """Valores enviados pelo membro, prontos para o JSON da ficha (datas em texto)."""
+    return {k: (v[k].isoformat() if hasattr(v[k], "isoformat") else v[k]) for k in PORTAL_EDITAVEIS}
+
 def _portal_criar(v, foto):
-    """Membro entrou com a senha do portal e escolheu fazer o PRÓPRIO cadastro. Nasce 'Ativo' e SEM Status da Membresia (a secretaria define; aparece no filtro 'Sem status definido'), sem congregação e sem cargo:
-    quem confirma a situação oficial é a secretaria. Depois de criado, a sessão passa a ser desse cadastro (só ele)."""
-    try:
-        with conn() as c:
-            if c.execute("SELECT count(*) n FROM historico_membro WHERE secretario_id IS NULL AND descricao LIKE 'Cadastro criado pelo próprio membro%' AND created_at > now() - interval '1 hour'").fetchone()["n"] >= NOVOS_MAX:
-                return jsonify(erros=[dict(msg="Muitos cadastros foram enviados agora. Tente novamente em alguns minutos ou fale com o secretário.")]), 429
-            er = _erro_cong_portal(c, v["congregacao_id"])
-            if er: return er
-            mid = c.execute("INSERT INTO membros(" + ",".join(PORTAL_EDITAVEIS) + ",nome_busca,status,status_membresia) VALUES(" + ",".join(["%s"] * len(PORTAL_EDITAVEIS)) + ",f_unaccent(%s),'Ativo',NULL) RETURNING id",
-                            [v[k] for k in PORTAL_EDITAVEIS] + [v["nome"]]).fetchone()["id"]
-            dif = {k: dict(antes=None, depois=_ver_valor(k, v[k])) for k in PORTAL_EDITAVEIS if v[k] not in (None, "", False)}
-            _dif_cong(c, dif)
-            if foto:
-                c.execute("INSERT INTO membro_foto(membro_id,imagem,tipo,tamanho) VALUES(%s,%s,%s,%s)", (mid, foto[0], foto[1], len(foto[0])))
-                dif["foto"] = dict(antes=None, depois="Nova foto enviada")
-            c.execute("INSERT INTO membro_alteracoes(membro_id,usuario_id,usuario_nome,campos) VALUES(%s,NULL,%s,%s)", (mid, v["nome"], Jsonb(dif)))
-            c.execute("INSERT INTO historico_membro(membro_id,data,secretario_id,secretario_nome,descricao) VALUES(%s,%s,NULL,%s,%s)",
-                      (mid, date.today(), v["nome"] + " (membro, via portal)", "Cadastro criado pelo próprio membro no Portal do Membro. Confira situação, congregação e cargo."))
-    except psycopg.errors.UniqueViolation:
-        return jsonify(erros=[dict(msg="Este CPF já está cadastrado. Volte ao início e use “Atualizar meu cadastro” com o seu CPF, ou fale com o secretário.", campo="cpf")]), 400
-    session["pm"] = dict(m=mid, v=session["pm"]["v"])   # a partir daqui a sessão é só deste cadastro
-    return jsonify(ok=True, alterados=len(dif), novo=True)
+    """Membro entrou com a senha do portal e escolheu fazer o PRÓPRIO cadastro. Nada vai para o cadastro oficial: a ficha fica
+    PENDENTE até a Secretaria conferir e aprovar (aí nasce 'Ativo', sem Status da Membresia, sem cargo) ou recusar com justificativa."""
+    with conn() as c:
+        if c.execute("SELECT count(*) n FROM portal_fichas WHERE tipo='novo_cadastro' AND enviada_em > now() - interval '1 hour'").fetchone()["n"] >= NOVOS_MAX:
+            return jsonify(erros=[dict(msg="Muitos cadastros foram enviados agora. Tente novamente em alguns minutos ou fale com o secretário.")]), 429
+        er = _erro_cong_portal(c, v["congregacao_id"])
+        if er: return er
+        if v["cpf"] and c.execute("SELECT 1 FROM membros WHERE cpf=%s AND excluido_em IS NULL", (v["cpf"],)).fetchone():
+            return jsonify(erros=[dict(msg="Este CPF já está cadastrado. Volte ao início e use “Atualizar meu cadastro” com o seu CPF, ou fale com o secretário.", campo="cpf")]), 400
+        dif = {k: dict(antes=None, depois=_ver_valor(k, v[k])) for k in PORTAL_EDITAVEIS if v[k] not in (None, "", False)}
+        _dif_cong(c, dif)
+        if v["cpf"]:   # novo envio do mesmo CPF substitui o pendente anterior (que continua guardado)
+            c.execute("UPDATE portal_fichas SET situacao='substituida',decidida_em=now(),justificativa='Substituída por um novo envio do membro' WHERE tipo='novo_cadastro' AND situacao='pendente' AND dados->>'cpf'=%s", (v["cpf"],))
+        fid = c.execute("INSERT INTO portal_fichas(tipo,dados,foto,foto_tipo,enviada_por_nome) VALUES('novo_cadastro',%s,%s,%s,%s) RETURNING id",
+                        (Jsonb(_dados_ficha(v)), foto[0] if foto else None, foto[1] if foto else None, v["nome"])).fetchone()["id"]
+        if foto: dif["foto"] = dict(antes=None, depois="Nova foto enviada")
+        audit(c, "portal_ficha_enviada", "portal_fichas", fid, depois=dict(tipo="novo_cadastro", campos=list(dif)), usuario_id=None, usuario_nome=v["nome"])
+    return jsonify(ok=True, alterados=len(dif), novo=True, pendente=True)
 
 @app.put("/api/portal/meu-cadastro")
 @so_membro
@@ -1329,33 +1541,131 @@ def portal_salvar():
         if foto[2]: erros.append(foto[2])
     if erros: return jsonify(erros=[dict(msg=m, campo=v["_campos"].get(m)) for m in erros]), 400
     if getattr(g, "novo", False): return _portal_criar(v, foto)
+    with conn() as c:   # uma transação: a ficha pendente (com a foto) ou nada. O cadastro oficial NÃO é tocado aqui.
+        a = c.execute("SELECT * FROM membros WHERE id=%s AND excluido_em IS NULL FOR UPDATE", (g.membro_id,)).fetchone()
+        if not a: return jsonify(erro="Cadastro não encontrado."), 404
+        er = _erro_cong_portal(c, v["congregacao_id"], a["congregacao_id"])
+        if er: return er
+        if v["cpf"] and c.execute("SELECT 1 FROM membros WHERE cpf=%s AND id<>%s AND excluido_em IS NULL", (v["cpf"], g.membro_id)).fetchone():
+            return jsonify(erros=[dict(msg="Este CPF já está cadastrado para outra pessoa. Procure a secretaria.", campo="cpf")]), 400
+        # compara os valores REAIS; a máscara do CPF vale só para o que é gravado em registros de consulta
+        dif = {k: dict(antes=_ver_valor(k, a[k]), depois=_ver_valor(k, v[k])) for k in PORTAL_EDITAVEIS if _norm(a[k]) != _norm(v[k])}
+        _dif_cong(c, dif)
+        tem_foto = bool(c.execute("SELECT 1 FROM membro_foto WHERE membro_id=%s", (g.membro_id,)).fetchone())
+        remover = d.get("foto_remover") is True and tem_foto and not foto
+        if foto: dif["foto"] = dict(antes=None, depois="Nova foto enviada")
+        elif remover: dif["foto"] = dict(antes="Com foto", depois="Foto removida")
+        if not dif: return jsonify(ok=True, alterados=0)
+        c.execute("UPDATE portal_fichas SET situacao='substituida',decidida_em=now(),justificativa='Substituída por um novo envio do membro' WHERE membro_id=%s AND situacao='pendente'", (g.membro_id,))
+        fid = c.execute("INSERT INTO portal_fichas(tipo,membro_id,dados,foto,foto_tipo,remover_foto,enviada_por_nome,enviada_por_usuario_id) VALUES('atualizacao',%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                        (g.membro_id, Jsonb(_dados_ficha(v)), foto[0] if foto else None, foto[1] if foto else None, remover, v["nome"], None if getattr(g, "codigo", False) else session.get("uid"))).fetchone()["id"]
+        audit(c, "portal_ficha_enviada", "portal_fichas", fid, depois=dict(tipo="atualizacao", membro_id=g.membro_id, campos=list(dif)),
+              usuario_id=None if getattr(g, "codigo", False) else session.get("uid"), usuario_nome=v["nome"])
+    return jsonify(ok=True, alterados=len(dif), pendente=True)
+
+def _campos_ficha(c, f):
+    """Lista antes/depois de uma ficha, para a Secretaria conferir (CPF mascarado)."""
+    dados = f["dados"]
+    if f["tipo"] == "novo_cadastro": ant = {}
+    elif f["situacao"] == "aprovada" and f["dados_anteriores"]: ant = f["dados_anteriores"]
+    else: ant = c.execute("SELECT * FROM membros WHERE id=%s", (f["membro_id"],)).fetchone() or {}
+    dif = {k: dict(antes=_ver_valor(k, ant.get(k)), depois=_ver_valor(k, dados.get(k))) for k in PORTAL_EDITAVEIS if _norm(ant.get(k)) != _norm(dados.get(k)) and (ant or dados.get(k) not in (None, "", False))}
+    _dif_cong(c, dif)
+    return [dict(campo=k, rotulo=PORTAL_ROTULOS[k], antes=x["antes"], depois=x["depois"]) for k, x in dif.items()]
+
+@app.get("/api/portal/fichas")
+@so_admin
+def fichas_lista():
+    sit = request.args.get("situacao", "pendente")
+    w, p = ("", ()) if sit == "todas" else ("WHERE f.situacao=%s", (sit if sit in ("pendente", "aprovada", "recusada", "substituida") else "pendente",))
+    with conn() as c:
+        return jsonify(c.execute(f"""SELECT f.id,f.tipo,f.situacao,f.enviada_em,f.enviada_por_nome,f.membro_id,m.nome membro_nome,f.decidida_em,f.decidida_por_nome,f.justificativa,
+                                     (f.foto IS NOT NULL OR f.remover_foto) tem_foto FROM portal_fichas f LEFT JOIN membros m ON m.id=f.membro_id {w} ORDER BY f.id DESC LIMIT 200""", p).fetchall())
+
+@app.get("/api/portal/fichas/<int:id>")
+@so_admin
+def ficha_detalhe(id):
+    with conn() as c:
+        f = c.execute("SELECT * FROM portal_fichas WHERE id=%s", (id,)).fetchone()
+        if not f: return jsonify(erro="Ficha não encontrada."), 404
+        out = {k: f[k] for k in ("id", "tipo", "situacao", "enviada_em", "enviada_por_nome", "membro_id", "decidida_em", "decidida_por_nome", "justificativa", "membro_criado_id")}
+        out["campos"] = _campos_ficha(c, f); out["foto_nova"] = f["foto"] is not None; out["remover_foto"] = f["remover_foto"]
+        audit(c, "portal_ficha_consultada", "portal_fichas", id)   # a ficha traz dados pessoais completos
+    return jsonify(out)
+
+@app.get("/api/portal/fichas/<int:id>/foto")
+@so_admin
+def ficha_foto(id):
+    with conn() as c:
+        f = c.execute("SELECT foto,foto_tipo FROM portal_fichas WHERE id=%s", (id,)).fetchone()
+        if not f or not f["foto"]: return jsonify(erro="Foto não encontrada."), 404
+        audit(c, "portal_ficha_foto_consultada", "portal_fichas", id)
+    resp = Response(bytes(f["foto"]), mimetype=f["foto_tipo"]); resp.headers["Content-Disposition"] = "inline"
+    return resp
+
+@app.post("/api/portal/fichas/<int:id>/aprovar")
+@so_admin
+def ficha_aprovar(id):
+    """A Secretaria autoriza: só agora os dados aprovados são aplicados ao cadastro oficial (uma transação). A versão anterior fica guardada."""
     try:
-        with conn() as c:   # uma transação: cadastro + foto + registro das alterações, ou nada
-            a = c.execute("SELECT * FROM membros WHERE id=%s AND excluido_em IS NULL FOR UPDATE", (g.membro_id,)).fetchone()
-            if not a: return jsonify(erro="Cadastro não encontrado."), 404
-            er = _erro_cong_portal(c, v["congregacao_id"], a["congregacao_id"])
-            if er: return er
-            # compara os valores REAIS; a máscara do CPF vale só para o que é gravado no registro de alterações
-            dif = {k: dict(antes=_ver_valor(k, a[k]), depois=_ver_valor(k, v[k])) for k in PORTAL_EDITAVEIS if _norm(a[k]) != _norm(v[k])}
-            _dif_cong(c, dif)
+        with conn() as c:
+            f = c.execute("SELECT * FROM portal_fichas WHERE id=%s FOR UPDATE", (id,)).fetchone()
+            if not f: return jsonify(erro="Ficha não encontrada."), 404
+            if f["situacao"] != "pendente": return jsonify(erro="Esta ficha já foi decidida."), 409
+            dados, quem = f["dados"], f["enviada_por_nome"]
+            if f["tipo"] == "novo_cadastro":
+                if dados.get("cpf") and c.execute("SELECT 1 FROM membros WHERE cpf=%s AND excluido_em IS NULL", (dados["cpf"],)).fetchone():
+                    return jsonify(erro="Já existe um cadastro com este CPF. Recuse a ficha ou ajuste o cadastro existente."), 409
+                mid = c.execute("INSERT INTO membros(" + ",".join(PORTAL_EDITAVEIS) + ",nome_busca,status,status_membresia) VALUES(" + ",".join(["%s"] * len(PORTAL_EDITAVEIS)) + ",f_unaccent(%s),'Ativo',NULL) RETURNING id",
+                                [dados[k] for k in PORTAL_EDITAVEIS] + [dados["nome"]]).fetchone()["id"]
+                dif = {k: dict(antes=None, depois=_ver_valor(k, dados[k])) for k in PORTAL_EDITAVEIS if dados[k] not in (None, "", False)}
+                _dif_cong(c, dif)
+                if f["foto"]:
+                    c.execute("INSERT INTO membro_foto(membro_id,imagem,tipo,tamanho) VALUES(%s,%s,%s,%s)", (mid, f["foto"], f["foto_tipo"], len(f["foto"]))); dif["foto"] = dict(antes=None, depois="Nova foto enviada")
+                desc = f"Cadastro criado pelo próprio membro no Portal do Membro e aprovado por {session['nome']}. Confira situação, congregação e cargo."
+                ant = None
+            else:
+                mid = f["membro_id"]
+                a = c.execute("SELECT * FROM membros WHERE id=%s AND excluido_em IS NULL FOR UPDATE", (mid,)).fetchone()
+                if not a: return jsonify(erro="O cadastro oficial deste membro não está mais ativo."), 409
+                dif = {k: dict(antes=_ver_valor(k, a[k]), depois=_ver_valor(k, dados[k])) for k in PORTAL_EDITAVEIS if _norm(a[k]) != _norm(dados[k])}
+                _dif_cong(c, dif)
+                ant = {k: (a[k].isoformat() if hasattr(a[k], "isoformat") else a[k]) for k in PORTAL_EDITAVEIS}   # versão anterior preservada na ficha
+                if dif:
+                    c.execute("UPDATE membros SET " + ",".join(k + "=%s" for k in PORTAL_EDITAVEIS) + ",nome_busca=f_unaccent(%s),updated_at=now() WHERE id=%s", [dados[k] for k in PORTAL_EDITAVEIS] + [dados["nome"], mid])
+                    if "nome" in dif: c.execute("UPDATE usuarios SET nome=%s,updated_at=now() WHERE membro_id=%s", (dados["nome"], mid))
+                if f["foto"]:   # a foto anterior é arquivada pelo banco (membro_foto_versoes)
+                    c.execute("INSERT INTO membro_foto(membro_id,imagem,tipo,tamanho) VALUES(%s,%s,%s,%s) ON CONFLICT(membro_id) DO UPDATE SET imagem=EXCLUDED.imagem,tipo=EXCLUDED.tipo,tamanho=EXCLUDED.tamanho,atualizado_em=now()", (mid, f["foto"], f["foto_tipo"], len(f["foto"])))
+                    dif["foto"] = dict(antes=None, depois="Nova foto enviada")
+                elif f["remover_foto"] and c.execute("DELETE FROM membro_foto WHERE membro_id=%s", (mid,)).rowcount: dif["foto"] = dict(antes="Com foto", depois="Foto removida")
+                desc = None
+                if dif: desc = f"Atualização cadastral feita pelo próprio membro no Portal do Membro e aprovada por {session['nome']}. Campos alterados: " + ", ".join(PORTAL_ROTULOS.get(k, "Foto") for k in dif) + "."
             if dif:
-                c.execute("UPDATE membros SET " + ",".join(k + "=%s" for k in PORTAL_EDITAVEIS) + ",nome_busca=f_unaccent(%s),updated_at=now() WHERE id=%s",
-                          [v[k] for k in PORTAL_EDITAVEIS] + [v["nome"], g.membro_id])
-                if "nome" in dif and session.get("uid"): c.execute("UPDATE usuarios SET nome=%s,updated_at=now() WHERE id=%s", (v["nome"], session["uid"]))
-            if foto:
-                c.execute("INSERT INTO membro_foto(membro_id,imagem,tipo,tamanho) VALUES(%s,%s,%s,%s) ON CONFLICT(membro_id) DO UPDATE SET imagem=EXCLUDED.imagem,tipo=EXCLUDED.tipo,tamanho=EXCLUDED.tamanho,atualizado_em=now()",
-                          (g.membro_id, foto[0], foto[1], len(foto[0])))
-                dif["foto"] = dict(antes=None, depois="Nova foto enviada")
-            elif d.get("foto_remover") is True and c.execute("DELETE FROM membro_foto WHERE membro_id=%s", (g.membro_id,)).rowcount:
-                dif["foto"] = dict(antes="Com foto", depois="Foto removida")
-            if dif:   # registro permanente: aparece no Histórico do membro e no detalhe (antes/depois) para a secretaria
-                c.execute("INSERT INTO membro_alteracoes(membro_id,usuario_id,usuario_nome,campos) VALUES(%s,%s,%s,%s)", (g.membro_id, session.get("uid"), v["nome"], Jsonb(dif)))   # sem conta (senha única): usuario_id fica nulo, o nome do membro é gravado
-                desc = "Atualização cadastral feita pelo próprio membro no Portal do Membro. Campos alterados: " + ", ".join(PORTAL_ROTULOS[k] for k in dif) + "."
-                c.execute("INSERT INTO historico_membro(membro_id,data,secretario_id,secretario_nome,descricao) VALUES(%s,%s,%s,%s,%s)",
-                          (g.membro_id, date.today(), session.get("uid"), v["nome"] + " (membro, via portal)", desc))
+                c.execute("INSERT INTO membro_alteracoes(membro_id,usuario_id,usuario_nome,campos) VALUES(%s,%s,%s,%s)", (mid, f["enviada_por_usuario_id"], quem, Jsonb(dif)))
+            if desc:
+                c.execute("INSERT INTO historico_membro(membro_id,data,secretario_id,secretario_nome,descricao) VALUES(%s,%s,NULL,%s,%s)", (mid, date.today(), quem + " (membro, via portal)", desc))
+            c.execute("UPDATE portal_fichas SET situacao='aprovada',decidida_em=now(),decidida_por=%s,decidida_por_nome=%s,dados_anteriores=%s,membro_criado_id=%s WHERE id=%s",
+                      (session["uid"], session["nome"], Jsonb(ant) if ant is not None else None, mid if f["tipo"] == "novo_cadastro" else None, id))
+            audit(c, "portal_ficha_aprovada", "portal_fichas", id, antes=({k: _ver_valor(k, x) for k, x in ant.items()} if ant else None), depois=dif)   # CPF mascarado
     except psycopg.errors.UniqueViolation:
-        return jsonify(erros=[dict(msg="Este CPF já está cadastrado para outra pessoa. Procure a secretaria.", campo="cpf")]), 400
-    return jsonify(ok=True, alterados=len(dif))
+        return jsonify(erro="O CPF desta ficha já está em outro cadastro. Recuse a ficha ou corrija o cadastro existente."), 409
+    return jsonify(ok=True, membro_id=mid)
+
+@app.post("/api/portal/fichas/<int:id>/recusar")
+@so_admin
+def ficha_recusar(id):
+    d = request.get_json(silent=True) or {}
+    just = (d.get("justificativa") or "").strip()[:500] if isinstance(d.get("justificativa"), str) else ""
+    if len(just) < 5: return jsonify(erro="Informe a justificativa da recusa (mínimo de 5 caracteres)."), 400
+    with conn() as c:
+        f = c.execute("UPDATE portal_fichas SET situacao='recusada',decidida_em=now(),decidida_por=%s,decidida_por_nome=%s,justificativa=%s WHERE id=%s AND situacao='pendente' RETURNING membro_id,enviada_por_nome",
+                      (session["uid"], session["nome"], just, id)).fetchone()
+        if not f: return jsonify(erro="Ficha não encontrada ou já decidida."), 409
+        if f["membro_id"]:
+            c.execute("INSERT INTO historico_membro(membro_id,data,secretario_id,secretario_nome,descricao) VALUES(%s,%s,%s,%s,%s)",
+                      (f["membro_id"], date.today(), session["uid"], session["nome"], "Atualização cadastral enviada pelo membro no Portal foi recusada. Justificativa: " + just))
+        audit(c, "portal_ficha_recusada", "portal_fichas", id, motivo=just)
+    return jsonify(ok=True)
 
 @app.post("/api/portal/senha")
 @so_membro
@@ -1410,6 +1720,7 @@ def salvar_portal_config():
             else:   # apaga a senha e sobe a versão: as sessões de membros abertas caem na próxima requisição
                 c.execute("UPDATE portal_config SET ativo=false,codigo=NULL,versao=versao+1,alterado_em=now(),alterado_por_nome=%s WHERE id=1", (session["nome"],))
             c.execute("INSERT INTO portal_config_log(acao,por_id,por_nome) VALUES(%s,%s,%s)", ("ativou" if d["ativo"] else "desativou", session["uid"], session["nome"]))
+            audit(c, "portal_ativado" if d["ativo"] else "portal_desativado", "portal_config", 1)
         return jsonify(_estado_portal(c))
 
 @app.post("/api/config/portal-membro/nova-senha")
@@ -1420,6 +1731,7 @@ def nova_senha_portal():
         if not cf["ativo"]: return jsonify(erro="Ative o portal para gerar uma senha."), 409
         c.execute("UPDATE portal_config SET codigo=%s,versao=versao+1,alterado_em=now(),alterado_por_nome=%s WHERE id=1", (gerar_codigo_portal(cf["codigo"]), session["nome"]))
         c.execute("INSERT INTO portal_config_log(acao,por_id,por_nome) VALUES('nova_senha',%s,%s)", (session["uid"], session["nome"]))
+        audit(c, "portal_nova_senha_geral", "portal_config", 1)   # a senha em si nunca é gravada
         return jsonify(_estado_portal(c))
 
 # ----- entrada do membro (pública: só mostra o formulário ou o aviso; nada do cadastro antes de conferir tudo)
@@ -1440,9 +1752,10 @@ def membro_entrada():
             if c.execute("SELECT count(*) n FROM portal_falhas WHERE created_at > now() - %s::interval", (FALHAS_JANELA,)).fetchone()["n"] >= FALHAS_MAX:
                 ctx["msg"] = "Muitas tentativas erradas. Aguarde alguns minutos e tente novamente, ou fale com o secretário."; status = 429
             elif not re.fullmatch(r"\d{8}", cod) or not secrets.compare_digest(cod, cf["codigo"]):
-                c.execute("INSERT INTO portal_falhas DEFAULT VALUES"); ctx["msg"] = "Senha do portal incorreta. Confira os 8 dígitos."; ctx["campo"] = "codigo"; status = 400
+                c.execute("INSERT INTO portal_falhas DEFAULT VALUES"); audit(c, "portal_entrada_falha", "portal_config", 1, resultado="falha", motivo="Senha do portal incorreta", usuario_id=None, usuario_nome=None, perfil="membro (senha única)"); ctx["msg"] = "Senha do portal incorreta. Confira os 8 dígitos."; ctx["campo"] = "codigo"; status = 400
             elif novo:   # senha certa + "quero me cadastrar": abre o formulário em branco (nada é gravado até ele enviar)
                 _abrir_sessao_portal(dict(m=None, v=cf["versao"]))
+                audit(c, "portal_entrada_cadastro_novo", "portal_config", 1, usuario_id=None, usuario_nome=None, perfil="membro (senha única)")
                 return redirect("/portal")
             elif not cpf_valido(cpfd):
                 ctx["msg"] = "Informe um CPF válido (11 dígitos)."; ctx["campo"] = "cpf"; status = 400
@@ -1450,8 +1763,9 @@ def membro_entrada():
                 m = c.execute("SELECT id FROM membros WHERE excluido_em IS NULL AND cpf=%s", (f"{cpfd[:3]}.{cpfd[3:6]}.{cpfd[6:9]}-{cpfd[9:]}",)).fetchone()
                 if m:
                     _abrir_sessao_portal(dict(m=m["id"], v=cf["versao"]))
+                    audit(c, "portal_entrada", "membros", m["id"], usuario_id=None, usuario_nome=None, perfil="membro (senha única)")
                     return redirect("/portal")
-                c.execute("INSERT INTO portal_falhas DEFAULT VALUES")
+                c.execute("INSERT INTO portal_falhas DEFAULT VALUES"); audit(c, "portal_entrada_falha", "portal_config", 1, resultado="falha", motivo="CPF não encontrado", usuario_id=None, usuario_nome=None, perfil="membro (senha única)")
                 ctx["msg"] = "Não encontramos esse CPF no cadastro. Confira o número. Se você ainda não tem cadastro, use “Quero fazer o meu cadastro”; se não tem CPF, fale com o secretário."; ctx["campo"] = "cpf"; status = 400
     return render_template("membro.html", **ctx), status
 
@@ -1816,11 +2130,26 @@ def definir_destaque():
 
 def trocar_senha():
     from getpass import getpass
-    pw = getpass("Nova senha do admin (mín. 8 caracteres): ")
-    if len(pw) < 8 or pw != getpass("Repita a senha: "): sys.exit("Senha curta demais ou diferente. Nada foi alterado.")
-    with conn() as c:
-        n = c.execute("UPDATE usuarios SET senha_hash=%s WHERE login=%s", (generate_password_hash(pw), LOGIN)).rowcount
+    pw = getpass("Nova senha do admin (mín. 8 caracteres, com letras e números): ")
+    if erro_senha(pw, LOGIN) or pw != getpass("Repita a senha: "): sys.exit((erro_senha(pw, LOGIN) or "As senhas não conferem.") + " Nada foi alterado.")
+    with conn() as c:   # trocar a senha NÃO desbloqueia a conta (para isso: python app.py desbloquear <login>)
+        n = c.execute("UPDATE usuarios SET senha_hash=%s,updated_at=now() WHERE login=%s", (generate_password_hash(pw), LOGIN)).rowcount
+        if n: audit(c, "senha_alterada_servidor", "usuarios", LOGIN, motivo="Comando técnico no servidor", usuario_id=None, usuario_nome="Procedimento técnico (servidor)", perfil="admin")
     print("Senha do admin alterada." if n else "Usuário admin não encontrado. Rode: python app.py migrate")
+
+def desbloquear_cli(login):
+    """Recuperação excepcional (a única conta administradora bloqueada). Exige acesso ao servidor e à DATABASE_URL; fica na auditoria."""
+    if not login: sys.exit("Uso: python app.py desbloquear <login>")
+    if input(f"Digite o login '{login}' novamente para confirmar: ").strip() != login: sys.exit("Confirmação diferente. Nada foi alterado.")
+    motivo = input("Motivo da recuperação (obrigatório): ").strip()
+    if len(motivo) < 5: sys.exit("Informe o motivo. Nada foi alterado.")
+    with conn() as c:
+        r = c.execute("UPDATE usuarios SET bloqueado=false,falhas_login=0,bloqueado_ate=NULL,desbloqueado_em=now(),desbloqueado_por=NULL,desbloqueado_por_nome=%s,updated_at=now() "
+                      "WHERE login=%s AND bloqueado RETURNING id,nome,perfil", ("Recuperação técnica (servidor)", login)).fetchone()
+        if not r: sys.exit("Conta não encontrada ou não está bloqueada. Nada foi alterado.")
+        audit(c, "desbloqueio_tecnico", "usuarios", r["id"], motivo=motivo, usuario_id=None, usuario_nome="Recuperação técnica (servidor)", perfil="servidor",
+              depois=dict(login=login, perfil=r["perfil"]))
+    print(f"Conta '{login}' desbloqueada e registrada na auditoria. Se foi um ataque, troque a senha: python app.py senha")
 
 def pendentes():
     with conn() as c:
@@ -1837,6 +2166,8 @@ if __name__ == "__main__":
             init_db(); print("Migrations aplicadas.")
         elif cmd == "senha":
             trocar_senha()
+        elif cmd == "desbloquear":
+            desbloquear_cli(sys.argv[2] if len(sys.argv) > 2 else "")
         else:
             pend, ext = pendentes()
             falta = {"unaccent", "pg_trgm"} - ext

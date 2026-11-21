@@ -78,6 +78,8 @@
     <a href="#" data-v="rl"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>Relatórios</a>
 {% if admin %}    <a href="#" data-v="cg"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg>Congregações</a>
     <a href="#" data-v="us"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>Usuários</a>
+    <a href="#" data-v="fp"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Fichas do Portal</a>
+    <a href="#" data-v="au"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>Auditoria</a>
     <a href="#" data-v="cf"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg>Configuração</a>{% endif %}
   </nav>
   <div class="userbox"><span class="avatar" aria-hidden="true">{{ usuario[:1]|upper }}</span><div class="who"><b>{{usuario}}</b><span>Usuário conectado</span></div>
@@ -304,6 +306,8 @@
   <div class="ph-page"><div class="ph-t"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-users"/></svg></span><div><h1 id="h-us">Usuários</h1><p class="s">Cadastre usuários, defina o perfil de acesso e as congregações liberadas para cada um.</p></div></div>
     <div class="acts"><button type="button" class="p" id="usn"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>Novo usuário</button></div></div>
   <div id="uer" class="alert" role="alert"></div>
+  <div class="card" id="ubq" hidden><h2 class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>Contas bloqueadas</h2>
+    <p class="s" style="margin-bottom:.6rem">Estas contas erraram a senha 5 vezes seguidas e continuam bloqueadas até que um administrador libere o acesso.</p><div id="ubl"></div></div>
   <div class="kpi">
     <button type="button" class="card" id="ukb1" aria-label="Usuários cadastrados"><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg></span><span class="kt"><b id="uk1">–</b><span>Usuários cadastrados</span></span><svg class="ic go" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
     <button type="button" class="card k-g" id="ukb2" aria-label="Ativos"><span class="ico g"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span><span class="kt"><b id="uk2">–</b><span>Ativos</span></span><svg class="ic go" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
@@ -320,6 +324,25 @@
   </div>
 </section>
 {% endif %}
+{% if admin %}<section id="fp" hidden aria-labelledby="h-fp">
+  <div class="ph-page"><div class="ph-t"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-clip"/></svg></span><div><h1 id="h-fp">Fichas do Portal</h1><p class="s">O que os membros enviam pelo portal fica aqui, separado do cadastro oficial, até você conferir e autorizar ou recusar.</p></div></div></div>
+  <div id="fpe" class="alert" role="alert"></div>
+  <div class="card flush">
+    <div class="bar-f"><span class="selw"><select id="fps" aria-label="Situação da ficha"><option value="pendente">Aguardando análise</option><option value="aprovada">Aprovadas</option><option value="recusada">Recusadas</option><option value="substituida">Substituídas</option><option value="todas">Todas</option></select></span></div>
+    <div class="t"><table class="rt"><thead><tr><th>Enviada em</th><th>Nome</th><th>Tipo</th><th>Situação</th><th>Decisão</th><th class="ac">Ações</th></tr></thead><tbody id="fpt"></tbody></table></div>
+    <div class="vazio" id="fpv" hidden><b>Nenhuma ficha nesta situação.</b></div>
+  </div>
+</section>{% endif %}
+{% if admin %}<section id="au" hidden aria-labelledby="h-au">
+  <div class="ph-page"><div class="ph-t"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-shield"/></svg></span><div><h1 id="h-au">Auditoria</h1><p class="s">Registro permanente de logins, bloqueios, alterações, consultas e impressões. Não pode ser alterado nem apagado.</p></div></div></div>
+  <div id="aue" class="alert" role="alert"></div>
+  <div class="card flush">
+    <div class="bar-f"><input id="auo" placeholder="Operação (ex.: login, membro, desbloqueio)" aria-label="Operação"><input id="auu" placeholder="Usuário ou registro" aria-label="Usuário ou registro"><input id="aud" type="date" aria-label="De"><input id="aua" type="date" aria-label="Até">
+      <select id="aur" aria-label="Resultado"><option value="">Todos os resultados</option><option value="sucesso">Sucesso</option><option value="falha">Falha</option><option value="negado">Negado</option></select><button type="button" class="p" id="aub">Consultar</button></div>
+    <div class="t"><table class="rt"><thead><tr><th>Data e hora</th><th>Usuário</th><th>Perfil</th><th>Operação</th><th>Registro</th><th>Resultado</th><th>Detalhes</th></tr></thead><tbody id="aut"></tbody></table></div>
+    <div class="pg"><span id="aui" class="s"></span><div class="pgn"><button type="button" id="aup" aria-label="Página anterior">‹</button><button type="button" id="aun" aria-label="Próxima página">›</button></div></div>
+  </div>
+</section>{% endif %}
 <section id="cf" hidden aria-labelledby="h-cf">
   <div class="ph-page"><div class="ph-t"><span class="ph-ico" aria-hidden="true"><svg class="ic"><use href="#i-gear"/></svg></span><div><h1 id="h-cf">Configuração</h1><p class="s">Ajustes gerais do sistema</p></div></div></div>
   <div class="cfg">
@@ -379,9 +402,11 @@
 const $=s=>document.querySelector(s),H=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ADMIN={{admin|tojson}};
 let M={},T={};
-const api=async(u,o)=>{const r=await fetch(u,o&&{method:o.m,headers:{'Content-Type':'application/json','X-CSRF-Token':document.querySelector('meta[name=csrf]').content},body:JSON.stringify(o.b)});if(r.status==401)location='/login';const j=await r.json();return{ok:r.ok,j}};
+const api=async(u,o)=>{const r=await fetch(u,o&&{method:o.m,headers:{'Content-Type':'application/json','X-CSRF-Token':document.querySelector('meta[name=csrf]').content},body:JSON.stringify(o.b)});if(r.status==401)location='/login';if(r.status==423){location='/destravar';return{ok:false,j:{}}}const j=await r.json();return{ok:r.ok,j}};
 const ico=n=>`<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-${n}"/></svg>`;
 const ib=(at,i,tx,cl='')=>`<button type="button" class="ib ${cl}" ${at} title="${tx}">${ico(i)}<span class="bt">${tx}</span></button>`;
+/* Inatividade: depois de 15 min sem usar, a tela vai para a senha. O servidor também bloqueia a sessão por conta própria. */
+(function(){let t;const ir=()=>{location='/destravar'},rearma=()=>{clearTimeout(t);t=setTimeout(ir,15*60*1000)};['click','keydown','pointerdown','touchstart','scroll'].forEach(e=>addEventListener(e,rearma,{passive:true}));rearma()})();
 let tmr;const toast=(m,k)=>{const t=$('#toast');t.className=k||'';t.innerHTML=ico(k=='err'?'alert':'check')+'<span>'+H(m)+'</span>';t.style.display='flex';clearTimeout(tmr);tmr=setTimeout(()=>t.style.display='none',k=='err'?4500:2800)};
 const fd=d=>d.slice(0,10).split('-').reverse().join('/');
 /* menu recolhível (celular/tablet) */
@@ -392,9 +417,9 @@ const sync=()=>{const on=innerWidth>900?!APP.classList.contains('nav-off'):side.
 mbtn.onclick=()=>{if(innerWidth>900){APP.classList.toggle('nav-off');sync()}else menu(!side.classList.contains('on'))};scrim.onclick=()=>menu(false);
 $('#bell').onclick=()=>toast('Você não tem notificações no momento.');$('#meb').onclick=()=>show('pf');$('.userbox .who').style.cursor='pointer';$('.userbox .who').onclick=()=>show('pf');sync();
 window.addEventListener('resize',()=>{if(innerWidth>900&&side.classList.contains('on'))menu(false);sync()});
-const NOMES={home:'Início',oc:'Ocorrências',mb:'Membros',an:'Aniversariantes',ag:'Agenda',rl:'Relatórios',cg:'Congregações',us:'Usuários',cf:'Configuração',pf:'Meu perfil',mf:'Cadastro de membro'};
+const NOMES={home:'Início',oc:'Ocorrências',mb:'Membros',an:'Aniversariantes',ag:'Agenda',rl:'Relatórios',cg:'Congregações',us:'Usuários',fp:'Fichas do Portal',au:'Auditoria',cf:'Configuração',pf:'Meu perfil',mf:'Cadastro de membro'};
 function show(v){if(!ADMIN&&['cg','cf','us'].includes(v))v='home';
- if(v!='mf'&&MF.dirty&&!$('#mf').hidden){ask('Descartar alterações?','Há alterações não salvas neste cadastro. Se você sair agora, elas serão perdidas.','Sim, descartar',()=>{MF.dirty=false;show(v)});menu(false);return}['home','oc','mb','mf','an','ag','rl','cg','cf','us','pf'].forEach(i=>{const e=$('#'+i);if(e)e.hidden=i!=v});$('#bc').innerHTML=v=='home'?'':`<a href="#" data-v="home">${NOMES.home}</a>${ico('chev-r')}<span>${NOMES[v]}</span>`;document.querySelectorAll('.menu a[data-v]').forEach(a=>{const on=a.dataset.v==(v=='mf'?'mb':v);a.classList.toggle('on',on);on?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});menu(false);window.scrollTo(0,0);if(v=='home'){painel();agHome()}if(v=='oc'){lista();ocKpi()}if(v=='mb'){membros(1);mbKpi()}if(v=='an'){if(!ANIV_INI){ANIV_INI=true;$('#ames').value=String(new Date().getMonth()+1)}anivers();anKpi()}if(v=='pf')perfil();if(v=='ag')agenda();if(v=='rl'){if(!REL_INI){REL_INI=true;relPadrao()}relatorio()}if(v=='cg')congs();if(v=='cf')config();if(v=='us')usuarios()}
+ if(v!='mf'&&MF.dirty&&!$('#mf').hidden){ask('Descartar alterações?','Há alterações não salvas neste cadastro. Se você sair agora, elas serão perdidas.','Sim, descartar',()=>{MF.dirty=false;show(v)});menu(false);return}['home','oc','mb','mf','an','ag','rl','cg','cf','us','fp','au','pf'].forEach(i=>{const e=$('#'+i);if(e)e.hidden=i!=v});$('#bc').innerHTML=v=='home'?'':`<a href="#" data-v="home">${NOMES.home}</a>${ico('chev-r')}<span>${NOMES[v]}</span>`;document.querySelectorAll('.menu a[data-v]').forEach(a=>{const on=a.dataset.v==(v=='mf'?'mb':v);a.classList.toggle('on',on);on?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});menu(false);window.scrollTo(0,0);if(v=='home'){painel();agHome()}if(v=='oc'){lista();ocKpi()}if(v=='mb'){membros(1);mbKpi()}if(v=='an'){if(!ANIV_INI){ANIV_INI=true;$('#ames').value=String(new Date().getMonth()+1)}anivers();anKpi()}if(v=='pf')perfil();if(v=='ag')agenda();if(v=='rl'){if(!REL_INI){REL_INI=true;relPadrao()}relatorio()}if(v=='cg')congs();if(v=='cf')config();if(v=='us')usuarios();if(v=='au')auditoria();if(v=='fp')fichas()}
 document.querySelectorAll('.menu a[data-v]').forEach(a=>a.onclick=e=>{e.preventDefault();show(a.dataset.v)});
 $('#bc').onclick=e=>{const a=e.target.closest('a[data-v]');if(a){e.preventDefault();show(a.dataset.v)}};
 $('#qo').onclick=()=>{show('oc');form()};
@@ -530,7 +555,7 @@ let CL=[];const CPG=mkPg('c',()=>cgRender());
 function cgRender(){const{pages,V}=CPG.slice(CL);$('#ct').innerHTML=V.map(c=>{const a=`data-id="${c.id}" data-n="${H(c.nome)}" data-c="${H(c.codigo||'')}" data-a="${c.ativo?1:0}"`;return `<tr><td class="nm" data-label="Congregação">${H(c.nome)}</td><td data-label="Código">${H(c.codigo||'–')}</td><td data-label="Situação"><span class="badge ${c.ativo?'ok':'st-Inativo'}">${c.ativo?'Ativa':'Inativa'}</span></td><td class="ac"><div class="acoes">${ib(`data-ed ${a}`,'edit','Editar')}${ib(`data-tg ${a}`,'power',c.ativo?'Inativar':'Ativar',c.ativo?'o':'')}${ib(`data-del data-id="${c.id}" data-n="${H(c.nome)}"`,'trash','Excluir','d')}</div></td></tr>`}).join('');CPG.draw(CL.length,pages,'registros')}
 async function congs(){const r=(await api('/api/congregacoes')).j;CL=r;const at=r.filter(c=>c.ativo).length;$('#gk1').textContent=r.length;$('#gk2').textContent=at;$('#gk3').textContent=r.length-at;cgRender()}
 $('#ct').onclick=async e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;cerr('');clearErr($('#cg'));
- if('del' in d){ask('Excluir congregação',`Excluir a congregação <b>${H(d.n)}</b>? Só é possível se ela não tiver ocorrências.`,'Sim, excluir',async()=>{const r=await api('/api/congregacoes/'+d.id,{m:'DELETE'});if(r.ok){toast('Congregação excluída');await meta();congs()}else cerr(r.j.erro)});return}
+ if('del' in d){ask('Excluir congregação',`Congregações não são apagadas definitivamente (os registros são preservados). Para retirar <b>${H(d.n)}</b> das listas, use <b>Inativar</b>. Tentar excluir mesmo assim?`,'Sim, excluir',async()=>{const r=await api('/api/congregacoes/'+d.id,{m:'DELETE'});if(r.ok){toast('Congregação excluída');await meta();congs()}else cerr(r.j.erro)});return}
  if('tg' in d){const ativar=d.a!='1',go=async()=>{const r=await api('/api/congregacoes/'+d.id,{m:'PUT',b:{nome:d.n,codigo:d.c,ativo:ativar}});if(r.ok){toast(ativar?'Congregação ativada':'Congregação inativada');await meta();congs()}else cerr(r.j.erro)};
   if(ativar)go();else ask('Inativar congregação',`Inativar <b>${H(d.n)}</b>? Ela deixa de aparecer em novos lançamentos, mas o histórico é mantido.`,'Sim, inativar',go,false);return}
  $('#cid').value=d.id;$('#cn').value=d.n;$('#cc').value=d.c;$('#ca').value=d.a;$('#cttx').textContent='Editar congregação';$('#cgf').hidden=false;$('#cgf').scrollIntoView({block:'nearest',behavior:'smooth'});foco($('#cn'))}
@@ -829,7 +854,10 @@ relVerAplicar();
 $('#rlg').onclick=relatorio;$('#rld').onchange=relatorio;$('#rll').onclick=()=>{relPadrao();relatorio()};$('#rlp').onclick=()=>window.open('/relatorios/comparativo/imprimir?'+RQ,'_blank');
 /* ===== Usuários e permissões (somente administrador; o servidor também bloqueia qualquer acesso indevido) ===== */
 let UL=[];
-async function usuarios(){const er=$('#uer');er.textContent='';const r=await api('/api/usuarios');if(!r.ok){er.textContent=r.j.erro||'Não foi possível carregar os usuários.';return}UL=r.j;
+async function bloqueadas(){const r=await api('/api/usuarios/bloqueados'),box=$('#ubq');if(!r.ok){box.hidden=true;return}const L=r.j;box.hidden=!L.length;
+ $('#ubl').innerHTML=L.map(u=>`<div class="fxrow"><b>${H(u.nome)}</b><span class="fxrng">Login: ${H(u.login)} · Perfil: ${u.perfil=='admin'?'Administrador':u.perfil=='membro'?'Membro':'Usuário comum'} · Tentativas: ${u.falhas_login} · Bloqueada em ${H(new Date(u.bloqueado_em).toLocaleString('pt-BR'))}${u.desbloqueado_por_nome?' · Último desbloqueio por '+H(u.desbloqueado_por_nome):''}</span> <button type="button" class="dd" data-ub="${u.id}">DESBLOQUEAR ACESSO</button></div>`).join('')}
+function pedirDesbloqueio(id,nome){ask('Desbloquear acesso',`Liberar o acesso de <b>${H(nome)}</b>? A operação será registrada na auditoria com o seu nome, a data e o horário.<br><label style="display:block;margin-top:.6rem">Motivo (opcional)<input id="ubm" maxlength="300" style="width:100%"></label>`,'Sim, desbloquear',async()=>{const r=await api('/api/usuarios/'+id+'/desbloquear',{m:'POST',b:{motivo:($('#ubm')||{}).value||''}});if(r.ok){toast('Acesso desbloqueado');usuarios()}else toast(r.j.erro||'Não foi possível desbloquear','err')})}
+async function usuarios(){const er=$('#uer');er.textContent='';bloqueadas();const r=await api('/api/usuarios');if(!r.ok){er.textContent=r.j.erro||'Não foi possível carregar os usuários.';return}UL=r.j;
  const nm=id=>(M.todas.find(c=>c.id==id)||{}).nome||('#'+id);
  $('#uk1').textContent=UL.length;$('#uk2').textContent=UL.filter(u=>u.ativo).length;$('#uk3').textContent=UL.filter(u=>!u.ativo).length;$('#uk4').textContent=(M.congregacoes||[]).length;
  renderU()}
@@ -838,13 +866,13 @@ function renderU(pg){if(pg)UPG.p=pg;const nm=id=>(M.todas.find(c=>c.id==id)||{})
  const cgs=u=>u.perfil=='admin'?'Todas':(u.congregacoes.map(nm).join(', ')||'–');
  const key={nome:u=>u.nome,login:u=>u.login,perfil:u=>u.perfil,cg:cgs,ativo:u=>+u.ativo}[US.k],L=UL.filter(u=>(!st||String(+u.ativo)==st)&&(!q||[u.nome,u.login,cgs(u)].join(' ').toLowerCase().includes(q))).sort((a,b)=>String(key(a)).localeCompare(String(key(b)),'pt-BR',{sensitivity:'base'})*US.d||a.id-b.id);
  const{pages,V}=UPG.slice(L);$('#uvz').hidden=L.length>0;
- $('#utb').innerHTML=V.map(u=>{const eu=u.id==M.usuario.id,adm=u.perfil=='admin';return `<tr><td class="nm" data-label="Nome"><span class="av${adm?' a':''}" aria-hidden="true">${ico('user')}</span>${H(u.nome)}${eu?' <span class="hint">(você)</span>':''}</td><td data-label="Login">${H(u.login)}</td><td data-label="Perfil"><span class="badge ${adm?'adm':'pf'}">${ico(adm?'star-f':'shield-f')}${adm?'Administrador':'Usuário comum'}</span></td><td data-label="Congregações">${H(cgs(u))}</td><td data-label="Situação"><span class="badge ${u.ativo?'ok':'st-Inativo'}">${u.ativo?'Ativo':'Inativo'}</span></td><td class="ac"><div class="acoes">${ib(`data-ue="${u.id}"`,'edit','Editar')}${eu?'':ib(`data-ut="${u.id}"`,'power',u.ativo?'Desativar':'Ativar','d')}</div></td></tr>`}).join('');
+ $('#utb').innerHTML=V.map(u=>{const eu=u.id==M.usuario.id,adm=u.perfil=='admin';return `<tr><td class="nm" data-label="Nome"><span class="av${adm?' a':''}" aria-hidden="true">${ico('user')}</span>${H(u.nome)}${eu?' <span class="hint">(você)</span>':''}</td><td data-label="Login">${H(u.login)}</td><td data-label="Perfil"><span class="badge ${adm?'adm':'pf'}">${ico(adm?'star-f':'shield-f')}${adm?'Administrador':'Usuário comum'}</span></td><td data-label="Congregações">${H(cgs(u))}</td><td data-label="Situação"><span class="badge ${u.ativo?'ok':'st-Inativo'}">${u.ativo?'Ativo':'Inativo'}</span>${u.bloqueado?` <span class="badge st-Inativo" title="Bloqueado em ${H(new Date(u.bloqueado_em).toLocaleString('pt-BR'))} · ${u.falhas_login} tentativas">Bloqueado</span>`:''}</td><td class="ac"><div class="acoes">${u.bloqueado&&!eu?`<button type="button" class="dd" data-ub="${u.id}">DESBLOQUEAR ACESSO</button>`:''}${ib(`data-ue="${u.id}"`,'edit','Editar')}${eu?'':ib(`data-ut="${u.id}"`,'power',u.ativo?'Desativar':'Ativar','d')}</div></td></tr>`}).join('');
  UPG.draw(L.length,pages,'registros')}
 function formUsuario(id){const o=id?UL.find(u=>u.id==id):null,eu=!!o&&o.id==M.usuario.id,v=o||{nome:'',login:'',perfil:'usuario',ativo:true,congregacoes:[]},rq='<span class="req" aria-hidden="true">*</span>';
  open_(`<h2>${o?'Editar usuário':'Novo usuário'}</h2>
  <div class="f"><label class="w2"><span>Nome${rq}</span><input data-u="nome" value="${H(v.nome)}" maxlength="120"></label>
  <label><span>Login${rq}</span><input data-u="login" value="${H(v.login)}" maxlength="40" autocomplete="off" ${o?'disabled':''}></label>
- <label><span>${o?'Nova senha':'Senha'}${o?'':rq}</span><input type="password" data-u="senha" autocomplete="new-password" maxlength="128" placeholder="${o?'Deixe em branco para manter':'Mínimo de 8 caracteres'}"></label>
+ <label><span>${o?'Nova senha':'Senha'}${o?'':rq}</span><input type="password" data-u="senha" autocomplete="new-password" maxlength="128" placeholder="${o?'Deixe em branco para manter':'Mínimo de 8 caracteres, com letras e números'}"></label>
  <label><span>Perfil de acesso</span><select data-u="perfil" ${eu?'disabled':''}><option value="usuario" ${v.perfil=='usuario'?'selected':''}>Usuário comum</option><option value="admin" ${v.perfil=='admin'?'selected':''}>Administrador</option></select></label>
  <label><span>Situação</span><select data-u="ativo" ${eu?'disabled':''}><option value="1" ${v.ativo?'selected':''}>Ativo</option><option value="0" ${v.ativo?'':'selected'}>Inativo</option></select></label></div>
  <div id="ucg"><h3 class="sec">Congregações liberadas</h3><p class="hint" style="margin:0">O usuário comum só enxerga e lança dados nas congregações marcadas aqui.</p>
@@ -859,16 +887,40 @@ function formUsuario(id){const o=id?UL.find(u=>u.id==id):null,eu=!!o&&o.id==M.us
   if(!o)body.login=q('login').value;if(q('senha').value)body.senha=q('senha').value;
   b.disabled=true;b.classList.add('busy');const r=await api(o?'/api/usuarios/'+id:'/api/usuarios',{m:o?'PUT':'POST',b:body});b.disabled=false;b.classList.remove('busy');
   if(r.ok){toast(o?'Usuário atualizado':'Usuário cadastrado');close();await usuarios()}else $('#me').textContent=r.j.erros?r.j.erros.map(e=>e.msg).join(' '):(r.j.erro||'Não foi possível salvar.')}}
-if(ADMIN){UPG=mkPg('u',()=>renderU());$('#usn').onclick=()=>formUsuario();
+if(ADMIN){$('#ubl').onclick=e=>{const b=e.target.closest('button[data-ub]');if(b)pedirDesbloqueio(+b.dataset.ub,b.closest('.fxrow').querySelector('b').textContent)};UPG=mkPg('u',()=>renderU());$('#usn').onclick=()=>formUsuario();
  const ufil=(s)=>{$('#usq').value='';$('#uss').value=s;renderU(1)};$('#ukb1').onclick=()=>ufil('');$('#ukb2').onclick=()=>ufil('1');$('#ukb3').onclick=()=>ufil('0');$('#ukb4').onclick=()=>show('cg');
  document.querySelectorAll('#us th[data-sort]').forEach(th=>{th.tabIndex=0;const go=()=>{US.d=US.k==th.dataset.sort?-US.d:1;US.k=th.dataset.sort;document.querySelectorAll('#us th[data-sort]').forEach(x=>x.removeAttribute('aria-sort'));th.setAttribute('aria-sort',US.d==1?'ascending':'descending');renderU(1)};th.onclick=go;th.onkeydown=e=>{if(e.key=='Enter'||e.key==' '){e.preventDefault();go()}}});
  $('#usq').oninput=()=>renderU(1);$('#uss').onchange=()=>renderU(1);
  $('#usr').onclick=async()=>{const b=$('#usr');b.disabled=true;await usuarios();b.disabled=false;toast('Lista atualizada')};
  $('#utb').onclick=e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.ub){const x=UL.find(z=>z.id==b.dataset.ub);return pedirDesbloqueio(+b.dataset.ub,x?x.nome:'esta conta')}
   if(b.dataset.ue)return formUsuario(+b.dataset.ue);
   const u=UL.find(x=>x.id==b.dataset.ut);if(!u)return;
   const go=async()=>{const r=await api('/api/usuarios/'+u.id,{m:'PUT',b:{nome:u.nome,perfil:u.perfil,ativo:!u.ativo,congregacoes:u.congregacoes}});if(r.ok){toast(u.ativo?'Usuário desativado':'Usuário ativado');usuarios()}else toast((r.j.erros&&r.j.erros[0].msg)||r.j.erro||'Não foi possível alterar','err')};
   if(u.ativo)ask('Desativar usuário',`Desativar <b>${H(u.nome)}</b>? Ele perde o acesso imediatamente, mas o histórico dos lançamentos é mantido.`,'Sim, desativar',go);else go()}}
+/* ===== Fichas do Portal: conferir, autorizar ou recusar (somente administrador) ===== */
+const FPS={pendente:'Aguardando análise',aprovada:'Aprovada',recusada:'Recusada',substituida:'Substituída'};
+async function fichas(){const r=await api('/api/portal/fichas?situacao='+$('#fps').value);if(!r.ok){$('#fpe').textContent=r.j.erro||'Não foi possível carregar as fichas.';return}$('#fpe').textContent='';const L=r.j;$('#fpv').hidden=L.length>0;
+ $('#fpt').innerHTML=L.map(f=>`<tr><td data-label="Enviada em">${H(fdh(f.enviada_em))}</td><td class="nm" data-label="Nome">${H(f.membro_nome||f.enviada_por_nome)}</td><td data-label="Tipo">${f.tipo=='novo_cadastro'?'Novo cadastro':'Atualização'}</td><td data-label="Situação"><span class="badge ${f.situacao=='aprovada'?'ok':f.situacao=='pendente'?'adm':'st-Inativo'}">${FPS[f.situacao]}</span></td><td data-label="Decisão">${f.decidida_em?H(fdh(f.decidida_em)+(f.decidida_por_nome?' · '+f.decidida_por_nome:'')):'–'}${f.justificativa&&f.situacao=='recusada'?'<br><small>'+H(f.justificativa)+'</small>':''}</td><td class="ac"><div class="acoes"><button type="button" class="p" data-fp="${f.id}">${f.situacao=='pendente'?'Conferir':'Ver'}</button></div></td></tr>`).join('');
+ const n=(await api('/api/portal/fichas?situacao=pendente')).j;const a=document.querySelector('[data-v=fp]');if(a&&Array.isArray(n)&&n.length)a.setAttribute('title',n.length+' aguardando análise')}
+async function fichaAbrir(id){const r=await api('/api/portal/fichas/'+id);if(!r.ok){toast(r.j.erro||'Não foi possível abrir a ficha','err');return}const f=r.j,pend=f.situacao=='pendente';
+ open_(`<h2>${f.tipo=='novo_cadastro'?'Novo cadastro enviado pelo portal':'Atualização enviada pelo portal'}</h2><p class="hint">Enviada por <b>${H(f.enviada_por_nome)}</b> em ${H(fdh(f.enviada_em))} · ${FPS[f.situacao]}${f.decidida_por_nome?' por '+H(f.decidida_por_nome)+' em '+H(fdh(f.decidida_em)):''}${f.justificativa?'<br>Justificativa: '+H(f.justificativa):''}</p>
+  <div class="t"><table class="rt"><thead><tr><th>Campo</th><th>Cadastro oficial</th><th>Enviado pelo membro</th></tr></thead><tbody>${f.campos.map(c=>`<tr><td data-label="Campo">${H(c.rotulo)}</td><td data-label="Oficial">${H(acV(c.antes)||'(vazio)')}</td><td data-label="Enviado">${H(acV(c.depois)||'(vazio)')}</td></tr>`).join('')||'<tr><td colspan="3">Nenhuma diferença nos campos.</td></tr>'}</tbody></table></div>
+  ${f.foto_nova?`<h3 class="sec">Foto enviada</h3><img src="/api/portal/fichas/${f.id}/foto" alt="Foto enviada pelo membro" style="max-width:160px;border-radius:8px">`:''}${f.remover_foto?'<p class="hint">O membro pediu para remover a foto atual.</p>':''}
+  <p class="hint">Os dados só serão aplicados ao cadastro oficial se você autorizar. A versão anterior e esta decisão ficam guardadas.</p><div id="me"></div>
+  <div class="row"><button type="button" id="fpx">Fechar</button>${pend?'<button type="button" class="dd" id="fpr">Recusar</button><button type="button" class="p" id="fpa">Autorizar e aplicar ao cadastro</button>':''}</div>`);
+ $('#fpx').onclick=close;if(!pend)return;
+ $('#fpa').onclick=()=>ask('Autorizar ficha','Os dados desta ficha serão aplicados ao cadastro oficial agora. Confirmar?','Sim, autorizar',async()=>{const x=await api('/api/portal/fichas/'+id+'/aprovar',{m:'POST',b:{}});if(x.ok){toast('Ficha autorizada e aplicada ao cadastro');fichas();mbKpi()}else toast(x.j.erro||'Não foi possível autorizar','err')},false);
+ $('#fpr').onclick=()=>ask('Recusar ficha','Informe a justificativa. O membro verá o motivo no portal e o cadastro oficial não será alterado.<br><label style="display:block;margin-top:.6rem">Justificativa<input id="fpj" maxlength="500" style="width:100%"></label>','Recusar',async()=>{const x=await api('/api/portal/fichas/'+id+'/recusar',{m:'POST',b:{justificativa:($('#fpj')||{}).value||''}});if(x.ok){toast('Ficha recusada');fichas()}else toast(x.j.erro||'Não foi possível recusar','err')})}
+if(ADMIN){$('#fps').onchange=()=>fichas();$('#fpt').onclick=e=>{const b=e.target.closest('button[data-fp]');if(b)fichaAbrir(+b.dataset.fp)}}
+/* ===== Auditoria (somente administrador) ===== */
+let AU={p:1,t:0,por:50};
+async function auditoria(p){if(p)AU.p=p;const q=new URLSearchParams({pagina:AU.p,por:AU.por,operacao:$('#auo').value,usuario:$('#auu').value,de:$('#aud').value,ate:$('#aua').value,resultado:$('#aur').value});
+ const r=await fetch('/api/auditoria?'+q);if(r.status==423){location='/destravar';return}if(r.status==401){location='/login';return}if(!r.ok){$('#aue').textContent='Não foi possível carregar a auditoria.';return}$('#aue').textContent='';
+ AU.t=+r.headers.get('X-Total-Count')||0;const L=await r.json();
+ $('#aut').innerHTML=L.map(x=>`<tr><td data-label="Data e hora">${H(new Date(x.created_at).toLocaleString('pt-BR'))}</td><td data-label="Usuário">${H(x.usuario_nome||'–')}</td><td data-label="Perfil">${H(x.perfil||'–')}</td><td data-label="Operação">${H(x.operacao)}</td><td data-label="Registro">${H((x.entidade||'')+(x.registro_id?' #'+x.registro_id:''))}</td><td data-label="Resultado">${H(x.resultado)}</td><td data-label="Detalhes">${H([x.motivo,x.depois?JSON.stringify(x.depois):'',x.ip?'IP '+x.ip:''].filter(Boolean).join(' · ')).slice(0,400)}</td></tr>`).join('');
+ const ini=AU.t?(AU.p-1)*AU.por+1:0;$('#aui').textContent=AU.t?`${ini}–${Math.min(AU.p*AU.por,AU.t)} de ${AU.t}`:'Nenhum registro encontrado.';$('#aup').disabled=AU.p<=1;$('#aun').disabled=AU.p*AU.por>=AU.t}
+if(ADMIN){$('#aub').onclick=()=>auditoria(1);$('#aup').onclick=()=>auditoria(AU.p-1);$('#aun').onclick=()=>auditoria(AU.p+1)}
 /* ===== AGENDA: semana, eventos, aniversariantes, Datashow ===== */
 let AG={sem:null,dados:null,ev:[],an:null,cong:''};
 /* congregação escolhida na Agenda: '' = todas as liberadas ao usuário · '0' = compromissos antigos, sem congregação (só administrador) · 'n' = congregação n */
