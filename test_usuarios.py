@@ -97,7 +97,7 @@ t("admin vê todos os membros", {"Mem Alfa", "Mem Beta", "Mem Gama", "Mem Sem Co
 t("membro de outra congregação / sem congregação: 404", call(mar, f"/api/membros/{mC}")[0] == 404 and call(mar, f"/api/membros/{mN}")[0] == 404 and call(mar, f"/api/membros/{mA}")[0] == 200)
 base = lambda **k: dict(dict(nome="X", status="Ativo", status_membresia="Membro", congregacao_id=ca, data_nascimento="1990-11-12"), **k)
 t("não cadastra membro em congregação não liberada (403)", call(mar, "/api/membros", base(congregacao_id=cc))[0] == 403)
-t("não cadastra membro sem congregação (403)", call(mar, "/api/membros", base(congregacao_id=None))[0] == 403)
+t("não cadastra membro sem congregação (400: campo obrigatório)", call(mar, "/api/membros", base(congregacao_id=None))[0] == 400)
 t("não edita membro de outra congregação (404)", call(mar, f"/api/membros/{mC}", base(nome="Hack"), "PUT")[0] == 404)
 t("não move membro para congregação não liberada (403)", call(mar, f"/api/membros/{mA}", base(nome="Mem Alfa", congregacao_id=cc), "PUT")[0] == 403)
 t("não exclui membro de outra congregação (404)", call(mar, f"/api/membros/{mC}", m="DELETE")[0] == 404 and db("SELECT excluido_em IS NULL FROM membros WHERE id=%s", (mC,))[0][0])

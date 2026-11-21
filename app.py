@@ -575,7 +575,8 @@ def validar_membro(d):
     v["observacoes"] = s("observacoes") or None
     if v["observacoes"] and len(v["observacoes"]) > 2000: erros.append("Campo muito longo: observacoes."); v["observacoes"] = None
     cg = d.get("congregacao_id"); v["congregacao_id"] = None
-    if cg not in (None, ""):
+    if cg in (None, ""): obr("congregacao_id", "Congregação")
+    else:
         v["congregacao_id"] = _int(cg, None)
         if v["congregacao_id"] is None: erros.append("Congregação inválida.")
     v["status"] = s("status")
@@ -1166,8 +1167,8 @@ def revogar_acesso(id):
 
 # ----- membro: tela, leitura, atualização, foto e senha
 # Campos que o MEMBRO pode alterar. Tudo que não está aqui (status da membresia, cargo, congregação, datas oficiais...) é ignorado.
-PORTAL_EDITAVEIS = ["nome", "data_nascimento", "sexo", "estado_civil", "cpf", "sem_cpf", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "data_conversao", "data_batismo"]
-PORTAL_ROTULOS = dict(nome="Nome completo", data_nascimento="Data de nascimento", sexo="Sexo", estado_civil="Estado civil", cpf="CPF", sem_cpf="Não possui CPF", cep="CEP", logradouro="Logradouro",
+PORTAL_EDITAVEIS = ["nome", "data_nascimento", "sexo", "estado_civil", "cpf", "sem_cpf", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "congregacao_id", "data_conversao", "data_batismo"]
+PORTAL_ROTULOS = dict(nome="Nome completo", data_nascimento="Data de nascimento", sexo="Sexo", estado_civil="Estado civil", cpf="CPF", sem_cpf="Não possui CPF", cep="CEP", logradouro="Logradouro", congregacao_id="Congregação",
                       numero="Número", complemento="Complemento", bairro="Bairro", cidade="Cidade", uf="UF", data_conversao="Data de conversão", data_batismo="Data de batismo", foto="Foto")
 
 def validar_portal(d):
@@ -1191,6 +1192,12 @@ def validar_portal(d):
         v[k] = s(k) or None
         if not v[k]: obr(k, rot)
         elif v[k] not in lista: erro(k, f"{rot} inválido."); v[k] = None
+    cg = d.get("congregacao_id"); cg = str(cg).strip() if isinstance(cg, (int, str)) and not isinstance(cg, bool) else ""
+    v["congregacao_id"] = None
+    if not cg: obr("congregacao_id", "Congregação")
+    else:
+        v["congregacao_id"] = _int(cg, None)
+        if v["congregacao_id"] is None: erro("congregacao_id", "Congregação inválida.")
     cpf = re.sub(r"\D", "", s("cpf")); v["cpf"] = None
     v["sem_cpf"] = d.get("sem_cpf") is True
     if v["sem_cpf"]:
@@ -1230,6 +1237,20 @@ def _ver_valor(k, x):
     if k == "sem_cpf": return "Sim" if x else "Não"
     return x.isoformat() if hasattr(x, "isoformat") else str(x)
 
+def _erro_cong_portal(c, cid, atual_id=None):
+    """A congregação escolhida no portal precisa existir e estar ativa (ou ser a que o membro já tem)."""
+    if c.execute("SELECT 1 FROM congregacoes WHERE id=%s AND (ativo OR id=%s)", (cid, atual_id or 0)).fetchone(): return None
+    return jsonify(erros=[dict(msg="Selecione uma congregação válida.", campo="congregacao_id")]), 400
+
+def _dif_cong(c, dif):
+    """No registro de alterações a congregação aparece pelo NOME (não pelo número interno)."""
+    d = dif.get("congregacao_id")
+    if not d: return
+    ids = [int(x) for x in (d["antes"], d["depois"]) if x]
+    nomes = {str(r["id"]): r["nome"] for r in c.execute("SELECT id,nome FROM congregacoes WHERE id = ANY(%s::int[])", (ids,)).fetchall()}
+    for k in ("antes", "depois"):
+        if d[k]: d[k] = nomes.get(str(d[k]), d[k])
+
 @app.get("/portal")
 @so_membro
 def portal():
@@ -1245,14 +1266,16 @@ def portal():
 def portal_ver():
     if getattr(g, "novo", False):   # cadastro novo: formulário em branco
         out = {k: None for k in PORTAL_EDITAVEIS}; out["sem_cpf"] = False; out["leitura"] = {}; out["tem_foto"], out["foto_v"] = False, None
+        with conn() as c: out["congregacoes"] = c.execute("SELECT id,nome FROM congregacoes WHERE ativo ORDER BY nome").fetchall()
         return jsonify(out)
     with conn() as c:
         m = c.execute("SELECT m.*,cg.nome congregacao FROM membros m LEFT JOIN congregacoes cg ON cg.id=m.congregacao_id WHERE m.id=%s AND m.excluido_em IS NULL", (g.membro_id,)).fetchone()
         if not m: return jsonify(erro="Cadastro não encontrado."), 404
         f = c.execute("SELECT EXTRACT(EPOCH FROM atualizado_em)::bigint v FROM membro_foto WHERE membro_id=%s", (g.membro_id,)).fetchone()
-    out = {k: m[k] for k in PORTAL_EDITAVEIS}
+        congs = c.execute("SELECT id,nome FROM congregacoes WHERE ativo OR id=%s ORDER BY nome", (m["congregacao_id"] or 0,)).fetchall()
+    out = {k: m[k] for k in PORTAL_EDITAVEIS}; out["congregacoes"] = congs
     # somente leitura: situação eclesiástica oficial é da secretaria
-    out["leitura"] = {k: m[k] for k in ("congregacao", "status_membresia", "cargo", "data_chegada", "data_recebimento")}
+    out["leitura"] = {k: m[k] for k in ("status_membresia", "cargo", "data_chegada", "data_recebimento")}
     out["tem_foto"], out["foto_v"] = bool(f), (f["v"] if f else None)
     return jsonify(out)
 
@@ -1276,9 +1299,12 @@ def _portal_criar(v, foto):
         with conn() as c:
             if c.execute("SELECT count(*) n FROM historico_membro WHERE secretario_id IS NULL AND descricao LIKE 'Cadastro criado pelo próprio membro%' AND created_at > now() - interval '1 hour'").fetchone()["n"] >= NOVOS_MAX:
                 return jsonify(erros=[dict(msg="Muitos cadastros foram enviados agora. Tente novamente em alguns minutos ou fale com o secretário.")]), 429
+            er = _erro_cong_portal(c, v["congregacao_id"])
+            if er: return er
             mid = c.execute("INSERT INTO membros(" + ",".join(PORTAL_EDITAVEIS) + ",nome_busca,status,status_membresia) VALUES(" + ",".join(["%s"] * len(PORTAL_EDITAVEIS)) + ",f_unaccent(%s),'Ativo',NULL) RETURNING id",
                             [v[k] for k in PORTAL_EDITAVEIS] + [v["nome"]]).fetchone()["id"]
             dif = {k: dict(antes=None, depois=_ver_valor(k, v[k])) for k in PORTAL_EDITAVEIS if v[k] not in (None, "", False)}
+            _dif_cong(c, dif)
             if foto:
                 c.execute("INSERT INTO membro_foto(membro_id,imagem,tipo,tamanho) VALUES(%s,%s,%s,%s)", (mid, foto[0], foto[1], len(foto[0])))
                 dif["foto"] = dict(antes=None, depois="Nova foto enviada")
@@ -1307,8 +1333,11 @@ def portal_salvar():
         with conn() as c:   # uma transação: cadastro + foto + registro das alterações, ou nada
             a = c.execute("SELECT * FROM membros WHERE id=%s AND excluido_em IS NULL FOR UPDATE", (g.membro_id,)).fetchone()
             if not a: return jsonify(erro="Cadastro não encontrado."), 404
+            er = _erro_cong_portal(c, v["congregacao_id"], a["congregacao_id"])
+            if er: return er
             # compara os valores REAIS; a máscara do CPF vale só para o que é gravado no registro de alterações
             dif = {k: dict(antes=_ver_valor(k, a[k]), depois=_ver_valor(k, v[k])) for k in PORTAL_EDITAVEIS if _norm(a[k]) != _norm(v[k])}
+            _dif_cong(c, dif)
             if dif:
                 c.execute("UPDATE membros SET " + ",".join(k + "=%s" for k in PORTAL_EDITAVEIS) + ",nome_busca=f_unaccent(%s),updated_at=now() WHERE id=%s",
                           [v[k] for k in PORTAL_EDITAVEIS] + [v["nome"], g.membro_id])

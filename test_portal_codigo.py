@@ -118,11 +118,11 @@ t("membro não vê Configuração nem Usuários", all(m1c.get(u).status_code == 
 t("foto do outro membro inacessível (a rota só serve a do próprio)", m1c.get("/api/portal/foto").status_code == 404)
 
 # ---------- 6. atualização cadastral: grava no PRÓPRIO cadastro, com registro permanente
-corpo = {k: me[k] for k in ("nome", "data_nascimento", "sexo", "estado_civil", "cpf", "sem_cpf", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "data_conversao", "data_batismo")}
-corpo.update(logradouro="Rua Nova do Portal", data_batismo="2001-05-06", id=m2, membro_id=m2, status_membresia="Congregado", cargo="Pastor", congregacao_id=99)
+corpo = {k: me[k] for k in ("nome", "data_nascimento", "sexo", "estado_civil", "cpf", "sem_cpf", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "congregacao_id", "data_conversao", "data_batismo")}
+corpo.update(logradouro="Rua Nova do Portal", data_batismo="2001-05-06", id=m2, membro_id=m2, status_membresia="Congregado", cargo="Pastor")
 s, r = call(m1c, "/api/portal/meu-cadastro", corpo, "PUT"); t("membro envia atualização (200)", s == 200 and r.get("alterados") == 2)
 t("gravou no cadastro DELE", db("SELECT logradouro,data_batismo FROM membros WHERE id=%s", (m1,))[0] == ("Rua Nova do Portal", __import__("datetime").date(2001, 5, 6)))
-t("ignorou id/membro_id/cargo/status/congregação enviados", db("SELECT status_membresia,cargo,congregacao_id FROM membros WHERE id=%s", (m1,))[0] == ("Membro", "Diácono", ca))
+t("ignorou id/membro_id/cargo/status enviados (a congregação vem do próprio formulário)", db("SELECT status_membresia,cargo,congregacao_id FROM membros WHERE id=%s", (m1,))[0] == ("Membro", "Diácono", ca))
 t("o OUTRO membro não foi tocado", db("SELECT nome,cep,cpf,status_membresia,cargo FROM membros WHERE id=%s", (m2,))[0] == antes_m2)
 al = db("SELECT membro_id,usuario_id,usuario_nome,campos FROM membro_alteracoes")
 t("registro permanente: membro, SEM usuário, nome do membro e antes/depois", len(al) == 1 and al[0][0] == m1 and al[0][1] is None and al[0][2] == "Maria das Dores Souza" and al[0][3]["logradouro"]["depois"] == "Rua Nova do Portal")
@@ -159,14 +159,15 @@ t("cadastro novo também não acessa mais nada", all(call(nc, u)[0] in (401, 403
 novo = dict(nome="Lucas Almeida Rocha", data_nascimento="2001-09-09", sexo="Masculino", estado_civil="Solteiro(a)", cpf=fmt(cpf("123456789")), sem_cpf=False, cep="23890-000", logradouro="Rua B", numero="5",
             complemento="Ap 2", bairro="Centro", cidade="Seropédica", uf="RJ", data_conversao="2020-02-02", data_batismo="", id=1, status_membresia="Membro", cargo="Pastor", congregacao_id=ca)
 s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, nome=""), "PUT"); t("novo cadastro com campo obrigatório vazio: 400 e nada gravado", s == 400 and db("SELECT count(*) FROM membros")[0][0] == membros0)
+s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, congregacao_id=""), "PUT"); t("novo cadastro sem congregação: 400 e nada gravado", s == 400 and db("SELECT count(*) FROM membros")[0][0] == membros0)
 s, r = call(nc, "/api/portal/meu-cadastro", dict(novo, cpf=fmt(cpf("111444777"))), "PUT"); t("novo cadastro com CPF que já existe: 400 com orientação", s == 400 and "já está cadastrado" in str(r))
 s, r = call(nc, "/api/portal/meu-cadastro", novo, "PUT"); t("novo cadastro enviado (200)", s == 200 and r.get("novo") is True)
 nm = db("SELECT id,nome,status,status_membresia,cargo,congregacao_id,cpf FROM membros WHERE cpf=%s", (fmt(cpf("123456789")),))
-t("cadastro criado SEM Status da Membresia, sem cargo e sem congregação (a secretaria define depois)", len(nm) == 1 and nm[0][2:6] == ("Ativo", None, None, None))
+t("cadastro criado SEM Status da Membresia e sem cargo, COM a congregação escolhida pelo membro", len(nm) == 1 and nm[0][2:6] == ("Ativo", None, None, ca))
 sem = call(adm, "/api/membros?membresia=sem")[1]
 t("filtro 'Sem status definido' lista o cadastro vindo do portal", [x["nome"] for x in sem] == ["Lucas Almeida Rocha"] and sem[0]["status_membresia"] is None)
 t("filtros Membro/Congregado não trazem quem está sem status", all(x["nome"] != "Lucas Almeida Rocha" for q in ("Membro", "Congregado") for x in call(adm, "/api/membros?membresia=" + q)[1]))
-t("ignorou cargo/status/congregação/id enviados", nm[0][4] is None and nm[0][5] is None and nm[0][0] != 1)
+t("ignorou cargo/status/id enviados", nm[0][4] is None and nm[0][5] == ca and nm[0][0] != 1)
 h2 = db("SELECT secretario_id,secretario_nome,descricao FROM historico_membro WHERE membro_id=%s", (nm[0][0],))
 t("Histórico registra 'Cadastro criado pelo próprio membro', sem usuário", len(h2) == 1 and h2[0][0] is None and "criado pelo próprio membro" in h2[0][2] and "via portal" in h2[0][1])
 al = db("SELECT usuario_id,campos FROM membro_alteracoes WHERE membro_id=%s", (nm[0][0],))

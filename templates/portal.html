@@ -147,6 +147,7 @@ main.pt::after{display:none}
   <div class="card mf-pane" id="ptp3" role="tabpanel" aria-labelledby="ptt3" hidden><h2 class="mf-h"><svg class="ic" aria-hidden="true"><use href="#i-church"/></svg>Dados eclesiásticos</h2>
     <p class="hint">Informe as datas que você conhece. Se não tiver certeza, deixe em branco.</p>
     <div class="f"><label><span>Data de conversão</span><input type="date" data-k="data_conversao"></label><label><span>Data de batismo</span><input type="date" data-k="data_batismo"></label></div>
+    <div class="f" style="margin-top:var(--s4)"><label><span>Congregação<span class="req" aria-hidden="true">*</span></span><select data-k="congregacao_id" aria-required="true"></select></label></div>
     <h3 class="sub" style="margin:var(--s5) 0 0;font-size:.9375rem;color:var(--navy)">Situação na igreja</h3>
     <div class="pt-ro" id="ptro" aria-label="Situação na igreja (somente leitura)"></div>
     <div class="pt-nota"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg><span>O <b>Status da membresia</b> e as demais informações oficiais são mantidos pela secretaria e não podem ser alterados aqui. Se algo estiver incorreto, procure a secretaria.</span></div></div>
@@ -246,10 +247,11 @@ addEventListener('beforeunload',e=>{if(P.dirty&&!$('#ptform').hidden){e.preventD
 function preenche(o){document.querySelectorAll('#pt [data-k]').forEach(i=>{const x=o?o[i.dataset.k]:null;i.value=x==null?'':(i.type=='date'?String(x).slice(0,10):x)});
  semCpf(!!(o&&o.sem_cpf));semNum(!!o&&String(o.numero||'').trim().toUpperCase()=='S/N');clearErr(pt);marcaAbas();$('#pte').textContent=''}
 function leitura(l){const it=(t,v)=>`<div><small>${t}</small><b>${H(v||'–')}</b></div>`;
- $('#ptro').innerHTML=it('Congregação',l.congregacao)+it('Status da membresia',l.status_membresia||'A definir pela secretaria')+it('Cargo eclesiástico',l.cargo)+it('Data de chegada à igreja',fd(l.data_chegada))+it('Data de recebimento',fd(l.data_recebimento))}
+ $('#ptro').innerHTML=it('Status da membresia',l.status_membresia||'A definir pela secretaria')+it('Cargo eclesiástico',l.cargo)+it('Data de chegada à igreja',fd(l.data_chegada))+it('Data de recebimento',fd(l.data_recebimento))}
 async function carrega(){const r=await api('/api/portal/meu-cadastro');
  if(!r.ok){$('#pte').textContent=r.j.erro||'Não foi possível carregar o seu cadastro. Tente novamente em instantes.';return}
- P.temFoto=!!r.j.tem_foto;P.fotoV=r.j.foto_v;preenche(r.j);leitura(r.j.leitura||{});fotoVer();P.dirty=false;P.carregou=true}
+ P.temFoto=!!r.j.tem_foto;P.fotoV=r.j.foto_v;const cgs=r.j.congregacoes||[];if(!r.j.congregacao_id&&cgs.length==1)r.j.congregacao_id=cgs[0].id;
+ K('congregacao_id').innerHTML='<option value="">Selecione...</option>'+cgs.map(c=>`<option value="${c.id}">${H(c.nome)}</option>`).join('');preenche(r.j);leitura(r.j.leitura||{});fotoVer();P.dirty=false;P.carregou=true}
 
 /* foto */
 const FTIPOS=['image/jpeg','image/png','image/webp'],FMAX=10*1024*1024;
@@ -297,7 +299,7 @@ function recorte(img,url){const S=Math.max(200,Math.min(300,innerWidth-96));
    const fr=new FileReader();fr.onload=()=>{if(P.foto)URL.revokeObjectURL(P.foto.url);P.foto={url:URL.createObjectURL(b),dataUrl:fr.result};P.fotoRem=false;P.dirty=true;fim();close_();fotoVer()};fr.readAsDataURL(b)},'image/jpeg',.86)}}
 
 /* enviar */
-const OBR=['nome','data_nascimento','sexo','estado_civil','cpf','cep','logradouro','numero','complemento','bairro','cidade','uf'];
+const OBR=['nome','data_nascimento','sexo','estado_civil','cpf','cep','logradouro','numero','complemento','bairro','cidade','uf','congregacao_id'];
 const faltam=()=>OBR.filter(k=>{if(k=='cpf'&&$('#ptsemcpf').checked)return false;if(k=='numero'&&$('#ptsemnum').checked)return false;return !String(K(k).value||'').trim()});
 function marca(lista){lista.forEach(([k,msg])=>fieldErr(K(k),msg));marcaAbas();
  const f=document.querySelector('#pt label.invalid input,#pt label.invalid select');if(f){tab(+f.closest('.mf-pane').id.slice(3));requestAnimationFrame(()=>{f.scrollIntoView({block:'center',behavior:'smooth'});foco(f)})}}

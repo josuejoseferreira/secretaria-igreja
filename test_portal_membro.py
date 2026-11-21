@@ -129,7 +129,7 @@ t("cadastro de outro membro permanece intacto", db("SELECT nome,cep,status_membr
 # ---------- 4. atualização de dados pessoais e endereço
 def dados(**k):
     d = dict(nome="Maria das Dores Souza", data_nascimento="1985-03-20", sexo="Feminino", estado_civil="Casado(a)", cpf=fmt(cpf("111444777")), sem_cpf=False, cep="23890-000", logradouro="Rua A",
-             numero="10", sem_numero=False, complemento="Casa", bairro="Centro", cidade="Seropédica", uf="RJ", data_conversao="2005-05-05", data_batismo="2006-06-06")
+             numero="10", sem_numero=False, complemento="Casa", bairro="Centro", cidade="Seropédica", uf="RJ", data_conversao="2005-05-05", data_batismo="2006-06-06", congregacao_id=ca)
     d.update(k); return d
 hist0 = db("SELECT count(*) FROM historico_membro WHERE membro_id=%s", (m1,))[0][0]
 s, r = call(mb, "/api/portal/meu-cadastro", dados(), "PUT"); t("enviar sem mudar nada: 200 e 0 alterações, sem novo histórico", s == 200 and r["alterados"] == 0 and db("SELECT count(*) FROM historico_membro WHERE membro_id=%s", (m1,))[0][0] == hist0)
@@ -143,11 +143,20 @@ s, r = call(mb, "/api/portal/meu-cadastro", dados(nome="Maria das Dores Souza Si
 t("membro atualiza endereço e usa Sem número (S/N)", s == 200 and db("SELECT cep,logradouro,numero,bairro,cidade FROM membros WHERE id=%s", (m1,))[0] == ("23890-001", "Rua B", "S/N", "Novo", "Itaguaí"))
 # campos protegidos: o membro tenta alterar o que não pode
 s, r = call(mb, "/api/portal/meu-cadastro", dict(dados(nome="Maria das Dores Souza Silva", estado_civil="Viúvo(a)", data_conversao="2005-07-07", cep="23890-001", logradouro="Rua B", sem_numero=True, bairro="Novo", cidade="Itaguaí"),
-                                                 status_membresia="Congregado", status="Faleceu", cargo="Pastor", congregacao_id=cb, id=m2, membro_id=m2, data_chegada="2000-01-01", data_saida="2001-01-01", excluido_em="2020-01-01", perfil="admin"), "PUT")
+                                                 status_membresia="Congregado", status="Faleceu", cargo="Pastor", id=m2, membro_id=m2, data_chegada="2000-01-01", data_saida="2001-01-01", excluido_em="2020-01-01", perfil="admin"), "PUT")
 t("tentativa de alterar campos protegidos é ignorada (200, sem alterações)", s == 200 and r["alterados"] == 0)
 t("Status da membresia, status, cargo, congregação e datas oficiais NÃO mudaram", db("SELECT status_membresia,status,cargo,congregacao_id,data_chegada,data_saida,excluido_em FROM membros WHERE id=%s", (m1,))[0] == ("Membro", "Ativo", "Diácono", ca, None, None, None))
 t("enviar com id de outro membro não altera o outro cadastro", db("SELECT nome,cep,status_membresia,cargo,congregacao_id,cpf FROM membros WHERE id=%s", (m2,))[0] == antes_m2)
 t("o perfil da conta não mudou", db("SELECT perfil FROM usuarios WHERE id=%s", (uid1,))[0][0] == "membro")
+# congregação: o membro escolhe a própria (obrigatória; já vem preenchida quando existe)
+cur = call(mb, "/api/portal/meu-cadastro")[1]
+corpo_c = {k: cur[k] for k in ("nome", "data_nascimento", "sexo", "estado_civil", "cpf", "sem_cpf", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "congregacao_id", "data_conversao", "data_batismo")}
+t("portal devolve a congregação atual preenchida e a lista de congregações", cur["congregacao_id"] == ca and {x["id"] for x in cur["congregacoes"]} >= {ca, cb} and "congregacao" not in cur["leitura"])
+s, r = call(mb, "/api/portal/meu-cadastro", dict(corpo_c, congregacao_id=""), "PUT"); t("congregação é obrigatória no portal (400)", s == 400 and "Congregação" in str(r))
+s, r = call(mb, "/api/portal/meu-cadastro", dict(corpo_c, congregacao_id=999999), "PUT"); t("congregação inexistente é recusada (400)", s == 400 and db("SELECT congregacao_id FROM membros WHERE id=%s", (m1,))[0][0] == ca)
+s, r = call(mb, "/api/portal/meu-cadastro", dict(corpo_c, congregacao_id=cb), "PUT"); t("membro escolhe a própria congregação (200, 1 alteração)", s == 200 and r["alterados"] == 1 and db("SELECT congregacao_id FROM membros WHERE id=%s", (m1,))[0][0] == cb)
+t("registro de alterações mostra o NOME da congregação (antes/depois)", db("SELECT campos FROM membro_alteracoes WHERE membro_id=%s ORDER BY id DESC LIMIT 1", (m1,))[0][0]["congregacao_id"] == {"antes": "Alfa", "depois": "Beta"})
+s, r = call(mb, "/api/portal/meu-cadastro", dict(corpo_c, congregacao_id=ca), "PUT"); t("volta para a congregação original (200)", s == 200 and db("SELECT congregacao_id FROM membros WHERE id=%s", (m1,))[0][0] == ca)
 # validações no servidor
 base = dados(nome="Maria das Dores Souza Silva", estado_civil="Viúvo(a)", data_conversao="2005-07-07", cep="23890-001", logradouro="Rua B", sem_numero=True, bairro="Novo", cidade="Itaguaí")
 snap = db("SELECT nome,cpf,cep,numero,uf FROM membros WHERE id=%s", (m1,))[0]

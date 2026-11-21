@@ -34,13 +34,14 @@ def bloqueado(sql, p=()):
     except psycopg.Error: return True
 mz, ct = cong("Matriz"), cong("Centro")
 BASE = dict(data_nascimento="1990-05-01", sexo="Masculino", estado_civil="Solteiro(a)", sem_cpf=True, cep="28680-000", logradouro="Rua A", numero="1",
-            complemento="Casa", bairro="Centro", cidade="Cachoeiras de Macacu", uf="RJ")   # cadastro completo (campos obrigatórios)
+            complemento="Casa", bairro="Centro", cidade="Cachoeiras de Macacu", uf="RJ", congregacao_id=mz)   # cadastro completo (campos obrigatórios, inclusive a congregação)
 def F(**k):
     d = dict(BASE); d.update(k)
     if d.get("cpf"): d["sem_cpf"] = False
     return d
 def novo(**k):
     d = dict(nome="Fulano", status="Ativo", status_membresia="Membro"); d.update(k); return call("/api/membros", F(**d))
+t("congregação é obrigatória no cadastro de membro (400 sem ela)", novo(nome="Sem Congregacao", congregacao_id="")[0] == 400 and novo(nome="Sem Congregacao", congregacao_id=None)[0] == 400)
 meta = call("/api/meta")[1]["membros"]
 t("meta traz as opções pedidas", meta["status"] == ["Ativo", "Inativo", "Desligado", "Faleceu", "Disciplinado", "Congregado"] and meta["membresia"] == ["Membro", "Congregado"] and meta["cargos"] == ["Obreiro", "Diácono", "Presbítero", "Evangelista", "Pastor"])
 
